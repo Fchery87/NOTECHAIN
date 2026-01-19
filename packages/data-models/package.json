@@ -1,0 +1,17 @@
+{
+  "name": "@notechain/data-models",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TypeScript interfaces and Supabase types for NoteChain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "generate": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/supabase-types.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

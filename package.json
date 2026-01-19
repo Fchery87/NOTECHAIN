@@ -1,0 +1,36 @@
+{
+  "name": "notechain",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Privacy-first, offline-first productivity suite with end-to-end encryption",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*:dev'",
+    "build": "bun run --filter '*:build'",
+    "test": "bun run --filter '*:test'",
+    "typecheck": "bun run --filter '*:typecheck'",
+    "lint": "bun run --filter '*:lint'",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:push": "supabase db push",
+    "supabase:generate": "supabase gen types typescript --project-id your-project-id > packages/data-models/src/supabase-types.ts",
+    "clean": "bun run --filter '*:clean' && rm -rf node_modules bun.lockb",
+    "format": "bun run --filter '*:format'"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "supabase": "^1.100.0",
+    "typescript": "^5.3.0",
+    "prettier": "^3.1.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0",
+    "node": ">=18.0.0"
+  }
+}

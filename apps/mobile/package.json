@@ -1,0 +1,58 @@
+{
+  "name": "@notechain/mobile",
+  "version": "0.0.1",
+  "private": true,
+  "description": "NoteChain mobile app - React Native for iOS and Android",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-native start",
+    "ios": "react-native run-ios",
+    "android": "react-native run-android",
+    "build:ios": "react-native run-ios --configuration Release",
+    "build:android": "react-native run-android --variant Release",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.{js,jsx,ts,tsx}'",
+    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx}'",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-native": "0.73.0",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "@supabase/supabase-js": "^2.39.0",
+    "react-native-mmkv": "^2.12.2",
+    "zustand": "^4.4.7",
+    "expo": "^50.0.0",
+    "expo-splash-screen": "~0.26.0",
+    "expo-status-bar": "~1.11.0",
+    "expo-router": "^3.4.0",
+    "expo-calendar": "~12.1.0",
+    "expo-crypto": "~12.8.0",
+    "expo-document-picker": "~11.10.0",
+    "expo-file-system": "~16.0.0",
+    "expo-secure-store": "~12.8.0",
+    "expo-local-authentication": "~13.8.0",
+    "@notechain/core-crypto": "*",
+    "@notechain/data-models": "*",
+    "@notechain/sync-engine": "*",
+    "@notechain/ui-components": "*"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0",
+    "prettier": "^3.1.0",
+    "jest": "^29.7.0",
+    "react-test-renderer": "18.2.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

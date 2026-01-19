@@ -1,0 +1,35 @@
+{
+  "name": "@notechain/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "NoteChain desktop app - Tauri 2.0",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'src/**/*.{ts,tsx}'"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "zustand": "^4.4.7",
+    "@notechain/core-crypto": "*",
+    "@notechain/data-models": "*",
+    "@notechain/sync-engine": "*",
+    "@notechain/ui-components": "*",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0"
+  }
+}
