@@ -8,17 +8,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter '*:dev'",
-    "build": "bun run --filter '*:build'",
-    "test": "bun run --filter '*:test'",
-    "typecheck": "bun run --filter '*:typecheck'",
-    "lint": "bun run --filter '*:lint'",
+    "dev": "bun run --filter @notechain/mobile dev",
+    "build": "bun run build --filter 'apps/*'",
+    "test": "bun run test --filter '@notechain/*'",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:push": "supabase db push",
-    "supabase:generate": "supabase gen types typescript --project-id your-project-id > packages/data-models/src/supabase-types.ts",
-    "clean": "bun run --filter '*:clean' && rm -rf node_modules bun.lockb",
-    "format": "bun run --filter '*:format'"
+    "supabase:generate": "supabase gen types typescript --project-id your-project-id > packages/data-models/src/supabase-types.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

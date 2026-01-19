@@ -35,10 +35,10 @@
     "expo-file-system": "~16.0.0",
     "expo-secure-store": "~12.8.0",
     "expo-local-authentication": "~13.8.0",
-    "@notechain/core-crypto": "*",
-    "@notechain/data-models": "*",
-    "@notechain/sync-engine": "*",
-    "@notechain/ui-components": "*"
+    "@notechain/core-crypto": "workspace:*",
+    "@notechain/data-models": "workspace:*",
+    "@notechain/sync-engine": "workspace:*",
+    "@notechain/ui-components": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",

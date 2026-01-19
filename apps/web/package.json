@@ -20,10 +20,10 @@
     "@supabase/supabase-js": "^2.39.0",
     "dexie": "^3.2.4",
     "zustand": "^4.4.7",
-    "@notechain/core-crypto": "*",
-    "@notechain/data-models": "*",
-    "@notechain/sync-engine": "*",
-    "@notechain/ui-components": "*",
+    "@notechain/core-crypto": "workspace:*",
+    "@notechain/data-models": "workspace:*",
+    "@notechain/sync-engine": "workspace:*",
+    "@notechain/ui-components": "workspace:*",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
