@@ -1,0 +1,1823 @@
+openapi: 3.1.0
+info:
+  title: NoteChain API
+  description: |
+    Zero-knowledge productivity suite API. All user data is encrypted client-side before transmission.
+    Server (Supabase) only stores encrypted blobs and cannot decrypt user content.
+
+    ## Security Model
+    - All data is encrypted client-side using AES-256-GCM
+    - Keys are derived from user credentials using Argon2id
+    - Server never sees plaintext data or encryption keys
+    - Authentication uses JWT tokens with Supabase Auth
+
+    ## Rate Limiting
+    - Free tier: 100 requests/minute
+    - Pro tier: 1000 requests/minute
+    - Rate limit headers included in all responses
+
+    ## Error Handling
+    All errors return standard error format with specific error codes.
+  version: 1.0.0
+  contact:
+    name: NoteChain Team
+    email: api@notechain.tech
+    url: https://notechain.tech
+  license:
+    name: Proprietary
+    url: https://notechain.tech/legal
+
+servers:
+  - url: https://api.notechain.tech/v1
+    description: Production API
+  - url: https://staging-api.notechain.tech/v1
+    description: Staging API
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Authentication
+    description: User authentication, registration, and account recovery
+  - name: Sync
+    description: Multi-device synchronization and conflict resolution
+  - name: Devices
+    description: Device management and registration
+  - name: Blobs
+    description: Encrypted blob storage and retrieval
+  - name: User
+    description: User profile and account management
+  - name: Billing
+    description: Subscription and billing management
+
+paths:
+  # ==================== AUTHENTICATION ====================
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: |
+        Register a new user account. Email is hashed for privacy preservation.
+        Client generates master encryption key before calling this endpoint.
+        Password is never transmitted - only credential-derived key hash.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created successfully
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Requests allowed per minute
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Requests remaining in window
+            X-RateLimit-Reset:
+              schema:
+                type: string
+                format: date-time
+              description: Window reset timestamp
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email hash already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: |
+        Authenticate user with email/password. Server validates credential hash.
+        Master encryption key is never transmitted - client derives it locally.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+            X-RateLimit-Reset:
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "423":
+          description: Account locked due to too many failed attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Refresh expired access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: JWT refresh token
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/oauth/google:
+    post:
+      tags:
+        - Authentication
+      summary: OAuth Google callback
+      description: Complete Google OAuth flow. Returns tokens on success.
+      operationId: oauthGoogle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_token
+                - public_key
+              properties:
+                id_token:
+                  type: string
+                  description: Google ID token
+                public_key:
+                  type: string
+                  format: byte
+                  description: Ed25519 public key for E2E encryption
+                encrypted_profile:
+                  type: string
+                  format: byte
+                  description: AES-256-GCM encrypted user profile (optional)
+      responses:
+        "200":
+          description: OAuth authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid ID token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/oauth/apple:
+    post:
+      tags:
+        - Authentication
+      summary: OAuth Apple callback
+      description: Complete Apple Sign-In OAuth flow. Returns tokens on success.
+      operationId: oauthApple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identity_token
+                - public_key
+              properties:
+                identity_token:
+                  type: string
+                  description: Apple identity token
+                public_key:
+                  type: string
+                  format: byte
+                  description: Ed25519 public key for E2E encryption
+                encrypted_profile:
+                  type: string
+                  format: byte
+                  description: AES-256-GCM encrypted user profile (optional)
+      responses:
+        "200":
+          description: OAuth authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid identity token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/biometric-unlock:
+    post:
+      tags:
+        - Authentication
+      summary: Biometric authentication
+      description: |
+        Authenticate using biometric credentials (FaceID, TouchID, Windows Hello).
+        Client proves possession of device-specific key encrypted with biometric key.
+      operationId: biometricUnlock
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - device_id
+                - biometric_proof
+              properties:
+                device_id:
+                  type: string
+                  format: uuid
+                  description: Device requesting unlock
+                biometric_proof:
+                  type: string
+                  format: byte
+                  description: Cryptographic proof from biometric keystore
+      responses:
+        "200":
+          description: Biometric authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid biometric proof
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Device not registered for biometric unlock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/recovery-keys:
+    post:
+      tags:
+        - Authentication
+      summary: Generate recovery keys
+      description: |
+        Generate recovery keys for account recovery. Keys are shown once and cannot be recovered.
+        Each key can be used once to regain access to the account.
+      operationId: generateRecoveryKeys
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Recovery keys generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recovery_keys:
+                    type: array
+                    items:
+                      type: string
+                    description: Array of one-time recovery keys
+                    minItems: 5
+                    maxItems: 10
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: Keys expiration timestamp
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ==================== SYNC OPERATIONS ====================
+
+  /sync/push:
+    post:
+      tags:
+        - Sync
+      summary: Upload encrypted data changes
+      description: |
+        Push local changes to server for synchronization.
+        All data is encrypted and cannot be read by server.
+        Uses CRDT-based conflict detection.
+      security:
+        - BearerAuth: []
+      operationId: syncPush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncPushRequest"
+      responses:
+        "200":
+          description: Changes synchronized successfully
+          headers:
+            X-Sync-Version:
+              schema:
+                type: integer
+              description: Current sync version after push
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPushResponse"
+        "400":
+          description: Invalid sync data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Sync version mismatch - conflicts detected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sync/pull:
+    get:
+      tags:
+        - Sync
+      summary: Download encrypted data for device
+      description: |
+        Pull changes from server since last sync.
+        Returns only encrypted blobs that device doesn't have.
+        Supports incremental sync with version checkpoints.
+      security:
+        - BearerAuth: []
+      operationId: syncPull
+      parameters:
+        - name: since_version
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          description: Last sync version received (0 for full sync)
+        - name: blob_type
+          in: query
+          schema:
+            type: string
+            enum: [note, todo, pdf, all]
+          description: Filter by blob type
+      responses:
+        "200":
+          description: Changes retrieved successfully
+          headers:
+            X-Sync-Version:
+              schema:
+                type: integer
+              description: Current sync version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sync/state:
+    get:
+      tags:
+        - Sync
+      summary: Get current sync state
+      description: |
+        Returns current synchronization state including:
+        - Latest sync version
+        - Pending changes count
+        - Device sync status
+      security:
+        - BearerAuth: []
+      operationId: getSyncState
+      responses:
+        "200":
+          description: Sync state retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncState"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sync/resolve-conflict:
+    post:
+      tags:
+        - Sync
+      summary: Manual conflict resolution
+      description: |
+        Resolve sync conflicts manually when automatic merge fails.
+        Client chooses which version to keep or provides merged result.
+      security:
+        - BearerAuth: []
+      operationId: resolveConflict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - blob_id
+                - resolution
+              properties:
+                blob_id:
+                  type: string
+                  format: uuid
+                local_version:
+                  type: integer
+                remote_version:
+                  type: integer
+                resolution:
+                  type: string
+                  enum: [keep_local, keep_remote, merge]
+                  description: Resolution strategy
+                merged_ciphertext:
+                  type: string
+                  format: byte
+                  description: Required if resolution is 'merge'
+                merged_nonce:
+                  type: string
+                  format: byte
+                  description: Required if resolution is 'merge'
+      responses:
+        "200":
+          description: Conflict resolved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resolved_version:
+                    type: integer
+                  blob_id:
+                    type: string
+                    format: uuid
+        "400":
+          description: Invalid resolution request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Conflict not found or already resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /sync/queue:
+    delete:
+      tags:
+        - Sync
+      summary: Clear local sync queue
+      description: |
+        Clear pending sync queue on server for this device.
+        Use when device data has been reset.
+      security:
+        - BearerAuth: []
+      operationId: clearSyncQueue
+      responses:
+        "200":
+          description: Sync queue cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cleared_items:
+                    type: integer
+                    description: Number of items cleared
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ==================== DEVICE MANAGEMENT ====================
+
+  /devices/register:
+    post:
+      tags:
+        - Devices
+      summary: Register new device
+      description: |
+        Register a device for multi-device sync.
+        Maximum devices enforced by subscription tier.
+        Performs key exchange for E2E encrypted sync.
+      security:
+        - BearerAuth: []
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegisterRequest"
+      responses:
+        "201":
+          description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  device_id:
+                    type: string
+                    format: uuid
+                  shared_secret_encrypted:
+                    type: string
+                    format: byte
+                    description: Device-specific shared secret
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Device limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /devices/list:
+    get:
+      tags:
+        - Devices
+      summary: List all user devices
+      description: Returns list of all devices registered to account
+      security:
+        - BearerAuth: []
+      operationId: listDevices
+      responses:
+        "200":
+          description: Device list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Device"
+                  current_device_id:
+                    type: string
+                    format: uuid
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /devices/{id}:
+    delete:
+      tags:
+        - Devices
+      summary: Revoke device access
+      description: |
+        Revoke device access. Device will be logged out and unable to sync.
+        Current device cannot revoke itself.
+      security:
+        - BearerAuth: []
+      operationId: revokeDevice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Device ID to revoke
+      responses:
+        "200":
+          description: Device access revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Cannot revoke current device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /devices/{id}/name:
+    put:
+      tags:
+        - Devices
+      summary: Update device name
+      description: Rename a registered device
+      security:
+        - BearerAuth: []
+      operationId: renameDevice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Device ID to rename
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: New device name
+      responses:
+        "200":
+          description: Device renamed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "400":
+          description: Invalid device name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ==================== BLOB STORAGE ====================
+
+  /blobs/upload:
+    post:
+      tags:
+        - Blobs
+      summary: Upload encrypted blob
+      description: |
+        Upload an encrypted data blob. Server stores as-is without decryption.
+        Client provides ciphertext, nonce, and auth tag for AES-256-GCM.
+      security:
+        - BearerAuth: []
+      operationId: uploadBlob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlobUploadRequest"
+      responses:
+        "201":
+          description: Blob uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlobUploadResponse"
+        "400":
+          description: Invalid blob data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Payload too large (max 50MB per blob)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /blobs/{blobId}:
+    get:
+      tags:
+        - Blobs
+      summary: Download encrypted blob
+      description: Retrieve encrypted blob by ID. Client decrypts locally.
+      security:
+        - BearerAuth: []
+      operationId: downloadBlob
+      parameters:
+        - name: blobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Blob retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blob"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Blob not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Blobs
+      summary: Delete blob
+      description: Soft delete blob (marked for sync removal)
+      security:
+        - BearerAuth: []
+      operationId: deleteBlob
+      parameters:
+        - name: blobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Blob deleted successfully
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Blob not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /blobs/list:
+    get:
+      tags:
+        - Blobs
+      summary: List user blobs
+      description: |
+        List all blobs for user with metadata.
+        Does not include blob content (use /blobs/{blobId} for content).
+      security:
+        - BearerAuth: []
+      operationId: listBlobs
+      parameters:
+        - name: blob_type
+          in: query
+          schema:
+            type: string
+            enum: [note, todo, pdf, annotation]
+          description: Filter by blob type
+        - name: is_deleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Blob list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  blobs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BlobMetadata"
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /blobs/meta/{blobId}:
+    get:
+      tags:
+        - Blobs
+      summary: Get blob metadata
+      description: Retrieve blob metadata without downloading content
+      security:
+        - BearerAuth: []
+      operationId: getBlobMetadata
+      parameters:
+        - name: blobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Blob metadata retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlobMetadata"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Blob not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ==================== USER MANAGEMENT ====================
+
+  /user/profile:
+    get:
+      tags:
+        - User
+      summary: Get user profile
+      description: Retrieve current user's profile (encrypted)
+      security:
+        - BearerAuth: []
+      operationId: getUserProfile
+      responses:
+        "200":
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    format: uuid
+                  email_hash:
+                    type: string
+                    format: byte
+                  created_at:
+                    type: string
+                    format: date-time
+                  encrypted_profile:
+                    type: string
+                    format: byte
+                    description: AES-256-GCM encrypted profile data
+                  profile_nonce:
+                    type: string
+                    format: byte
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - User
+      summary: Update user profile
+      description: Update user's encrypted profile data
+      security:
+        - BearerAuth: []
+      operationId: updateUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - encrypted_profile
+                - profile_nonce
+              properties:
+                encrypted_profile:
+                  type: string
+                  format: byte
+                profile_nonce:
+                  type: string
+                  format: byte
+      responses:
+        "200":
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid profile data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /user/tier:
+    put:
+      tags:
+        - User
+      summary: Update subscription tier
+      description: |
+        Update user's subscription tier.
+        Triggers billing flow for paid tiers.
+      security:
+        - BearerAuth: []
+      operationId: updateSubscriptionTier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tier
+              properties:
+                tier:
+                  type: string
+                  enum: [free, pro, team]
+                  description: New subscription tier
+                payment_method_id:
+                  type: string
+                  description: Payment method ID (required for paid tiers)
+      responses:
+        "200":
+          description: Tier updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+        "400":
+          description: Invalid tier or payment failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "402":
+          description: Payment required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /user/account:
+    delete:
+      tags:
+        - User
+      summary: Delete account
+      description: |
+        Permanently delete user account and all data.
+        This action is irreversible.
+        Requires re-authentication within last 5 minutes.
+      security:
+        - BearerAuth: []
+      operationId: deleteAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - confirmation
+              properties:
+                confirmation:
+                  type: string
+                  enum: [DELETE_MY_ACCOUNT]
+                  description: Must match exact string
+                delete_blobs:
+                  type: boolean
+                  default: true
+                  description: Also delete all stored blobs (vs soft delete)
+      responses:
+        "200":
+          description: Account deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_at:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid confirmation or recent login required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ==================== BILLING ====================
+
+  /billing/subscribe:
+    post:
+      tags:
+        - Billing
+      summary: Create subscription
+      description: |
+        Create new subscription for paid tier.
+        Initiates Stripe checkout session.
+      security:
+        - BearerAuth: []
+      operationId: createSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tier
+              properties:
+                tier:
+                  type: string
+                  enum: [pro, team]
+                billing_cycle:
+                  type: string
+                  enum: [monthly, yearly]
+                  default: monthly
+                payment_method_id:
+                  type: string
+                  description: Optional - will create checkout if not provided
+      responses:
+        "200":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url:
+                    type: string
+                    format: url
+                    description: Stripe checkout URL
+                  session_id:
+                    type: string
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /billing/status:
+    get:
+      tags:
+        - Billing
+      summary: Get subscription status
+      description: Retrieve current subscription details and status
+      security:
+        - BearerAuth: []
+      operationId: getSubscriptionStatus
+      responses:
+        "200":
+          description: Subscription status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /billing/cancel:
+    post:
+      tags:
+        - Billing
+      summary: Cancel subscription
+      description: |
+        Cancel subscription. Access continues until period end.
+        Reinstate before period end to avoid interruption.
+      security:
+        - BearerAuth: []
+      operationId: cancelSubscription
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                immediately:
+                  type: boolean
+                  default: false
+                  description: Cancel immediately (pro-rate refund) or at period end
+      responses:
+        "200":
+          description: Subscription canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+        "400":
+          description: No active subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /billing/invoices:
+    get:
+      tags:
+        - Billing
+      summary: List invoices
+      description: Retrieve list of billing invoices
+      security:
+        - BearerAuth: []
+      operationId: listInvoices
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Invoice list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoices:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Invoice"
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+# ==================== COMPONENTS ====================
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from Supabase Auth
+
+  schemas:
+    # ==================== AUTH SCHEMAS ====================
+
+    RegisterRequest:
+      type: object
+      required:
+        - email_hash
+        - public_key
+        - encrypted_profile
+      properties:
+        email_hash:
+          type: string
+          format: byte
+          description: SHA-256 hash of user email (hex encoded)
+          example: "a591a6d40bf5e9c1a5c8d6e5a2e3b1d8e9b9f8b3b8d3b1d8e9b9f8b3b8d3b1d"
+        public_key:
+          type: string
+          format: byte
+          description: Ed25519 public key for E2E encryption
+        encrypted_profile:
+          type: string
+          format: byte
+          description: AES-256-GCM encrypted initial profile
+        auth_token_hash:
+          type: string
+          description: SCrypt hash of derived auth token (for password-based auth)
+
+    LoginRequest:
+      type: object
+      required:
+        - email_hash
+      properties:
+        email_hash:
+          type: string
+          format: byte
+          description: SHA-256 hash of user email
+        auth_token_hash:
+          type: string
+          description: SCrypt hash of derived auth token (for password-based auth)
+
+    AuthResponse:
+      type: object
+      required:
+        - user_id
+        - access_token
+        - refresh_token
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: User's unique identifier
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: JWT refresh token
+        expires_in:
+          type: integer
+          description: Token expiration time in seconds
+        device_limit:
+          type: integer
+          description: Maximum devices allowed
+        account_tier:
+          type: string
+          enum: [free, pro, team]
+          description: User's subscription tier
+
+    # ==================== SYNC SCHEMAS ====================
+
+    SyncPushRequest:
+      type: object
+      required:
+        - device_id
+        - last_sync_version
+        - deltas
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          description: Device making the sync request
+        last_sync_version:
+          type: integer
+          description: Last known sync version
+        deltas:
+          type: array
+          description: Encrypted changes to apply
+          items:
+            type: object
+            required:
+              - blob_id
+              - operation
+              - version
+            properties:
+              blob_id:
+                type: string
+                format: uuid
+              operation:
+                type: string
+                enum: [create, update, delete]
+              version:
+                type: integer
+                description: CRDT version for this change
+              ciphertext:
+                type: string
+                format: byte
+                description: Encrypted payload (for create/update)
+              nonce:
+                type: string
+                format: byte
+                description: GCM nonce
+              auth_tag:
+                type: string
+                format: byte
+                description: GCM auth tag
+              key_id:
+                type: string
+                format: uuid
+                description: Encryption key ID
+
+    SyncPushResponse:
+      type: object
+      required:
+        - sync_version
+      properties:
+        sync_version:
+          type: integer
+          description: New sync version after applying changes
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              blob_id:
+                type: string
+                format: uuid
+              local_version:
+                type: integer
+              remote_version:
+                type: integer
+              conflict_type:
+                type: string
+                enum: [version_mismatch, concurrent_edit, deleted_on_both]
+              local_data:
+                type: string
+                format: byte
+                description: Encrypted local version (if available)
+              remote_data:
+                type: string
+                format: byte
+                description: Encrypted remote version (if available)
+
+    SyncPullResponse:
+      type: object
+      required:
+        - current_sync_version
+        - deltas
+      properties:
+        current_sync_version:
+          type: integer
+          description: Latest server sync version
+        deltas:
+          type: array
+          items:
+            type: object
+            properties:
+              blob_id:
+                type: string
+                format: uuid
+              blob_type:
+                type: string
+                enum: [note, todo, pdf, annotation]
+              operation:
+                type: string
+                enum: [create, update, delete]
+              ciphertext:
+                type: string
+                format: byte
+              nonce:
+                type: string
+                format: byte
+              auth_tag:
+                type: string
+                format: byte
+              key_id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+
+    SyncState:
+      type: object
+      required:
+        - current_version
+        - pending_changes
+      properties:
+        current_version:
+          type: integer
+          description: Latest sync version on server
+        pending_local_changes:
+          type: integer
+          description: Number of changes queued locally
+        pending_remote_changes:
+          type: integer
+          description: Number of changes waiting to be pulled
+        last_synced_at:
+          type: string
+          format: date-time
+          nullable: true
+        devices_synced:
+          type: array
+          items:
+            type: object
+            properties:
+              device_id:
+                type: string
+                format: uuid
+              device_name:
+                type: string
+              last_sync_version:
+                type: integer
+
+    # ==================== DEVICE SCHEMAS ====================
+
+    DeviceRegisterRequest:
+      type: object
+      required:
+        - device_name
+        - device_type
+        - public_key
+      properties:
+        device_name:
+          type: string
+          maxLength: 255
+          description: Human-readable device name
+        device_type:
+          type: string
+          enum: [ios, android, web, desktop]
+        public_key:
+          type: string
+          format: byte
+          description: X25519 public key for E2E sync
+        encrypted_shared_secret:
+          type: string
+          format: byte
+          description: Device-specific shared secret encrypted with device key
+
+    Device:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - created_at
+        - last_active_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [ios, android, web, desktop]
+        created_at:
+          type: string
+          format: date-time
+        last_active_at:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+
+    # ==================== BLOB SCHEMAS ====================
+
+    BlobUploadRequest:
+      type: object
+      required:
+        - blob_type
+        - ciphertext
+        - nonce
+        - auth_tag
+        - key_id
+      properties:
+        blob_type:
+          type: string
+          enum: [note, todo, pdf, annotation]
+          description: Type of encrypted data
+        ciphertext:
+          type: string
+          format: byte
+          description: AES-256-GCM encrypted data
+        nonce:
+          type: string
+          format: byte
+          description: 96-bit GCM nonce
+        auth_tag:
+          type: string
+          format: byte
+          description: 128-bit GCM authentication tag
+        key_id:
+          type: string
+          format: uuid
+          description: ID of encryption key used
+        metadata_hash:
+          type: string
+          format: byte
+          description: Blake3 hash of encrypted metadata for integrity
+        parent_blob_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent blob for nested content (e.g., annotation -> pdf)
+
+    BlobUploadResponse:
+      type: object
+      required:
+        - blob_id
+        - version
+      properties:
+        blob_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: CRDT version number
+        created_at:
+          type: string
+          format: date-time
+
+    Blob:
+      type: object
+      required:
+        - blob_id
+        - blob_type
+        - ciphertext
+        - nonce
+        - auth_tag
+        - key_id
+        - version
+        - created_at
+      properties:
+        blob_id:
+          type: string
+          format: uuid
+        blob_type:
+          type: string
+          enum: [note, todo, pdf, annotation]
+        ciphertext:
+          type: string
+          format: byte
+        nonce:
+          type: string
+          format: byte
+        auth_tag:
+          type: string
+          format: byte
+        key_id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+
+    BlobMetadata:
+      type: object
+      required:
+        - blob_id
+        - blob_type
+        - version
+        - created_at
+      properties:
+        blob_id:
+          type: string
+          format: uuid
+        blob_type:
+          type: string
+          enum: [note, todo, pdf, annotation]
+        version:
+          type: integer
+        metadata_hash:
+          type: string
+          format: byte
+        parent_blob_id:
+          type: string
+          format: uuid
+          nullable: true
+        size_bytes:
+          type: integer
+          description: Unencrypted size (estimated)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+
+    # ==================== BILLING SCHEMAS ====================
+
+    SubscriptionStatus:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [free, pro, team]
+        status:
+          type: string
+          enum: [active, canceled, past_due, suspended]
+        device_limit:
+          type: integer
+        storage_limit_bytes:
+          type: integer
+        current_period_start:
+          type: string
+          format: date-time
+        current_period_end:
+          type: string
+          format: date-time
+        cancel_at_period_end:
+          type: boolean
+        features:
+          type: array
+          items:
+            type: string
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        amount_due:
+          type: integer
+        amount_paid:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [draft, open, paid, void, uncollectible]
+        invoice_pdf_url:
+          type: string
+          format: url
+        created_at:
+          type: string
+          format: date-time
+        due_date:
+          type: string
+          format: date-time
+        paid_at:
+          type: string
+          format: date-time
+
+    # ==================== ERROR SCHEMA ====================
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: "AUTH-001"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid authentication credentials"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+# ==================== ERROR CODE DEFINITIONS ====================
+
+# AUTH-xxx: Authentication failures
+# AUTH-001: Invalid authentication credentials
+# AUTH-002: Token expired
+# AUTH-003: Token revoked
+# AUTH-004: Account locked
+# AUTH-005: Device not authorized
+# AUTH-006: Missing authentication
+
+# SYNC-xxx: Synchronization issues
+# SYNC-001: Sync version mismatch
+# SYNC-002: Conflict detected
+# SYNC-003: Device not registered for sync
+# SYNC-004: Sync queue overflow
+# SYNC-005: Sync operation failed
+
+# CRYPT-xxx: Encryption/decryption errors
+# CRYPT-001: Invalid key ID
+# CRYPT-002: Decryption failed
+# CRYPT-003: Invalid ciphertext format
+# CRYPT-004: Key derivation failed
+
+# STOR-xxx: Storage errors
+# STOR-001: Blob not found
+# STOR-002: Storage quota exceeded
+# STOR-003: Upload failed
+
+# GEN-xxx: General errors
+# GEN-001: Invalid request format
+# GEN-002: Rate limit exceeded
+# GEN-003: Internal server error
+# GEN-004: Service unavailable
+# GEN-005: Feature not available on current tier
