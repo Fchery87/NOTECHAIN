@@ -1,20 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ES2020", "DOM"],
-    "declaration": true,
+    "moduleResolution": "bundler",
     "strict": true,
-    "skipLibCheck": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "node",
-    "jsx": "react-jsx",
-    "composite": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": true,
+    "paths": {
+      "@notechain/*": ["packages/*/src"]
+    },
+    "baseUrl": "."
   },
-  "include": [],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "**/dist", "**/build"]
 }
