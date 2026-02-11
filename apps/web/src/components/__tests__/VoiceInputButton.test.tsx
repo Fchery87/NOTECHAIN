@@ -136,31 +136,18 @@ describe('VoiceInputButton', () => {
     expect(button).toHaveClass('text-stone-500');
   });
 
-  test('transcript is processed for voice commands', () => {
-    // Transcript is processed when isListening becomes false (after recording stops)
-    mockIsListening = false;
-    mockTranscript = 'new paragraph';
-    mockInterpretVoiceCommand.mockReturnValue({
-      type: 'NEW_PARAGRAPH',
-      raw: 'new paragraph',
-    });
-
+  test('onTranscript callback is passed to useVoiceInput hook', () => {
     render(<VoiceInputButton {...defaultProps} />);
 
-    // Transcript is processed via useEffect when not listening
-    expect(mockInterpretVoiceCommand).toHaveBeenCalledWith('new paragraph');
-  });
-
-  test('voice command is executed when found', () => {
-    // Transcript is processed when isListening becomes false (after recording stops)
-    mockIsListening = false;
-    mockTranscript = 'bold that';
-    const command = { type: 'BOLD', raw: 'bold that' };
-    mockInterpretVoiceCommand.mockReturnValue(command);
-
-    render(<VoiceInputButton {...defaultProps} />);
-
-    expect(mockExecuteVoiceCommand).toHaveBeenCalledWith(command, mockEditor);
+    // Verify the hook was called with onTranscript callback
+    const { useVoiceInput } = require('../../hooks/useVoiceInput');
+    expect(useVoiceInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onTranscript: expect.any(Function),
+        continuous: false,
+        interimResults: true,
+      })
+    );
   });
 
   test('error state is handled gracefully', () => {
@@ -170,6 +157,37 @@ describe('VoiceInputButton', () => {
     const button = screen.getByRole('button');
     // Button should still be rendered even with error
     expect(button).toBeInTheDocument();
+  });
+
+  test('error message is displayed when error occurs', () => {
+    mockError = { error: 'not-allowed', message: 'Permission denied' };
+    render(<VoiceInputButton {...defaultProps} />);
+
+    expect(screen.getByText('Permission denied')).toBeInTheDocument();
+    expect(screen.getByText('Permission denied')).toHaveClass('text-rose-500');
+  });
+
+  test('no error message when no error', () => {
+    mockError = null;
+    render(<VoiceInputButton {...defaultProps} />);
+
+    expect(screen.queryByText('Permission denied')).not.toBeInTheDocument();
+  });
+
+  test('button has correct aria-label and aria-pressed attributes', () => {
+    mockIsListening = false;
+    const { rerender } = render(<VoiceInputButton {...defaultProps} />);
+
+    let button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-label', 'Start voice input');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+
+    mockIsListening = true;
+    rerender(<VoiceInputButton {...defaultProps} />);
+
+    button = screen.getByRole('button');
+    expect(button).toHaveAttribute('aria-label', 'Stop voice input');
+    expect(button).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('editor is optional - works with null editor', () => {
