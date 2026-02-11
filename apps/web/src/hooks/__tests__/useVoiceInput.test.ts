@@ -44,6 +44,7 @@ class MockSpeechRecognition {
   started = false;
 
   constructor() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastRecognitionInstance = this;
   }
 
@@ -348,6 +349,36 @@ describe('useVoiceInput', () => {
     test('should accept language option', () => {
       const { result } = renderHook(() => useVoiceInput({ language: 'es-ES' }));
       expect(result.current).toBeDefined();
+    });
+
+    test('should apply language to SpeechRecognition instance', async () => {
+      const { result } = renderHook(() => useVoiceInput({ language: 'es-ES' }));
+
+      act(() => {
+        result.current.startListening();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isListening).toBe(true);
+      });
+
+      const recognition = getLastRecognition();
+      expect(recognition.lang).toBe('es-ES');
+    });
+
+    test('should default to en-US when no language is specified', async () => {
+      const { result } = renderHook(() => useVoiceInput({}));
+
+      act(() => {
+        result.current.startListening();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isListening).toBe(true);
+      });
+
+      const recognition = getLastRecognition();
+      expect(recognition.lang).toBe('en-US');
     });
 
     test('should accept continuous option', () => {
