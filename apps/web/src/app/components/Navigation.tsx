@@ -89,6 +89,13 @@ export default function Navigation() {
               Pricing
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-500 transition-all duration-300 group-hover:w-full" />
             </a>
+            <a
+              href="/graph"
+              className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors relative group"
+            >
+              Knowledge Graph
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-500 transition-all duration-300 group-hover:w-full" />
+            </a>
           </div>
 
           {/* CTA Buttons */}
@@ -157,6 +164,13 @@ export default function Navigation() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Pricing
+              </a>
+              <a
+                href="/graph"
+                className="text-sm font-medium text-stone-600 hover:text-stone-900 py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Knowledge Graph
               </a>
               <hr className="border-stone-200" />
               <a
