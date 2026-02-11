@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                 String             @id @default(uuid())
+  emailHash          String             @unique @db.VarChar(255)
+  encryptedProfile   ByteArray
+  createdAt          DateTime           @default(now()) @db.Timestamptz
+  updatedAt          DateTime           @default(now()) @db.Timestamptz
+  devices            Device[]
+  encryptedBlobs     EncryptedBlob[]
+  syncMetadata       SyncMetadata[]
+  subscription       Subscription?
+  notes              Note[]
+  notebooks          Notebook[]
+  todos              Todo[]
+  projects           Project[]
+  pdfDocuments       PdfDocument[]
+
+  @@index([emailHash])
+}
+
+model Device {
+  id                    String    @id @default(uuid())
+  userId                String    @db.Uuid
+  deviceName            String    @db.VarChar(255)
+  deviceType            String    @db.VarChar(50)
+  publicExchangeKey     ByteArray
+  encryptedSharedSecret ByteArray
+  lastSeen              DateTime  @default(now()) @db.Timestamptz
+  isTrusted             Boolean   @default(false)
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  user                  Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncMetadata          SyncMetadata[]
+
+  @@unique([userId, deviceType, deviceName])
+  @@index([userId])
+}
+
+model EncryptedBlob {
+  id             String    @id @default(uuid())
+  userId         String    @db.Uuid
+  blobType       String    @db.VarChar(50)
+  ciphertext     ByteArray
+  nonce          ByteArray
+  authTag        ByteArray
+  keyId          String    @db.Uuid
+  metadataHash   ByteArray
+  version        BigInt    @default(1)
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @default(now()) @db.Timestamptz
+  isDeleted      Boolean   @default(false)
+  user           Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes          Note[]
+  todos          Todo[]
+  pdfDocuments   PdfDocument[]
+  pdfAnnotations PdfAnnotation[]
+
+  @@index([userId])
+  @@index([userId, blobType, version])
+  @@index([userId, isDeleted])
+}
+
+model SyncMetadata {
+  id               String    @id @default(uuid())
+  userId           String    @db.Uuid
+  deviceId         String    @db.Uuid
+  lastSyncVersion  BigInt    @default(0)
+  syncStatus       String    @default("idle") @db.VarChar(50)
+  lastSyncedAt     DateTime  @default(now()) @db.Timestamptz
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+  user             Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device           Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  userId               String    @unique @db.Uuid
+  accountTier          String    @default("free") @db.VarChar(50)
+  subscriptionStatus   String    @default("active") @db.VarChar(50)
+  stripeCustomerId     String?   @db.VarChar(255)
+  stripeSubscriptionId String?   @db.VarChar(255)
+  deviceLimit          Int       @default(1)
+  subscriptionExpiresAt DateTime? @db.Timestamptz
+  createdAt            DateTime  @default(now()) @db.Timestamptz
+  updatedAt            DateTime  @default(now()) @db.Timestamptz
+  user                 Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id                String         @id @default(uuid())
+  userId            String         @db.Uuid
+  encryptedBlobId   String?        @db.Uuid
+  notebookId        String?        @db.Uuid
+  titleHash         String         @db.VarChar(255)
+  contentHash       String         @db.VarChar(255)
+  wordCount         Int            @default(0)
+  encryptionKeyId   String         @db.Uuid
+  syncVersion       BigInt         @default(1)
+  isLocked          Boolean        @default(false)
+  createdAt         DateTime       @default(now()) @db.Timestamptz
+  updatedAt         DateTime       @default(now()) @db.Timestamptz
+  isDeleted         Boolean        @default(false)
+  user              Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedBlob     EncryptedBlob? @relation(fields: [encryptedBlobId], references: [id], onDelete: SetNull)
+  notebook          Notebook?      @relation(fields: [notebookId], references: [id], onDelete: SetNull)
+  todos             Todo[]
+
+  @@index([userId, isDeleted])
+  @@index([notebookId])
+}
+
+model Notebook {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  nameHash  String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @default(now()) @db.Timestamptz
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     Note[]
+
+  @@index([userId])
+}
+
+model Todo {
+  id               String         @id @default(uuid())
+  userId           String         @db.Uuid
+  encryptedBlobId  String?        @db.Uuid
+  projectId        String?        @db.Uuid
+  linkedNoteId     String?        @db.Uuid
+  priority         String         @default("medium") @db.VarChar(20)
+  status           String         @default("pending") @db.VarChar(50)
+  dueDate          DateTime?      @db.Timestamptz
+  completedAt      DateTime?      @db.Timestamptz
+  estimatedMinutes Int?
+  actualMinutes    Int?
+  calendarEventId  String?        @db.VarChar(255)
+  calendarProvider String?        @db.VarChar(50)
+  syncVersion      BigInt         @default(1)
+  createdAt        DateTime       @default(now()) @db.Timestamptz
+  updatedAt        DateTime       @default(now()) @db.Timestamptz
+  isDeleted        Boolean        @default(false)
+  user             Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedBlob    EncryptedBlob? @relation(fields: [encryptedBlobId], references: [id], onDelete: SetNull)
+  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  note             Note?          @relation(fields: [linkedNoteId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isDeleted])
+  @@index([userId, status, dueDate])
+  @@index([linkedNoteId])
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  userId    String   @db.Uuid
+  nameHash  String   @db.VarChar(255)
+  color     String   @default("#6366f6") @db.VarChar(7)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @default(now()) @db.Timestamptz
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todos     Todo[]
+
+  @@index([userId])
+}
+
+model PdfDocument {
+  id               String         @id @default(uuid())
+  userId           String         @db.Uuid
+  encryptedBlobId  String?        @db.Uuid
+  storageKey       String         @db.VarChar(500)
+  thumbnailKey     String?        @db.VarChar(500)
+  originalFilenameHash String     @db.VarChar(255)
+  pageCount        Int            @default(0)
+  fileSizeBytes    BigInt         @default(0)
+  encryptionKeyId  String         @db.Uuid
+  syncVersion      BigInt         @default(1)
+  createdAt        DateTime       @default(now()) @db.Timestamptz
+  updatedAt        DateTime       @default(now()) @db.Timestamptz
+  isDeleted        Boolean        @default(false)
+  user             Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedBlob    EncryptedBlob? @relation(fields: [encryptedBlobId], references: [id], onDelete: SetNull)
+  annotations      PdfAnnotation[]
+
+  @@index([userId, isDeleted])
+}
+
+model PdfAnnotation {
+  id              String         @id @default(uuid())
+  pdfId           String         @db.Uuid
+  encryptedBlobId String?        @db.Uuid
+  annotationType  String         @db.VarChar(50)
+  pageNumber      Int
+  positionX       Decimal?       @db.Decimal(10, 2)
+  positionY       Decimal?       @db.Decimal(10, 2)
+  width           Decimal?       @db.Decimal(10, 2)
+  height          Decimal?       @db.Decimal(10, 2)
+  color           String         @default("#FF6B6B") @db.VarChar(7)
+  syncVersion     BigInt         @default(1)
+  createdAt       DateTime       @default(now()) @db.Timestamptz
+  updatedAt       DateTime       @default(now()) @db.Timestamptz
+  pdf             PdfDocument    @relation(fields: [pdfId], references: [id], onDelete: Cascade)
+  encryptedBlob   EncryptedBlob? @relation(fields: [encryptedBlobId], references: [id], onDelete: SetNull)
+}

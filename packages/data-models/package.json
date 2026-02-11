@@ -1,17 +1,26 @@
 {
   "name": "@notechain/data-models",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "TypeScript interfaces and Supabase types for NoteChain",
+  "description": "TypeScript interfaces and Neon database types for NoteChain",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "generate": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/supabase-types.ts"
+    "generate:db-types": "bun scripts/generate-types.ts",
+    "generate": "neonctl gen types --project-id $NEON_PROJECT_ID > src/neon-types.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate": "prisma migrate dev"
   },
   "devDependencies": {
-    "typescript": "^5.3.0"
+    "prisma": "^6.3.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.0",
+    "@neondatabase/serverless": "^1.0.0"
   }
 }

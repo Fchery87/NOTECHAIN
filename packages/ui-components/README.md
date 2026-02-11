@@ -38,7 +38,7 @@ Shared React components for NoteChain applications.
 ## Usage
 
 ```tsx
-import { Button, Card, NoteEditor } from "@notechain/ui-components";
+import { Button, Card, NoteEditor } from '@notechain/ui-components';
 
 function MyComponent() {
   return (

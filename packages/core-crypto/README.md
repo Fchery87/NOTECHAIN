@@ -21,9 +21,9 @@ Shared cryptographic operations for NoteChain using libsodium.
 ## Usage
 
 ```typescript
-import { encrypt, decrypt, generateKey } from "@notechain/core-crypto";
+import { encrypt, decrypt, generateKey } from '@notechain/core-crypto';
 
 const key = generateKey();
-const { ciphertext, nonce, tag } = encrypt("Hello, NoteChain!", key);
+const { ciphertext, nonce, tag } = encrypt('Hello, NoteChain!', key);
 const plaintext = decrypt(ciphertext, key, nonce, tag);
 ```

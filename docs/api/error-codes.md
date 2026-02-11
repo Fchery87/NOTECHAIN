@@ -36,56 +36,56 @@ This format provides several benefits: the category prefix allows clients to qui
 export enum ErrorCode {
   // ==================== AUTHENTICATION ERRORS ====================
 
-  AUTH_INVALID_CREDENTIALS = "AUTH-001",
-  AUTH_TOKEN_EXPIRED = "AUTH-002",
-  AUTH_TOKEN_INVALID = "AUTH-003",
-  AUTH_DEVICE_LIMIT_EXCEEDED = "AUTH-004",
-  AUTH_BIOMETRIC_FAILED = "AUTH-005",
-  AUTH_EMAIL_ALREADY_EXISTS = "AUTH-006",
-  AUTH_ACCOUNT_LOCKED = "AUTH-007",
-  AUTH_REFRESH_TOKEN_INVALID = "AUTH-008",
-  AUTH_OAUTH_FAILED = "AUTH-009",
+  AUTH_INVALID_CREDENTIALS = 'AUTH-001',
+  AUTH_TOKEN_EXPIRED = 'AUTH-002',
+  AUTH_TOKEN_INVALID = 'AUTH-003',
+  AUTH_DEVICE_LIMIT_EXCEEDED = 'AUTH-004',
+  AUTH_BIOMETRIC_FAILED = 'AUTH-005',
+  AUTH_EMAIL_ALREADY_EXISTS = 'AUTH-006',
+  AUTH_ACCOUNT_LOCKED = 'AUTH-007',
+  AUTH_REFRESH_TOKEN_INVALID = 'AUTH-008',
+  AUTH_OAUTH_FAILED = 'AUTH-009',
 
   // ==================== SYNCHRONIZATION ERRORS ====================
 
-  SYNC_CONFLICT_DETECTED = "SYNC-001",
-  SYNC_ENCRYPTION_FAILED = "SYNC-002",
-  SYNC_QUEUE_FULL = "SYNC-003",
-  SYNC_NETWORK_ERROR = "SYNC-004",
-  SYNC_VERSION_MISMATCH = "SYNC-005",
-  SYNC_DEVICE_NOT_REGISTERED = "SYNC-006",
-  SYNC_CONFLICT_RESOLUTION_FAILED = "SYNC-007",
-  SYNC_OPERATION_FAILED = "SYNC-008",
+  SYNC_CONFLICT_DETECTED = 'SYNC-001',
+  SYNC_ENCRYPTION_FAILED = 'SYNC-002',
+  SYNC_QUEUE_FULL = 'SYNC-003',
+  SYNC_NETWORK_ERROR = 'SYNC-004',
+  SYNC_VERSION_MISMATCH = 'SYNC-005',
+  SYNC_DEVICE_NOT_REGISTERED = 'SYNC-006',
+  SYNC_CONFLICT_RESOLUTION_FAILED = 'SYNC-007',
+  SYNC_OPERATION_FAILED = 'SYNC-008',
 
   // ==================== CRYPTOGRAPHY ERRORS ====================
 
-  CRYPT_KEY_NOT_FOUND = "CRYPT-001",
-  CRYPT_DECRYPTION_FAILED = "CRYPT-002",
-  CRYPT_INVALID_NONCE = "CRYPT-003",
-  CRYPT_KEY_DERIVATION_FAILED = "CRYPT-004",
-  CRYPT_INVALID_KEY_ID = "CRYPT-005",
-  CRYPT_INVALID_CIPHERTEXT = "CRYPT-006",
-  CRYPT_AUTH_TAG_INVALID = "CRYPT-007",
+  CRYPT_KEY_NOT_FOUND = 'CRYPT-001',
+  CRYPT_DECRYPTION_FAILED = 'CRYPT-002',
+  CRYPT_INVALID_NONCE = 'CRYPT-003',
+  CRYPT_KEY_DERIVATION_FAILED = 'CRYPT-004',
+  CRYPT_INVALID_KEY_ID = 'CRYPT-005',
+  CRYPT_INVALID_CIPHERTEXT = 'CRYPT-006',
+  CRYPT_AUTH_TAG_INVALID = 'CRYPT-007',
 
   // ==================== STORAGE ERRORS ====================
 
-  STOR_QUOTA_EXCEEDED = "STOR-001",
-  STOR_BLOB_NOT_FOUND = "STOR-002",
-  STOR_UPLOAD_FAILED = "STOR-003",
-  STOR_DOWNLOAD_FAILED = "STOR-004",
-  STOR_PAYLOAD_TOO_LARGE = "STOR-005",
-  STOR_DELETE_FAILED = "STOR-006",
+  STOR_QUOTA_EXCEEDED = 'STOR-001',
+  STOR_BLOB_NOT_FOUND = 'STOR-002',
+  STOR_UPLOAD_FAILED = 'STOR-003',
+  STOR_DOWNLOAD_FAILED = 'STOR-004',
+  STOR_PAYLOAD_TOO_LARGE = 'STOR-005',
+  STOR_DELETE_FAILED = 'STOR-006',
 
   // ==================== GENERAL ERRORS ====================
 
-  GEN_NETWORK_ERROR = "GEN-001",
-  GEN_SERVER_ERROR = "GEN-002",
-  GEN_RATE_LIMITED = "GEN-003",
-  GEN_INVALID_REQUEST = "GEN-004",
-  GEN_FEATURE_NOT_AVAILABLE = "GEN-005",
-  GEN_SERVICE_UNAVAILABLE = "GEN-006",
-  GEN_INTERNAL_ERROR = "GEN-007",
-  GEN_PAYMENT_REQUIRED = "GEN-008",
+  GEN_NETWORK_ERROR = 'GEN-001',
+  GEN_SERVER_ERROR = 'GEN-002',
+  GEN_RATE_LIMITED = 'GEN-003',
+  GEN_INVALID_REQUEST = 'GEN-004',
+  GEN_FEATURE_NOT_AVAILABLE = 'GEN-005',
+  GEN_SERVICE_UNAVAILABLE = 'GEN-006',
+  GEN_INTERNAL_ERROR = 'GEN-007',
+  GEN_PAYMENT_REQUIRED = 'GEN-008',
 }
 ```
 
@@ -141,10 +141,8 @@ Authentication errors occur when there are issues with user credentials, tokens,
 const AUTH_INVALID_CREDENTIALS: ErrorDefinition = {
   code: ErrorCode.AUTH_INVALID_CREDENTIALS,
   httpStatus: 401,
-  userMessage:
-    "Invalid email or password. Please try again or reset your password.",
-  technicalDetails:
-    "Email hash not found in database or password derivation failed validation",
+  userMessage: 'Invalid email or password. Please try again or reset your password.',
+  technicalDetails: 'Email hash not found in database or password derivation failed validation',
   isRetryable: true,
   retryAfterMs: 2000,
 };
@@ -164,8 +162,8 @@ const AUTH_INVALID_CREDENTIALS: ErrorDefinition = {
 const AUTH_TOKEN_EXPIRED: ErrorDefinition = {
   code: ErrorCode.AUTH_TOKEN_EXPIRED,
   httpStatus: 401,
-  userMessage: "Your session has expired. Please sign in again to continue.",
-  technicalDetails: "JWT access token has passed its expiration time",
+  userMessage: 'Your session has expired. Please sign in again to continue.',
+  technicalDetails: 'JWT access token has passed its expiration time',
   isRetryable: true,
   retryAfterMs: 0,
 };
@@ -185,9 +183,8 @@ const AUTH_TOKEN_EXPIRED: ErrorDefinition = {
 const AUTH_TOKEN_INVALID: ErrorDefinition = {
   code: ErrorCode.AUTH_TOKEN_INVALID,
   httpStatus: 401,
-  userMessage: "Invalid session. Please sign in again.",
-  technicalDetails:
-    "JWT token signature verification failed or token malformed",
+  userMessage: 'Invalid session. Please sign in again.',
+  technicalDetails: 'JWT token signature verification failed or token malformed',
   isRetryable: true,
   retryAfterMs: 0,
 };
@@ -205,10 +202,8 @@ const AUTH_TOKEN_INVALID: ErrorDefinition = {
 const AUTH_DEVICE_LIMIT_EXCEEDED: ErrorDefinition = {
   code: ErrorCode.AUTH_DEVICE_LIMIT_EXCEEDED,
   httpStatus: 403,
-  userMessage:
-    "Maximum device limit reached. Please remove an existing device to add a new one.",
-  technicalDetails:
-    "User has reached maximum allowed devices for their subscription tier",
+  userMessage: 'Maximum device limit reached. Please remove an existing device to add a new one.',
+  technicalDetails: 'User has reached maximum allowed devices for their subscription tier',
   isRetryable: false,
 };
 ```
@@ -232,10 +227,8 @@ const AUTH_DEVICE_LIMIT_EXCEEDED: ErrorDefinition = {
 const AUTH_BIOMETRIC_FAILED: ErrorDefinition = {
   code: ErrorCode.AUTH_BIOMETRIC_FAILED,
   httpStatus: 401,
-  userMessage:
-    "Biometric authentication failed. Please use your password instead.",
-  technicalDetails:
-    "Biometric proof verification failed or biometric enrollment not found",
+  userMessage: 'Biometric authentication failed. Please use your password instead.',
+  technicalDetails: 'Biometric proof verification failed or biometric enrollment not found',
   isRetryable: true,
   retryAfterMs: 500,
 };
@@ -253,9 +246,8 @@ const AUTH_BIOMETRIC_FAILED: ErrorDefinition = {
 const AUTH_EMAIL_ALREADY_EXISTS: ErrorDefinition = {
   code: ErrorCode.AUTH_EMAIL_ALREADY_EXISTS,
   httpStatus: 409,
-  userMessage:
-    "An account with this email already exists. Please sign in instead.",
-  technicalDetails: "Email hash collision detected during registration attempt",
+  userMessage: 'An account with this email already exists. Please sign in instead.',
+  technicalDetails: 'Email hash collision detected during registration attempt',
   isRetryable: false,
 };
 ```
@@ -273,9 +265,8 @@ const AUTH_ACCOUNT_LOCKED: ErrorDefinition = {
   code: ErrorCode.AUTH_ACCOUNT_LOCKED,
   httpStatus: 423,
   userMessage:
-    "Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.",
-  technicalDetails:
-    "Account locked after 5 consecutive failed authentication attempts",
+    'Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.',
+  technicalDetails: 'Account locked after 5 consecutive failed authentication attempts',
   isRetryable: true,
   retryAfterMs: 900000,
 };
@@ -295,9 +286,8 @@ const AUTH_ACCOUNT_LOCKED: ErrorDefinition = {
 const AUTH_REFRESH_TOKEN_INVALID: ErrorDefinition = {
   code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
   httpStatus: 401,
-  userMessage: "Session invalidated. Please sign in again.",
-  technicalDetails:
-    "Refresh token has been revoked, expired, or used previously",
+  userMessage: 'Session invalidated. Please sign in again.',
+  technicalDetails: 'Refresh token has been revoked, expired, or used previously',
   isRetryable: false,
 };
 ```
@@ -314,9 +304,8 @@ const AUTH_REFRESH_TOKEN_INVALID: ErrorDefinition = {
 const AUTH_OAUTH_FAILED: ErrorDefinition = {
   code: ErrorCode.AUTH_OAUTH_FAILED,
   httpStatus: 400,
-  userMessage:
-    "OAuth authentication failed. Please try again or use a different method.",
-  technicalDetails: "OAuth provider returned error or token validation failed",
+  userMessage: 'OAuth authentication failed. Please try again or use a different method.',
+  technicalDetails: 'OAuth provider returned error or token validation failed',
   isRetryable: true,
   retryAfterMs: 1000,
 };
@@ -340,9 +329,8 @@ Synchronization errors relate to the CRDT-based sync engine that enables multi-d
 const SYNC_CONFLICT_DETECTED: ErrorDefinition = {
   code: ErrorCode.SYNC_CONFLICT_DETECTED,
   httpStatus: 409,
-  userMessage:
-    "Another device made changes to this item. Choose which version to keep.",
-  technicalDetails: "CRDT version conflict detected during sync push operation",
+  userMessage: 'Another device made changes to this item. Choose which version to keep.',
+  technicalDetails: 'CRDT version conflict detected during sync push operation',
   isRetryable: false,
 };
 ```
@@ -356,7 +344,7 @@ interface SyncConflictDetails {
   blob_id: string;
   local_version: number;
   remote_version: number;
-  conflict_type: "version_mismatch" | "concurrent_edit" | "deleted_on_both";
+  conflict_type: 'version_mismatch' | 'concurrent_edit' | 'deleted_on_both';
   local_data?: {
     updated_at: string;
     device_name?: string;
@@ -378,9 +366,8 @@ interface SyncConflictDetails {
 const SYNC_ENCRYPTION_FAILED: ErrorDefinition = {
   code: ErrorCode.SYNC_ENCRYPTION_FAILED,
   httpStatus: 500,
-  userMessage: "Unable to process encrypted data. Please try again.",
-  technicalDetails:
-    "Server-side encryption processing failed during sync operation",
+  userMessage: 'Unable to process encrypted data. Please try again.',
+  technicalDetails: 'Server-side encryption processing failed during sync operation',
   isRetryable: true,
   retryAfterMs: 5000,
 };
@@ -398,8 +385,8 @@ const SYNC_ENCRYPTION_FAILED: ErrorDefinition = {
 const SYNC_QUEUE_FULL: ErrorDefinition = {
   code: ErrorCode.SYNC_QUEUE_FULL,
   httpStatus: 503,
-  userMessage: "Sync queue is full. Please wait a moment and try again.",
-  technicalDetails: "Server-side sync queue has reached maximum capacity",
+  userMessage: 'Sync queue is full. Please wait a moment and try again.',
+  technicalDetails: 'Server-side sync queue has reached maximum capacity',
   isRetryable: true,
   retryAfterMs: 30000,
 };
@@ -417,9 +404,8 @@ const SYNC_QUEUE_FULL: ErrorDefinition = {
 const SYNC_NETWORK_ERROR: ErrorDefinition = {
   code: ErrorCode.SYNC_NETWORK_ERROR,
   httpStatus: 503,
-  userMessage:
-    "Unable to connect to sync servers. Changes will sync when connection is restored.",
-  technicalDetails: "Network connectivity failure during sync operation",
+  userMessage: 'Unable to connect to sync servers. Changes will sync when connection is restored.',
+  technicalDetails: 'Network connectivity failure during sync operation',
   isRetryable: true,
 };
 ```
@@ -436,8 +422,8 @@ const SYNC_NETWORK_ERROR: ErrorDefinition = {
 const SYNC_VERSION_MISMATCH: ErrorDefinition = {
   code: ErrorCode.SYNC_VERSION_MISMATCH,
   httpStatus: 409,
-  userMessage: "This item has been updated. Please refresh and try again.",
-  technicalDetails: "Client sync version does not match server version",
+  userMessage: 'This item has been updated. Please refresh and try again.',
+  technicalDetails: 'Client sync version does not match server version',
   isRetryable: false,
 };
 ```
@@ -472,10 +458,8 @@ const SYNC_DEVICE_NOT_REGISTERED: ErrorDefinition = {
 const SYNC_CONFLICT_RESOLUTION_FAILED: ErrorDefinition = {
   code: ErrorCode.SYNC_CONFLICT_RESOLUTION_FAILED,
   httpStatus: 400,
-  userMessage:
-    "Unable to resolve this conflict. Please try again or choose a different version.",
-  technicalDetails:
-    "Conflict resolution request failed validation or processing",
+  userMessage: 'Unable to resolve this conflict. Please try again or choose a different version.',
+  technicalDetails: 'Conflict resolution request failed validation or processing',
   isRetryable: false,
 };
 ```
@@ -492,9 +476,8 @@ const SYNC_CONFLICT_RESOLUTION_FAILED: ErrorDefinition = {
 const SYNC_OPERATION_FAILED: ErrorDefinition = {
   code: ErrorCode.SYNC_OPERATION_FAILED,
   httpStatus: 500,
-  userMessage: "Sync operation failed. Retrying automatically...",
-  technicalDetails:
-    "Generic sync operation failure with no specific error classification",
+  userMessage: 'Sync operation failed. Retrying automatically...',
+  technicalDetails: 'Generic sync operation failure with no specific error classification',
   isRetryable: true,
   retryAfterMs: 5000,
 };
@@ -518,10 +501,8 @@ Cryptography errors are the most security-sensitive error type. They indicate pr
 const CRYPT_KEY_NOT_FOUND: ErrorDefinition = {
   code: ErrorCode.CRYPT_KEY_NOT_FOUND,
   httpStatus: 404,
-  userMessage:
-    "Encryption key not found. Please re-login to restore access to your data.",
-  technicalDetails:
-    "Requested key ID does not exist in key registry for this user",
+  userMessage: 'Encryption key not found. Please re-login to restore access to your data.',
+  technicalDetails: 'Requested key ID does not exist in key registry for this user',
   isRetryable: false,
 };
 ```
@@ -540,9 +521,9 @@ const CRYPT_KEY_NOT_FOUND: ErrorDefinition = {
 const CRYPT_DECRYPTION_FAILED: ErrorDefinition = {
   code: ErrorCode.CRYPT_DECRYPTION_FAILED,
   httpStatus: 400,
-  userMessage: "Unable to decrypt this data. The item may be corrupted.",
+  userMessage: 'Unable to decrypt this data. The item may be corrupted.',
   technicalDetails:
-    "AES-256-GCM decryption failed - auth tag verification failed or ciphertext modified",
+    'AES-256-GCM decryption failed - auth tag verification failed or ciphertext modified',
   isRetryable: false,
 };
 ```
@@ -566,9 +547,8 @@ const CRYPT_DECRYPTION_FAILED: ErrorDefinition = {
 const CRYPT_INVALID_NONCE: ErrorDefinition = {
   code: ErrorCode.CRYPT_INVALID_NONCE,
   httpStatus: 400,
-  userMessage: "Invalid encryption data. Please refresh and try again.",
-  technicalDetails:
-    "Nonce length or format does not match expected AES-256-GCM requirements",
+  userMessage: 'Invalid encryption data. Please refresh and try again.',
+  technicalDetails: 'Nonce length or format does not match expected AES-256-GCM requirements',
   isRetryable: false,
 };
 ```
@@ -585,9 +565,8 @@ const CRYPT_INVALID_NONCE: ErrorDefinition = {
 const CRYPT_KEY_DERIVATION_FAILED: ErrorDefinition = {
   code: ErrorCode.CRYPT_KEY_DERIVATION_FAILED,
   httpStatus: 500,
-  userMessage: "Unable to process your credentials. Please try again.",
-  technicalDetails:
-    "Argon2id key derivation failed - insufficient memory or invalid parameters",
+  userMessage: 'Unable to process your credentials. Please try again.',
+  technicalDetails: 'Argon2id key derivation failed - insufficient memory or invalid parameters',
   isRetryable: true,
   retryAfterMs: 1000,
 };
@@ -605,8 +584,8 @@ const CRYPT_KEY_DERIVATION_FAILED: ErrorDefinition = {
 const CRYPT_INVALID_KEY_ID: ErrorDefinition = {
   code: ErrorCode.CRYPT_INVALID_KEY_ID,
   httpStatus: 400,
-  userMessage: "Invalid encryption configuration. Please refresh.",
-  technicalDetails: "Key ID format or UUID validation failed",
+  userMessage: 'Invalid encryption configuration. Please refresh.',
+  technicalDetails: 'Key ID format or UUID validation failed',
   isRetryable: false,
 };
 ```
@@ -623,9 +602,8 @@ const CRYPT_INVALID_KEY_ID: ErrorDefinition = {
 const CRYPT_INVALID_CIPHERTEXT: ErrorDefinition = {
   code: ErrorCode.CRYPT_INVALID_CIPHERTEXT,
   httpStatus: 400,
-  userMessage: "Invalid encrypted data. Please try again.",
-  technicalDetails:
-    "Ciphertext format validation failed - not base64 encoded or incorrect length",
+  userMessage: 'Invalid encrypted data. Please try again.',
+  technicalDetails: 'Ciphertext format validation failed - not base64 encoded or incorrect length',
   isRetryable: false,
 };
 ```
@@ -642,9 +620,8 @@ const CRYPT_INVALID_CIPHERTEXT: ErrorDefinition = {
 const CRYPT_AUTH_TAG_INVALID: ErrorDefinition = {
   code: ErrorCode.CRYPT_AUTH_TAG_INVALID,
   httpStatus: 400,
-  userMessage: "Data integrity check failed. Please refresh.",
-  technicalDetails:
-    "AES-256-GCM authentication tag verification failed - ciphertext was modified",
+  userMessage: 'Data integrity check failed. Please refresh.',
+  technicalDetails: 'AES-256-GCM authentication tag verification failed - ciphertext was modified',
   isRetryable: false,
 };
 ```
@@ -667,10 +644,8 @@ Storage errors relate to the blob storage system that holds encrypted user data.
 const STOR_QUOTA_EXCEEDED: ErrorDefinition = {
   code: ErrorCode.STOR_QUOTA_EXCEEDED,
   httpStatus: 507,
-  userMessage:
-    "Storage limit reached. Please delete some items or upgrade your plan.",
-  technicalDetails:
-    "User storage quota has been exceeded for their subscription tier",
+  userMessage: 'Storage limit reached. Please delete some items or upgrade your plan.',
+  technicalDetails: 'User storage quota has been exceeded for their subscription tier',
   isRetryable: false,
 };
 ```
@@ -694,9 +669,8 @@ const STOR_QUOTA_EXCEEDED: ErrorDefinition = {
 const STOR_BLOB_NOT_FOUND: ErrorDefinition = {
   code: ErrorCode.STOR_BLOB_NOT_FOUND,
   httpStatus: 404,
-  userMessage: "This item could not be found. It may have been deleted.",
-  technicalDetails:
-    "Blob ID not found in storage or access denied by RLS policies",
+  userMessage: 'This item could not be found. It may have been deleted.',
+  technicalDetails: 'Blob ID not found in storage or access denied by RLS policies',
   isRetryable: false,
 };
 ```
@@ -713,9 +687,8 @@ const STOR_BLOB_NOT_FOUND: ErrorDefinition = {
 const STOR_UPLOAD_FAILED: ErrorDefinition = {
   code: ErrorCode.STOR_UPLOAD_FAILED,
   httpStatus: 500,
-  userMessage: "Upload failed. Please try again.",
-  technicalDetails:
-    "Blob storage upload operation failed - storage service error",
+  userMessage: 'Upload failed. Please try again.',
+  technicalDetails: 'Blob storage upload operation failed - storage service error',
   isRetryable: true,
   retryAfterMs: 5000,
 };
@@ -733,9 +706,8 @@ const STOR_UPLOAD_FAILED: ErrorDefinition = {
 const STOR_DOWNLOAD_FAILED: ErrorDefinition = {
   code: ErrorCode.STOR_DOWNLOAD_FAILED,
   httpStatus: 500,
-  userMessage: "Download failed. Please try again.",
-  technicalDetails:
-    "Blob storage download operation failed - storage service error",
+  userMessage: 'Download failed. Please try again.',
+  technicalDetails: 'Blob storage download operation failed - storage service error',
   isRetryable: true,
   retryAfterMs: 5000,
 };
@@ -753,8 +725,8 @@ const STOR_DOWNLOAD_FAILED: ErrorDefinition = {
 const STOR_PAYLOAD_TOO_LARGE: ErrorDefinition = {
   code: ErrorCode.STOR_PAYLOAD_TOO_LARGE,
   httpStatus: 413,
-  userMessage: "This item is too large to upload. Maximum size is 50MB.",
-  technicalDetails: "Upload payload exceeds maximum blob size limit",
+  userMessage: 'This item is too large to upload. Maximum size is 50MB.',
+  technicalDetails: 'Upload payload exceeds maximum blob size limit',
   isRetryable: false,
 };
 ```
@@ -778,8 +750,8 @@ const STOR_PAYLOAD_TOO_LARGE: ErrorDefinition = {
 const STOR_DELETE_FAILED: ErrorDefinition = {
   code: ErrorCode.STOR_DELETE_FAILED,
   httpStatus: 500,
-  userMessage: "Delete failed. Please try again.",
-  technicalDetails: "Blob storage delete operation failed",
+  userMessage: 'Delete failed. Please try again.',
+  technicalDetails: 'Blob storage delete operation failed',
   isRetryable: true,
   retryAfterMs: 5000,
 };
@@ -803,10 +775,9 @@ General errors are catch-all errors that don't fit into other categories. They i
 const GEN_NETWORK_ERROR: ErrorDefinition = {
   code: ErrorCode.GEN_NETWORK_ERROR,
   httpStatus: 503,
-  userMessage:
-    "Unable to connect to servers. Please check your internet connection.",
+  userMessage: 'Unable to connect to servers. Please check your internet connection.',
   technicalDetails:
-    "Network request failed - DNS resolution, connection timeout, or network unreachable",
+    'Network request failed - DNS resolution, connection timeout, or network unreachable',
   isRetryable: true,
 };
 ```
@@ -831,9 +802,8 @@ const GEN_NETWORK_ERROR: ErrorDefinition = {
 const GEN_SERVER_ERROR: ErrorDefinition = {
   code: ErrorCode.GEN_SERVER_ERROR,
   httpStatus: 500,
-  userMessage:
-    "Server error. We are working on it. Please try again in a moment.",
-  technicalDetails: "Generic server error - check server logs for details",
+  userMessage: 'Server error. We are working on it. Please try again in a moment.',
+  technicalDetails: 'Generic server error - check server logs for details',
   isRetryable: true,
   retryAfterMs: 30000,
 };
@@ -851,8 +821,8 @@ const GEN_SERVER_ERROR: ErrorDefinition = {
 const GEN_RATE_LIMITED: ErrorDefinition = {
   code: ErrorCode.GEN_RATE_LIMITED,
   httpStatus: 429,
-  userMessage: "Too many requests. Please slow down.",
-  technicalDetails: "Rate limit exceeded - X-RateLimit-Remaining reached 0",
+  userMessage: 'Too many requests. Please slow down.',
+  technicalDetails: 'Rate limit exceeded - X-RateLimit-Remaining reached 0',
   isRetryable: true,
   retryAfterMs: 60000,
 };
@@ -877,9 +847,8 @@ const GEN_RATE_LIMITED: ErrorDefinition = {
 const GEN_INVALID_REQUEST: ErrorDefinition = {
   code: ErrorCode.GEN_INVALID_REQUEST,
   httpStatus: 400,
-  userMessage: "Invalid request. Please check your input and try again.",
-  technicalDetails:
-    "Request validation failed - missing required fields or invalid format",
+  userMessage: 'Invalid request. Please check your input and try again.',
+  technicalDetails: 'Request validation failed - missing required fields or invalid format',
   isRetryable: false,
 };
 ```
@@ -896,10 +865,8 @@ const GEN_INVALID_REQUEST: ErrorDefinition = {
 const GEN_FEATURE_NOT_AVAILABLE: ErrorDefinition = {
   code: ErrorCode.GEN_FEATURE_NOT_AVAILABLE,
   httpStatus: 403,
-  userMessage:
-    "This feature is not available on your current plan. Upgrade to access.",
-  technicalDetails:
-    "Feature access denied - subscription tier does not include this feature",
+  userMessage: 'This feature is not available on your current plan. Upgrade to access.',
+  technicalDetails: 'Feature access denied - subscription tier does not include this feature',
   isRetryable: false,
 };
 ```
@@ -916,8 +883,8 @@ const GEN_FEATURE_NOT_AVAILABLE: ErrorDefinition = {
 const GEN_SERVICE_UNAVAILABLE: ErrorDefinition = {
   code: ErrorCode.GEN_SERVICE_UNAVAILABLE,
   httpStatus: 503,
-  userMessage: "Service is temporarily unavailable. Retrying automatically...",
-  technicalDetails: "Service is in maintenance mode or experiencing high load",
+  userMessage: 'Service is temporarily unavailable. Retrying automatically...',
+  technicalDetails: 'Service is in maintenance mode or experiencing high load',
   isRetryable: true,
   retryAfterMs: 60000,
 };
@@ -935,8 +902,8 @@ const GEN_SERVICE_UNAVAILABLE: ErrorDefinition = {
 const GEN_INTERNAL_ERROR: ErrorDefinition = {
   code: ErrorCode.GEN_INTERNAL_ERROR,
   httpStatus: 500,
-  userMessage: "Something went wrong. Please try again.",
-  technicalDetails: "Unhandled exception or internal error - check server logs",
+  userMessage: 'Something went wrong. Please try again.',
+  technicalDetails: 'Unhandled exception or internal error - check server logs',
   isRetryable: true,
   retryAfterMs: 10000,
 };
@@ -954,9 +921,8 @@ const GEN_INTERNAL_ERROR: ErrorDefinition = {
 const GEN_PAYMENT_REQUIRED: ErrorDefinition = {
   code: ErrorCode.GEN_PAYMENT_REQUIRED,
   httpStatus: 402,
-  userMessage:
-    "Payment required to continue. Please update your payment method.",
-  technicalDetails: "Subscription payment failed - card declined or expired",
+  userMessage: 'Payment required to continue. Please update your payment method.',
+  technicalDetails: 'Subscription payment failed - card declined or expired',
   isRetryable: false,
 };
 ```
@@ -973,83 +939,70 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
   [ErrorCode.AUTH_INVALID_CREDENTIALS]: {
     code: ErrorCode.AUTH_INVALID_CREDENTIALS,
     httpStatus: 401,
-    userMessage:
-      "Invalid email or password. Please try again or reset your password.",
-    technicalDetails:
-      "Email hash not found in database or password derivation failed validation",
+    userMessage: 'Invalid email or password. Please try again or reset your password.',
+    technicalDetails: 'Email hash not found in database or password derivation failed validation',
     isRetryable: true,
     retryAfterMs: 2000,
   },
   [ErrorCode.AUTH_TOKEN_EXPIRED]: {
     code: ErrorCode.AUTH_TOKEN_EXPIRED,
     httpStatus: 401,
-    userMessage: "Your session has expired. Please sign in again to continue.",
-    technicalDetails: "JWT access token has passed its expiration time",
+    userMessage: 'Your session has expired. Please sign in again to continue.',
+    technicalDetails: 'JWT access token has passed its expiration time',
     isRetryable: true,
     retryAfterMs: 0,
   },
   [ErrorCode.AUTH_TOKEN_INVALID]: {
     code: ErrorCode.AUTH_TOKEN_INVALID,
     httpStatus: 401,
-    userMessage: "Invalid session. Please sign in again.",
-    technicalDetails:
-      "JWT token signature verification failed or token malformed",
+    userMessage: 'Invalid session. Please sign in again.',
+    technicalDetails: 'JWT token signature verification failed or token malformed',
     isRetryable: true,
     retryAfterMs: 0,
   },
   [ErrorCode.AUTH_DEVICE_LIMIT_EXCEEDED]: {
     code: ErrorCode.AUTH_DEVICE_LIMIT_EXCEEDED,
     httpStatus: 403,
-    userMessage:
-      "Maximum device limit reached. Please remove an existing device to add a new one.",
-    technicalDetails:
-      "User has reached maximum allowed devices for their subscription tier",
+    userMessage: 'Maximum device limit reached. Please remove an existing device to add a new one.',
+    technicalDetails: 'User has reached maximum allowed devices for their subscription tier',
     isRetryable: false,
   },
   [ErrorCode.AUTH_BIOMETRIC_FAILED]: {
     code: ErrorCode.AUTH_BIOMETRIC_FAILED,
     httpStatus: 401,
-    userMessage:
-      "Biometric authentication failed. Please use your password instead.",
-    technicalDetails:
-      "Biometric proof verification failed or biometric enrollment not found",
+    userMessage: 'Biometric authentication failed. Please use your password instead.',
+    technicalDetails: 'Biometric proof verification failed or biometric enrollment not found',
     isRetryable: true,
     retryAfterMs: 500,
   },
   [ErrorCode.AUTH_EMAIL_ALREADY_EXISTS]: {
     code: ErrorCode.AUTH_EMAIL_ALREADY_EXISTS,
     httpStatus: 409,
-    userMessage:
-      "An account with this email already exists. Please sign in instead.",
-    technicalDetails:
-      "Email hash collision detected during registration attempt",
+    userMessage: 'An account with this email already exists. Please sign in instead.',
+    technicalDetails: 'Email hash collision detected during registration attempt',
     isRetryable: false,
   },
   [ErrorCode.AUTH_ACCOUNT_LOCKED]: {
     code: ErrorCode.AUTH_ACCOUNT_LOCKED,
     httpStatus: 423,
     userMessage:
-      "Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.",
-    technicalDetails:
-      "Account locked after 5 consecutive failed authentication attempts",
+      'Account temporarily locked due to too many failed attempts. Please try again in 15 minutes.',
+    technicalDetails: 'Account locked after 5 consecutive failed authentication attempts',
     isRetryable: true,
     retryAfterMs: 900000,
   },
   [ErrorCode.AUTH_REFRESH_TOKEN_INVALID]: {
     code: ErrorCode.AUTH_REFRESH_TOKEN_INVALID,
     httpStatus: 401,
-    userMessage: "Session invalidated. Please sign in again.",
-    technicalDetails:
-      "Refresh token has been revoked, expired, or used previously",
+    userMessage: 'Session invalidated. Please sign in again.',
+    technicalDetails: 'Refresh token has been revoked, expired, or used previously',
     isRetryable: false,
   },
   [ErrorCode.AUTH_OAUTH_FAILED]: {
     code: ErrorCode.AUTH_OAUTH_FAILED,
     httpStatus: 400,
-    userMessage:
-      "OAuth authentication failed. Please try again or use a different method.",
-    technicalDetails:
-      "OAuth provider returned error or token validation failed",
+    userMessage: 'OAuth authentication failed. Please try again or use a different method.',
+    technicalDetails: 'OAuth provider returned error or token validation failed',
     isRetryable: true,
     retryAfterMs: 1000,
   },
@@ -1058,26 +1011,23 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
   [ErrorCode.SYNC_CONFLICT_DETECTED]: {
     code: ErrorCode.SYNC_CONFLICT_DETECTED,
     httpStatus: 409,
-    userMessage:
-      "Another device made changes to this item. Choose which version to keep.",
-    technicalDetails:
-      "CRDT version conflict detected during sync push operation",
+    userMessage: 'Another device made changes to this item. Choose which version to keep.',
+    technicalDetails: 'CRDT version conflict detected during sync push operation',
     isRetryable: false,
   },
   [ErrorCode.SYNC_ENCRYPTION_FAILED]: {
     code: ErrorCode.SYNC_ENCRYPTION_FAILED,
     httpStatus: 500,
-    userMessage: "Unable to process encrypted data. Please try again.",
-    technicalDetails:
-      "Server-side encryption processing failed during sync operation",
+    userMessage: 'Unable to process encrypted data. Please try again.',
+    technicalDetails: 'Server-side encryption processing failed during sync operation',
     isRetryable: true,
     retryAfterMs: 5000,
   },
   [ErrorCode.SYNC_QUEUE_FULL]: {
     code: ErrorCode.SYNC_QUEUE_FULL,
     httpStatus: 503,
-    userMessage: "Sync queue is full. Please wait a moment and try again.",
-    technicalDetails: "Server-side sync queue has reached maximum capacity",
+    userMessage: 'Sync queue is full. Please wait a moment and try again.',
+    technicalDetails: 'Server-side sync queue has reached maximum capacity',
     isRetryable: true,
     retryAfterMs: 30000,
   },
@@ -1085,40 +1035,36 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
     code: ErrorCode.SYNC_NETWORK_ERROR,
     httpStatus: 503,
     userMessage:
-      "Unable to connect to sync servers. Changes will sync when connection is restored.",
-    technicalDetails: "Network connectivity failure during sync operation",
+      'Unable to connect to sync servers. Changes will sync when connection is restored.',
+    technicalDetails: 'Network connectivity failure during sync operation',
     isRetryable: true,
   },
   [ErrorCode.SYNC_VERSION_MISMATCH]: {
     code: ErrorCode.SYNC_VERSION_MISMATCH,
     httpStatus: 409,
-    userMessage: "This item has been updated. Please refresh and try again.",
-    technicalDetails: "Client sync version does not match server version",
+    userMessage: 'This item has been updated. Please refresh and try again.',
+    technicalDetails: 'Client sync version does not match server version',
     isRetryable: false,
   },
   [ErrorCode.SYNC_DEVICE_NOT_REGISTERED]: {
     code: ErrorCode.SYNC_DEVICE_NOT_REGISTERED,
     httpStatus: 403,
-    userMessage:
-      "This device is not registered for sync. Please re-register the device.",
-    technicalDetails: "Device ID not found in user registered devices list",
+    userMessage: 'This device is not registered for sync. Please re-register the device.',
+    technicalDetails: 'Device ID not found in user registered devices list',
     isRetryable: false,
   },
   [ErrorCode.SYNC_CONFLICT_RESOLUTION_FAILED]: {
     code: ErrorCode.SYNC_CONFLICT_RESOLUTION_FAILED,
     httpStatus: 400,
-    userMessage:
-      "Unable to resolve this conflict. Please try again or choose a different version.",
-    technicalDetails:
-      "Conflict resolution request failed validation or processing",
+    userMessage: 'Unable to resolve this conflict. Please try again or choose a different version.',
+    technicalDetails: 'Conflict resolution request failed validation or processing',
     isRetryable: false,
   },
   [ErrorCode.SYNC_OPERATION_FAILED]: {
     code: ErrorCode.SYNC_OPERATION_FAILED,
     httpStatus: 500,
-    userMessage: "Sync operation failed. Retrying automatically...",
-    technicalDetails:
-      "Generic sync operation failure with no specific error classification",
+    userMessage: 'Sync operation failed. Retrying automatically...',
+    technicalDetails: 'Generic sync operation failure with no specific error classification',
     isRetryable: true,
     retryAfterMs: 5000,
   },
@@ -1127,58 +1073,54 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
   [ErrorCode.CRYPT_KEY_NOT_FOUND]: {
     code: ErrorCode.CRYPT_KEY_NOT_FOUND,
     httpStatus: 404,
-    userMessage:
-      "Encryption key not found. Please re-login to restore access to your data.",
-    technicalDetails:
-      "Requested key ID does not exist in key registry for this user",
+    userMessage: 'Encryption key not found. Please re-login to restore access to your data.',
+    technicalDetails: 'Requested key ID does not exist in key registry for this user',
     isRetryable: false,
   },
   [ErrorCode.CRYPT_DECRYPTION_FAILED]: {
     code: ErrorCode.CRYPT_DECRYPTION_FAILED,
     httpStatus: 400,
-    userMessage: "Unable to decrypt this data. The item may be corrupted.",
+    userMessage: 'Unable to decrypt this data. The item may be corrupted.',
     technicalDetails:
-      "AES-256-GCM decryption failed - auth tag verification failed or ciphertext modified",
+      'AES-256-GCM decryption failed - auth tag verification failed or ciphertext modified',
     isRetryable: false,
   },
   [ErrorCode.CRYPT_INVALID_NONCE]: {
     code: ErrorCode.CRYPT_INVALID_NONCE,
     httpStatus: 400,
-    userMessage: "Invalid encryption data. Please refresh and try again.",
-    technicalDetails:
-      "Nonce length or format does not match expected AES-256-GCM requirements",
+    userMessage: 'Invalid encryption data. Please refresh and try again.',
+    technicalDetails: 'Nonce length or format does not match expected AES-256-GCM requirements',
     isRetryable: false,
   },
   [ErrorCode.CRYPT_KEY_DERIVATION_FAILED]: {
     code: ErrorCode.CRYPT_KEY_DERIVATION_FAILED,
     httpStatus: 500,
-    userMessage: "Unable to process your credentials. Please try again.",
-    technicalDetails:
-      "Argon2id key derivation failed - insufficient memory or invalid parameters",
+    userMessage: 'Unable to process your credentials. Please try again.',
+    technicalDetails: 'Argon2id key derivation failed - insufficient memory or invalid parameters',
     isRetryable: true,
     retryAfterMs: 1000,
   },
   [ErrorCode.CRYPT_INVALID_KEY_ID]: {
     code: ErrorCode.CRYPT_INVALID_KEY_ID,
     httpStatus: 400,
-    userMessage: "Invalid encryption configuration. Please refresh.",
-    technicalDetails: "Key ID format or UUID validation failed",
+    userMessage: 'Invalid encryption configuration. Please refresh.',
+    technicalDetails: 'Key ID format or UUID validation failed',
     isRetryable: false,
   },
   [ErrorCode.CRYPT_INVALID_CIPHERTEXT]: {
     code: ErrorCode.CRYPT_INVALID_CIPHERTEXT,
     httpStatus: 400,
-    userMessage: "Invalid encrypted data. Please try again.",
+    userMessage: 'Invalid encrypted data. Please try again.',
     technicalDetails:
-      "Ciphertext format validation failed - not base64 encoded or incorrect length",
+      'Ciphertext format validation failed - not base64 encoded or incorrect length',
     isRetryable: false,
   },
   [ErrorCode.CRYPT_AUTH_TAG_INVALID]: {
     code: ErrorCode.CRYPT_AUTH_TAG_INVALID,
     httpStatus: 400,
-    userMessage: "Data integrity check failed. Please refresh.",
+    userMessage: 'Data integrity check failed. Please refresh.',
     technicalDetails:
-      "AES-256-GCM authentication tag verification failed - ciphertext was modified",
+      'AES-256-GCM authentication tag verification failed - ciphertext was modified',
     isRetryable: false,
   },
 
@@ -1186,50 +1128,45 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
   [ErrorCode.STOR_QUOTA_EXCEEDED]: {
     code: ErrorCode.STOR_QUOTA_EXCEEDED,
     httpStatus: 507,
-    userMessage:
-      "Storage limit reached. Please delete some items or upgrade your plan.",
-    technicalDetails:
-      "User storage quota has been exceeded for their subscription tier",
+    userMessage: 'Storage limit reached. Please delete some items or upgrade your plan.',
+    technicalDetails: 'User storage quota has been exceeded for their subscription tier',
     isRetryable: false,
   },
   [ErrorCode.STOR_BLOB_NOT_FOUND]: {
     code: ErrorCode.STOR_BLOB_NOT_FOUND,
     httpStatus: 404,
-    userMessage: "This item could not be found. It may have been deleted.",
-    technicalDetails:
-      "Blob ID not found in storage or access denied by RLS policies",
+    userMessage: 'This item could not be found. It may have been deleted.',
+    technicalDetails: 'Blob ID not found in storage or access denied by RLS policies',
     isRetryable: false,
   },
   [ErrorCode.STOR_UPLOAD_FAILED]: {
     code: ErrorCode.STOR_UPLOAD_FAILED,
     httpStatus: 500,
-    userMessage: "Upload failed. Please try again.",
-    technicalDetails:
-      "Blob storage upload operation failed - storage service error",
+    userMessage: 'Upload failed. Please try again.',
+    technicalDetails: 'Blob storage upload operation failed - storage service error',
     isRetryable: true,
     retryAfterMs: 5000,
   },
   [ErrorCode.STOR_DOWNLOAD_FAILED]: {
     code: ErrorCode.STOR_DOWNLOAD_FAILED,
     httpStatus: 500,
-    userMessage: "Download failed. Please try again.",
-    technicalDetails:
-      "Blob storage download operation failed - storage service error",
+    userMessage: 'Download failed. Please try again.',
+    technicalDetails: 'Blob storage download operation failed - storage service error',
     isRetryable: true,
     retryAfterMs: 5000,
   },
   [ErrorCode.STOR_PAYLOAD_TOO_LARGE]: {
     code: ErrorCode.STOR_PAYLOAD_TOO_LARGE,
     httpStatus: 413,
-    userMessage: "This item is too large to upload. Maximum size is 50MB.",
-    technicalDetails: "Upload payload exceeds maximum blob size limit",
+    userMessage: 'This item is too large to upload. Maximum size is 50MB.',
+    technicalDetails: 'Upload payload exceeds maximum blob size limit',
     isRetryable: false,
   },
   [ErrorCode.STOR_DELETE_FAILED]: {
     code: ErrorCode.STOR_DELETE_FAILED,
     httpStatus: 500,
-    userMessage: "Delete failed. Please try again.",
-    technicalDetails: "Blob storage delete operation failed",
+    userMessage: 'Delete failed. Please try again.',
+    technicalDetails: 'Blob storage delete operation failed',
     isRetryable: true,
     retryAfterMs: 5000,
   },
@@ -1238,71 +1175,62 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorDefinition> = {
   [ErrorCode.GEN_NETWORK_ERROR]: {
     code: ErrorCode.GEN_NETWORK_ERROR,
     httpStatus: 503,
-    userMessage:
-      "Unable to connect to servers. Please check your internet connection.",
+    userMessage: 'Unable to connect to servers. Please check your internet connection.',
     technicalDetails:
-      "Network request failed - DNS resolution, connection timeout, or network unreachable",
+      'Network request failed - DNS resolution, connection timeout, or network unreachable',
     isRetryable: true,
   },
   [ErrorCode.GEN_SERVER_ERROR]: {
     code: ErrorCode.GEN_SERVER_ERROR,
     httpStatus: 500,
-    userMessage:
-      "Server error. We are working on it. Please try again in a moment.",
-    technicalDetails: "Generic server error - check server logs for details",
+    userMessage: 'Server error. We are working on it. Please try again in a moment.',
+    technicalDetails: 'Generic server error - check server logs for details',
     isRetryable: true,
     retryAfterMs: 30000,
   },
   [ErrorCode.GEN_RATE_LIMITED]: {
     code: ErrorCode.GEN_RATE_LIMITED,
     httpStatus: 429,
-    userMessage: "Too many requests. Please slow down.",
-    technicalDetails: "Rate limit exceeded - X-RateLimit-Remaining reached 0",
+    userMessage: 'Too many requests. Please slow down.',
+    technicalDetails: 'Rate limit exceeded - X-RateLimit-Remaining reached 0',
     isRetryable: true,
     retryAfterMs: 60000,
   },
   [ErrorCode.GEN_INVALID_REQUEST]: {
     code: ErrorCode.GEN_INVALID_REQUEST,
     httpStatus: 400,
-    userMessage: "Invalid request. Please check your input and try again.",
-    technicalDetails:
-      "Request validation failed - missing required fields or invalid format",
+    userMessage: 'Invalid request. Please check your input and try again.',
+    technicalDetails: 'Request validation failed - missing required fields or invalid format',
     isRetryable: false,
   },
   [ErrorCode.GEN_FEATURE_NOT_AVAILABLE]: {
     code: ErrorCode.GEN_FEATURE_NOT_AVAILABLE,
     httpStatus: 403,
-    userMessage:
-      "This feature is not available on your current plan. Upgrade to access.",
-    technicalDetails:
-      "Feature access denied - subscription tier does not include this feature",
+    userMessage: 'This feature is not available on your current plan. Upgrade to access.',
+    technicalDetails: 'Feature access denied - subscription tier does not include this feature',
     isRetryable: false,
   },
   [ErrorCode.GEN_SERVICE_UNAVAILABLE]: {
     code: ErrorCode.GEN_SERVICE_UNAVAILABLE,
     httpStatus: 503,
-    userMessage:
-      "Service is temporarily unavailable. Retrying automatically...",
-    technicalDetails:
-      "Service is in maintenance mode or experiencing high load",
+    userMessage: 'Service is temporarily unavailable. Retrying automatically...',
+    technicalDetails: 'Service is in maintenance mode or experiencing high load',
     isRetryable: true,
     retryAfterMs: 60000,
   },
   [ErrorCode.GEN_INTERNAL_ERROR]: {
     code: ErrorCode.GEN_INTERNAL_ERROR,
     httpStatus: 500,
-    userMessage: "Something went wrong. Please try again.",
-    technicalDetails:
-      "Unhandled exception or internal error - check server logs",
+    userMessage: 'Something went wrong. Please try again.',
+    technicalDetails: 'Unhandled exception or internal error - check server logs',
     isRetryable: true,
     retryAfterMs: 10000,
   },
   [ErrorCode.GEN_PAYMENT_REQUIRED]: {
     code: ErrorCode.GEN_PAYMENT_REQUIRED,
     httpStatus: 402,
-    userMessage:
-      "Payment required to continue. Please update your payment method.",
-    technicalDetails: "Subscription payment failed - card declined or expired",
+    userMessage: 'Payment required to continue. Please update your payment method.',
+    technicalDetails: 'Subscription payment failed - card declined or expired',
     isRetryable: false,
   },
 };
@@ -1319,7 +1247,7 @@ This section provides implementation examples for common error handling scenario
 Authentication errors require special handling to maintain session continuity. The token refresh flow should be transparent to users and handle various failure scenarios gracefully.
 
 ```typescript
-import { ErrorCode, ERROR_MESSAGES } from "@notechain/data-models";
+import { ErrorCode, ERROR_MESSAGES } from '@notechain/data-models';
 
 interface AuthTokens {
   accessToken: string;
@@ -1333,7 +1261,7 @@ class AuthManager {
 
   async getAccessToken(): Promise<string> {
     if (!this.tokens) {
-      throw new Error("Not authenticated");
+      throw new Error('Not authenticated');
     }
 
     if (this.isTokenExpired()) {
@@ -1351,7 +1279,7 @@ class AuthManager {
 
   async refreshAccessToken(): Promise<string> {
     if (!this.tokens?.refreshToken) {
-      throw new Error("No refresh token available");
+      throw new Error('No refresh token available');
     }
 
     if (this.refreshPromise) {
@@ -1370,9 +1298,9 @@ class AuthManager {
   }
 
   private async performTokenRefresh(): Promise<AuthTokens> {
-    const response = await fetch("/auth/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: this.tokens?.refreshToken }),
     });
 
@@ -1381,16 +1309,14 @@ class AuthManager {
 
       if (error.code === ErrorCode.AUTH_REFRESH_TOKEN_INVALID) {
         this.clearTokens();
-        throw new AuthenticationRequiredError(
-          "Session expired, please sign in again",
-        );
+        throw new AuthenticationRequiredError('Session expired, please sign in again');
       }
 
       if (error.code === ErrorCode.AUTH_TOKEN_EXPIRED) {
-        throw new AuthenticationRequiredError("Please sign in again");
+        throw new AuthenticationRequiredError('Please sign in again');
       }
 
-      throw new Error("Failed to refresh token");
+      throw new Error('Failed to refresh token');
     }
 
     const data = await response.json();
@@ -1401,17 +1327,15 @@ class AuthManager {
     };
   }
 
-  private async parseErrorResponse(
-    response: Response,
-  ): Promise<{ code: string; message: string }> {
+  private async parseErrorResponse(response: Response): Promise<{ code: string; message: string }> {
     try {
       const error = await response.json();
       return {
-        code: error.code || "UNKNOWN",
-        message: error.message || "Unknown error",
+        code: error.code || 'UNKNOWN',
+        message: error.message || 'Unknown error',
       };
     } catch {
-      return { code: "UNKNOWN", message: "Unknown error" };
+      return { code: 'UNKNOWN', message: 'Unknown error' };
     }
   }
 
@@ -1423,7 +1347,7 @@ class AuthManager {
 class AuthenticationRequiredError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "AuthenticationRequiredError";
+    this.name = 'AuthenticationRequiredError';
   }
 }
 ```
@@ -1435,23 +1359,21 @@ The token refresh implementation uses a promise cache to prevent multiple simult
 Sync conflicts require user intervention to resolve. The UI should present both versions clearly and provide intuitive options for resolution.
 
 ```typescript
-import { ErrorCode } from "@notechain/data-models";
+import { ErrorCode } from '@notechain/data-models';
 
 interface SyncConflict {
   blobId: string;
   localVersion: number;
   remoteVersion: number;
-  conflictType: "version_mismatch" | "concurrent_edit" | "deleted_on_both";
+  conflictType: 'version_mismatch' | 'concurrent_edit' | 'deleted_on_both';
   localData?: EncryptedBlob;
   remoteData?: EncryptedBlob;
 }
 
-type ConflictResolution = "keep_local" | "keep_remote" | "merge";
+type ConflictResolution = 'keep_local' | 'keep_remote' | 'merge';
 
 class ConflictResolver {
-  async showConflictDialog(
-    conflict: SyncConflict,
-  ): Promise<ConflictResolution> {
+  async showConflictDialog(conflict: SyncConflict): Promise<ConflictResolution> {
     const localModified = conflict.localData?.updated_at
       ? new Date(conflict.localData.updated_at)
       : null;
@@ -1460,8 +1382,8 @@ class ConflictResolver {
       : null;
 
     const dialog = new ConflictDialog({
-      title: "Sync Conflict Detected",
-      message: "This item was modified on another device.",
+      title: 'Sync Conflict Detected',
+      message: 'This item was modified on another device.',
       localVersion: {
         version: conflict.localVersion,
         modified: localModified,
@@ -1473,9 +1395,9 @@ class ConflictResolver {
         preview: this.extractPreview(conflict.remoteData),
       },
       options: [
-        { id: "keep_local", label: "Keep My Version" },
-        { id: "keep_remote", label: "Keep Their Version" },
-        { id: "merge", label: "Merge Changes" },
+        { id: 'keep_local', label: 'Keep My Version' },
+        { id: 'keep_remote', label: 'Keep Their Version' },
+        { id: 'merge', label: 'Merge Changes' },
       ],
     });
 
@@ -1485,15 +1407,15 @@ class ConflictResolver {
   async resolveConflict(
     blobId: string,
     resolution: ConflictResolution,
-    mergedData?: { ciphertext: string; nonce: string },
+    mergedData?: { ciphertext: string; nonce: string }
   ): Promise<void> {
-    const response = await fetch("/sync/resolve-conflict", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/sync/resolve-conflict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         blob_id: blobId,
         resolution,
-        ...(resolution === "merge" && mergedData
+        ...(resolution === 'merge' && mergedData
           ? {
               merged_ciphertext: mergedData.ciphertext,
               merged_nonce: mergedData.nonce,
@@ -1506,7 +1428,7 @@ class ConflictResolver {
       const error = await this.parseError(response);
 
       if (error.code === ErrorCode.SYNC_CONFLICT_RESOLUTION_FAILED) {
-        throw new Error("Unable to resolve conflict. Please try again.");
+        throw new Error('Unable to resolve conflict. Please try again.');
       }
 
       throw error;
@@ -1514,14 +1436,14 @@ class ConflictResolver {
   }
 
   private extractPreview(blob?: EncryptedBlob): string {
-    if (!blob) return "(Deleted)";
+    if (!blob) return '(Deleted)';
     // Extract first few characters of decrypted content for preview
-    return "[Content Preview]";
+    return '[Content Preview]';
   }
 
   private async parseError(response: Response): Promise<Error> {
     const error = await response.json();
-    return new Error(error.message || "Unknown error");
+    return new Error(error.message || 'Unknown error');
   }
 }
 
@@ -1539,11 +1461,11 @@ class ConflictDialog {
         preview: string;
       };
       options: Array<{ id: ConflictResolution; label: string }>;
-    },
+    }
   ) {}
 
   show(): Promise<ConflictResolution> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.resolve = resolve;
       this.render();
     });
@@ -1570,13 +1492,13 @@ class ConflictDialog {
 Network errors require robust handling to maintain functionality during connectivity issues. The implementation should queue operations and sync when connectivity is restored.
 
 ```typescript
-import { ErrorCode } from "@notechain/data-models";
+import { ErrorCode } from '@notechain/data-models';
 
-type NetworkStatus = "online" | "offline" | "connecting";
+type NetworkStatus = 'online' | 'offline' | 'connecting';
 
 interface QueuedOperation {
   id: string;
-  type: "create" | "update" | "delete";
+  type: 'create' | 'update' | 'delete';
   endpoint: string;
   payload: unknown;
   timestamp: number;
@@ -1584,7 +1506,7 @@ interface QueuedOperation {
 }
 
 class NetworkManager {
-  private status: NetworkStatus = "online";
+  private status: NetworkStatus = 'online';
   private queue: QueuedOperation[] = [];
   private maxRetries = 5;
   private readonly baseDelay = 1000;
@@ -1594,31 +1516,27 @@ class NetworkManager {
   }
 
   private setupNetworkListeners(): void {
-    if (typeof window !== "undefined") {
-      window.addEventListener("online", () => this.handleOnline());
-      window.addEventListener("offline", () => this.handleOffline());
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.handleOnline());
+      window.addEventListener('offline', () => this.handleOffline());
     }
   }
 
   private handleOffline(): void {
-    this.status = "offline";
+    this.status = 'offline';
     this.processQueue();
   }
 
   private handleOnline(): void {
-    this.status = "connecting";
+    this.status = 'connecting';
     setTimeout(() => {
-      this.status = "online";
+      this.status = 'online';
       this.processQueue();
     }, 1000);
   }
 
-  async request<T>(
-    endpoint: string,
-    options: RequestInit,
-    requireAuth = true,
-  ): Promise<T> {
-    if (this.status === "offline" && !navigator.onLine) {
+  async request<T>(endpoint: string, options: RequestInit, requireAuth = true): Promise<T> {
+    if (this.status === 'offline' && !navigator.onLine) {
       return this.queueAndWait(endpoint, options, requireAuth);
     }
 
@@ -1635,7 +1553,7 @@ class NetworkManager {
   private async queueAndWait<T>(
     endpoint: string,
     options: RequestInit,
-    requireAuth: boolean,
+    requireAuth: boolean
   ): Promise<T> {
     const operation: QueuedOperation = {
       id: this.generateId(),
@@ -1651,7 +1569,7 @@ class NetworkManager {
 
     return new Promise((resolve, reject) => {
       const checkComplete = setInterval(() => {
-        const index = this.queue.findIndex((op) => op.id === operation.id);
+        const index = this.queue.findIndex(op => op.id === operation.id);
         if (index === -1) {
           clearInterval(checkComplete);
           this.getResult(operation.id).then(resolve).catch(reject);
@@ -1663,7 +1581,7 @@ class NetworkManager {
   private async handleNetworkError<T>(
     endpoint: string,
     options: RequestInit,
-    requireAuth: boolean,
+    requireAuth: boolean
   ): Promise<T> {
     const operation: QueuedOperation = {
       id: this.generateId(),
@@ -1679,21 +1597,21 @@ class NetworkManager {
 
     return new Promise((resolve, reject) => {
       const checkComplete = setInterval(() => {
-        const index = this.queue.findIndex((op) => op.id === operation.id);
+        const index = this.queue.findIndex(op => op.id === operation.id);
         if (index === -1) {
           clearInterval(checkComplete);
           this.getResult(operation.id).then(resolve).catch(reject);
         } else if (operation.retryCount >= this.maxRetries) {
           clearInterval(checkComplete);
-          this.queue = this.queue.filter((op) => op.id !== operation.id);
-          reject(new Error("Operation failed after maximum retries"));
+          this.queue = this.queue.filter(op => op.id !== operation.id);
+          reject(new Error('Operation failed after maximum retries'));
         }
       }, 1000);
     });
   }
 
   private async processQueue(): Promise<void> {
-    if (this.status === "offline" || this.queue.length === 0) {
+    if (this.status === 'offline' || this.queue.length === 0) {
       return;
     }
 
@@ -1702,26 +1620,24 @@ class NetworkManager {
     for (const operation of sortedQueue) {
       try {
         await this.executeQueuedOperation(operation);
-        this.queue = this.queue.filter((op) => op.id !== operation.id);
+        this.queue = this.queue.filter(op => op.id !== operation.id);
       } catch (error) {
         if (this.isRetryableError(error)) {
           operation.retryCount++;
           const delay = this.calculateBackoff(operation.retryCount);
           await this.sleep(delay);
         } else {
-          this.queue = this.queue.filter((op) => op.id !== operation.id);
-          console.error("Operation failed permanently:", operation, error);
+          this.queue = this.queue.filter(op => op.id !== operation.id);
+          console.error('Operation failed permanently:', operation, error);
         }
       }
     }
   }
 
-  private async executeQueuedOperation(
-    operation: QueuedOperation,
-  ): Promise<void> {
+  private async executeQueuedOperation(operation: QueuedOperation): Promise<void> {
     const response = await fetch(operation.endpoint, {
       method: this.getHttpMethod(operation.type),
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(operation.payload),
     });
 
@@ -1736,7 +1652,7 @@ class NetworkManager {
   }
 
   private async getResult(operationId: string): Promise<never> {
-    throw new Error("Result not available");
+    throw new Error('Result not available');
   }
 
   private isNetworkError(error: unknown): boolean {
@@ -1750,28 +1666,28 @@ class NetworkManager {
     return (error as { isRetryable?: boolean })?.isRetryable === true;
   }
 
-  private getOperationType(method?: string): "create" | "update" | "delete" {
+  private getOperationType(method?: string): 'create' | 'update' | 'delete' {
     switch (method) {
-      case "POST":
-        return "create";
-      case "PUT":
-      case "PATCH":
-        return "update";
-      case "DELETE":
-        return "delete";
+      case 'POST':
+        return 'create';
+      case 'PUT':
+      case 'PATCH':
+        return 'update';
+      case 'DELETE':
+        return 'delete';
       default:
-        return "create";
+        return 'create';
     }
   }
 
-  private getHttpMethod(type: "create" | "update" | "delete"): string {
+  private getHttpMethod(type: 'create' | 'update' | 'delete'): string {
     switch (type) {
-      case "create":
-        return "POST";
-      case "update":
-        return "PUT";
-      case "delete":
-        return "DELETE";
+      case 'create':
+        return 'POST';
+      case 'update':
+        return 'PUT';
+      case 'delete':
+        return 'DELETE';
     }
   }
 
@@ -1780,7 +1696,7 @@ class NetworkManager {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 ```
@@ -1790,7 +1706,7 @@ class NetworkManager {
 Rate limiting errors require respectful handling to avoid worsening the situation. The implementation should implement exponential backoff with jitter to distribute retry attempts.
 
 ```typescript
-import { ErrorCode } from "@notechain/data-models";
+import { ErrorCode } from '@notechain/data-models';
 
 interface RateLimitInfo {
   limit: number;
@@ -1804,10 +1720,7 @@ class RateLimitHandler {
   private readonly baseDelay = 1000;
   private readonly maxDelay = 60000;
 
-  async executeWithBackoff<T>(
-    key: string,
-    operation: () => Promise<T>,
-  ): Promise<T> {
+  async executeWithBackoff<T>(key: string, operation: () => Promise<T>): Promise<T> {
     let attempt = 0;
 
     while (true) {
@@ -1821,7 +1734,7 @@ class RateLimitHandler {
         attempt++;
 
         if (attempt > this.maxAttempts) {
-          throw new Error("Maximum retry attempts exceeded");
+          throw new Error('Maximum retry attempts exceeded');
         }
 
         const rateLimitInfo = this.extractRateLimitInfo(error);
@@ -1843,7 +1756,7 @@ class RateLimitHandler {
     const details = (error as { details?: { retryAfter?: number } })?.details;
     const retryAfter = details?.retryAfter;
 
-    if (typeof retryAfter === "number") {
+    if (typeof retryAfter === 'number') {
       return {
         limit: 0,
         remaining: 0,
@@ -1854,10 +1767,7 @@ class RateLimitHandler {
     return null;
   }
 
-  private calculateDelay(
-    attempt: number,
-    rateLimitInfo?: RateLimitInfo | null,
-  ): number {
+  private calculateDelay(attempt: number, rateLimitInfo?: RateLimitInfo | null): number {
     if (rateLimitInfo?.resetAt) {
       const timeUntilReset = rateLimitInfo.resetAt - Date.now();
       if (timeUntilReset > 0) {
@@ -1865,10 +1775,7 @@ class RateLimitHandler {
       }
     }
 
-    const exponentialDelay = Math.min(
-      this.baseDelay * Math.pow(2, attempt - 1),
-      this.maxDelay,
-    );
+    const exponentialDelay = Math.min(this.baseDelay * Math.pow(2, attempt - 1), this.maxDelay);
 
     const jitter = Math.random() * 0.3 * exponentialDelay;
 
@@ -1876,7 +1783,7 @@ class RateLimitHandler {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   getRemainingRequests(key: string): number {
@@ -1890,7 +1797,7 @@ class RateLimitHandler {
 Cryptography errors related to key issues require a specific recovery flow. The implementation should guide users through the key recovery process while maintaining security.
 
 ```typescript
-import { ErrorCode } from "@notechain/data-models";
+import { ErrorCode } from '@notechain/data-models';
 
 interface RecoveryKey {
   id: string;
@@ -1913,8 +1820,8 @@ class KeyRecoveryManager {
   }
 
   private async checkForRecoveryKeys(): Promise<boolean> {
-    const response = await fetch("/auth/recovery-keys", {
-      method: "GET",
+    const response = await fetch('/auth/recovery-keys', {
+      method: 'GET',
       headers: { Authorization: `Bearer ${await this.getAccessToken()}` },
     });
 
@@ -1928,10 +1835,9 @@ class KeyRecoveryManager {
 
   private async promptReauthentication(): Promise<void> {
     await this.showDialog({
-      title: "Session Expired",
-      message:
-        "Your encryption keys could not be loaded. Please sign in again to restore access.",
-      actions: [{ id: "signin", label: "Sign In" }],
+      title: 'Session Expired',
+      message: 'Your encryption keys could not be loaded. Please sign in again to restore access.',
+      actions: [{ id: 'signin', label: 'Sign In' }],
     });
   }
 
@@ -1953,10 +1859,7 @@ class KeyRecoveryManager {
 
         return false;
       } catch (error) {
-        if (
-          (error as { code?: string })?.code ===
-          ErrorCode.AUTH_INVALID_CREDENTIALS
-        ) {
+        if ((error as { code?: string })?.code === ErrorCode.AUTH_INVALID_CREDENTIALS) {
           return false;
         }
         throw error;
@@ -1968,30 +1871,29 @@ class KeyRecoveryManager {
 
       if (success) {
         await this.showDialog({
-          title: "Recovery Successful",
-          message: "Your encryption keys have been restored.",
-          actions: [{ id: "continue", label: "Continue" }],
+          title: 'Recovery Successful',
+          message: 'Your encryption keys have been restored.',
+          actions: [{ id: 'continue', label: 'Continue' }],
         });
         return true;
       }
 
       if (attempt < this.maxRecoveryAttempts) {
         await this.showDialog({
-          title: "Invalid Recovery Key",
+          title: 'Invalid Recovery Key',
           message: `The recovery key was not valid. ${this.maxRecoveryAttempts - attempt} attempts remaining.`,
           actions: [
-            { id: "retry", label: "Try Again" },
-            { id: "cancel", label: "Cancel" },
+            { id: 'retry', label: 'Try Again' },
+            { id: 'cancel', label: 'Cancel' },
           ],
         });
       }
     }
 
     await this.showDialog({
-      title: "Recovery Failed",
-      message:
-        "Unable to restore your encryption keys. Please contact support.",
-      actions: [{ id: "support", label: "Contact Support" }],
+      title: 'Recovery Failed',
+      message: 'Unable to restore your encryption keys. Please contact support.',
+      actions: [{ id: 'support', label: 'Contact Support' }],
     });
 
     return false;
@@ -1999,21 +1901,18 @@ class KeyRecoveryManager {
 
   private async promptForRecoveryKey(): Promise<string | null> {
     const dialog = new RecoveryKeyDialog({
-      title: "Enter Recovery Key",
-      message:
-        "Enter one of your recovery keys to restore access to your encrypted data.",
-      hint: "Recovery keys are 32-character codes shown when you generated them.",
+      title: 'Enter Recovery Key',
+      message: 'Enter one of your recovery keys to restore access to your encrypted data.',
+      hint: 'Recovery keys are 32-character codes shown when you generated them.',
     });
 
     return dialog.show();
   }
 
-  private async submitRecoveryKey(
-    recoveryKey: string,
-  ): Promise<{ success: boolean }> {
-    const response = await fetch("/auth/recover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+  private async submitRecoveryKey(recoveryKey: string): Promise<{ success: boolean }> {
+    const response = await fetch('/auth/recover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recovery_key: recoveryKey }),
     });
 
@@ -2024,7 +1923,7 @@ class KeyRecoveryManager {
     }
 
     if (!response.ok) {
-      throw new Error("Recovery submission failed");
+      throw new Error('Recovery submission failed');
     }
 
     return { success: true };
@@ -2036,11 +1935,11 @@ class KeyRecoveryManager {
   }
 
   private async deriveMasterKeyFromCredentials(): Promise<Uint8Array> {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 
   private async storeMasterKeySecurely(key: Uint8Array): Promise<void> {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 
   private async showDialog(config: {
@@ -2048,28 +1947,25 @@ class KeyRecoveryManager {
     message: string;
     actions: Array<{ id: string; label: string }>;
   }): Promise<string> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const dialog = new AlertDialog(config);
-      dialog.onAction = (actionId) => resolve(actionId);
+      dialog.onAction = actionId => resolve(actionId);
     });
   }
 
   private async getAccessToken(): Promise<string> {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 }
 
 class RecoveryKeyDialog {
   onAction: ((actionId: string) => void) | null = null;
 
-  constructor(
-    private config: { title: string; message: string; hint?: string },
-  ) {}
+  constructor(private config: { title: string; message: string; hint?: string }) {}
 
   show(): Promise<string | null> {
-    return new Promise((resolve) => {
-      this.onAction = (actionId) =>
-        resolve(actionId === "submit" ? "key" : null);
+    return new Promise(resolve => {
+      this.onAction = actionId => resolve(actionId === 'submit' ? 'key' : null);
     });
   }
 }
@@ -2082,11 +1978,11 @@ class AlertDialog {
       title: string;
       message: string;
       actions: Array<{ id: string; label: string }>;
-    },
+    }
   ) {}
 
   show(): Promise<string> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.onAction = resolve;
     });
   }
@@ -2126,35 +2022,31 @@ When logging errors, always balance the need for debugging information with user
 **Sanitize Before Logging:**
 
 ```typescript
-function sanitizeForLogging(
-  data: Record<string, unknown>,
-): Record<string, unknown> {
+function sanitizeForLogging(data: Record<string, unknown>): Record<string, unknown> {
   const sensitiveKeys = [
-    "password",
-    "token",
-    "key",
-    "secret",
-    "credential",
-    "access_token",
-    "refresh_token",
-    "auth_token",
-    "ciphertext",
-    "nonce",
-    "auth_tag",
-    "email",
-    "phone",
-    "address",
-    "name",
+    'password',
+    'token',
+    'key',
+    'secret',
+    'credential',
+    'access_token',
+    'refresh_token',
+    'auth_token',
+    'ciphertext',
+    'nonce',
+    'auth_tag',
+    'email',
+    'phone',
+    'address',
+    'name',
   ];
 
   const sanitized: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(data)) {
-    if (
-      sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive))
-    ) {
-      sanitized[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null) {
+    if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeForLogging(value as Record<string, unknown>);
     } else {
       sanitized[key] = value;

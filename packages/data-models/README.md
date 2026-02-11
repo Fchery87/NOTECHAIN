@@ -31,12 +31,12 @@ TypeScript interfaces and Supabase type definitions for NoteChain.
 ## Usage
 
 ```typescript
-import { Note, User, Database } from "@notechain/data-models";
+import { Note, User, Database } from '@notechain/data-models';
 
 const note: Note = {
-  id: "uuid",
-  title: "My Note",
-  content: "Encrypted content here",
+  id: 'uuid',
+  title: 'My Note',
+  content: 'Encrypted content here',
   createdAt: new Date(),
   updatedAt: new Date(),
 };

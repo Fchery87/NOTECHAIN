@@ -19,7 +19,7 @@ NoteChain's architecture is built upon four foundational principles that directl
 └─────────────┴─────────────┴─────────────┴─────────────┴─────────────┘
                                      │
                                      │ Encrypted Sync (Supabase Realtime)
-                                     │
+                                      │
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                      SUPABASE BACKEND INFRASTRUCTURE                │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -165,8 +165,8 @@ interface UserAccount {
   // Server-stored (plaintext)
   id: string; // UUID v7
   email_hash: string; // SHA-256 hash of email (for billing)
-  account_tier: "free" | "pro";
-  subscription_status: "active" | "canceled" | "past_due";
+  account_tier: 'free' | 'pro';
+  subscription_status: 'active' | 'canceled' | 'past_due';
   subscription_expires_at: Date | null;
   device_limit: number; // 1 for free, 5 for pro
   created_at: Date;
@@ -201,8 +201,8 @@ interface TodoItem {
   user_id: string;
   title: string; // Encrypted client-side
   description: string | null; // Encrypted client-side
-  status: "pending" | "in_progress" | "completed" | "cancelled";
-  priority: "low" | "medium" | "high" | "critical";
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'critical';
 
   // Dates (stored as ISO strings, encrypted)
   created_at: string;
@@ -218,7 +218,7 @@ interface TodoItem {
 
   // Calendar integration
   calendar_event_id: string | null; // External calendar ID
-  calendar_provider: "google" | "outlook" | "apple" | null;
+  calendar_provider: 'google' | 'outlook' | 'apple' | null;
 
   // Sync metadata (plaintext for server)
   sync_version: number;
@@ -404,7 +404,7 @@ jobs:
       - name: Container Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "notechain/api:${{ github.sha }}"
+          image-ref: 'notechain/api:${{ github.sha }}'
 
   build-and-test:
     needs: security-scan

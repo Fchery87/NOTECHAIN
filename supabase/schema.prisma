@@ -1,0 +1,94 @@
+// NoteChain Database Schema
+// Supabase PostgreSQL with Row Level Security (RLS)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  emailHash     String   @unique @map("email_hash")
+  accountTier   String   @default("free") @map("account_tier") // "free" or "pro"
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  encryptedBlobs EncryptedBlob[]
+  devices       Device[]
+
+  @@index([emailHash])
+  @@map("users")
+}
+
+model EncryptedBlob {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  ciphertext   Bytes
+  nonce        Bytes    // 12 bytes for AES-256-GCM
+  authTag      Bytes    @map("auth_tag") // 16 bytes for AES-256-GCM
+  keyId        String   @map("key_id") // Reference to device-specific key
+  version      Int      @default(1)
+  blobType     String   @map("blob_type") // "note", "todo", "pdf", "calendar"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([blobType])
+  @@index([createdAt])
+  @@map("encrypted_blobs")
+}
+
+model Device {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  publicKey String   @map("public_key") // Public key for asymmetric encryption
+  name      String   // Device name (e.g., "iPhone 15 Pro")
+  lastSeen  DateTime @default(now()) @map("last_seen")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastSeen])
+  @@map("devices")
+}
+
+// Sync operation log for conflict resolution
+model SyncOperation {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  blobId      String   @map("blob_id")
+  operation   String   // "create", "update", "delete"
+  timestamp   DateTime @default(now())
+  deviceId    String   @map("device_id")
+  version     Int
+  
+  @@index([userId])
+  @@index([blobId])
+  @@index([timestamp])
+  @@map("sync_operations")
+}
+
+// User sessions for device management
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  deviceId  String   @map("device_id")
+  tokenHash String   @map("token_hash") // Hashed JWT token
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}

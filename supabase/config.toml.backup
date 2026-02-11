@@ -1,0 +1,50 @@
+[project]
+id = "notechain-project"
+name = "NoteChain"
+slug = "notechain"
+
+[database]
+host = "localhost"
+port = 54322
+user = "postgres"
+password = "postgres"
+db_name = "postgres"
+schema = "public"
+ssl_mode = "require"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = []
+jwt_secret = "your-jwt-secret-here"
+hash_cost = 12
+email_double_opt_in = false
+email_confirm = true
+enable_signup = true
+enable_confirmations = false
+enable_reauthentication = false
+
+[storage]
+enabled = true
+file_size_limit = "50MB"
+storage_path = "storage"
+
+[functions]
+enabled = true
+
+[api]
+enabled = true
+port = 54321
+cors = "*"
+
+[studio]
+enabled = true
+port = 54323
+
+[realtime]
+enabled = true
+port = 54324
+
+[logging]
+enabled = true
+log_level = "info"

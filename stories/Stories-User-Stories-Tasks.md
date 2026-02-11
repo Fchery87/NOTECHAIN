@@ -1,14 +1,12 @@
 ## Technology Stack Overview
 
-NoteChain uses a unified cross-platform architecture:
+NoteChain uses a web-first architecture:
 
-- **Mobile (iOS/Android):** React Native 0.73+ with Expo Router for navigation and native modules
 - **Web:** Next.js 14 with App Router, React Server Components, and PWA support
-- **Desktop:** Tauri 2.0 with Rust backend for native file system access
 - **Package Manager:** Bun 1.0+ for dependency management and scripting
 - **Backend:** Supabase (PostgreSQL 15, Auth, Realtime, Storage) with Row Level Security
-- **Local Storage:** React Native MMKV (mobile), Dexie.js (web), Tauri storage API (desktop)
-- **Cryptography:** libsodium via react-native-sodium and libsodium-wrappers for AES-256-GCM
+- **Local Storage:** Dexie.js (IndexedDB wrapper) for web
+- **Cryptography:** libsodium via libsodium-wrappers for AES-256-GCM
 
 ## Epic Overview
 
@@ -40,11 +38,11 @@ This document outlines the major development epics for the NoteChain project. Ea
 
 **Primary Goal:** Enable seamless, encrypted multi-device workflow and calendar connectivity without compromising privacy.
 
-- **Description:** This epic builds the conflict-resolution sync engine that works across iPhone, iPad, Mac, Android, and Web using the user's encryption keys. It also develops the secure, token-based connectors for **Smart Calendar Sync** with Google, Outlook, and Apple Calendar, ensuring todo deadlines appear externally without exposing plaintext data.
+- **Description:** This epic builds the conflict-resolution sync engine that works across different browser sessions and devices using the user's encryption keys. It also develops the secure, token-based connectors for **Smart Calendar Sync** with Google, Outlook, and Apple Calendar, ensuring todo deadlines appear externally without exposing plaintext data.
 - **Relation to Project Goals:**
-  - **Core Proposition & Differentiator:** Delivers "Multi-Device Sync (Encrypted)" and "Smart Calendar Sync."
-  - **User Experience:** Essential for the "start on phone, continue on laptop" seamless workflow.
-  - **Revenue Model:** Multi-device sync is a key **Pro** tier feature, driving upgrade incentives.
+  - **Core Proposition & Differentiator:** Delivers "Multi-Session Sync (Encrypted)" and "Smart Calendar Sync."
+  - **User Experience:** Essential for the "start on laptop, continue on tablet" seamless workflow.
+  - **Revenue Model:** Multi-session sync is a key **Pro** tier feature, driving upgrade incentives.
 
 ## Epic 4: On-Device Intelligence & Analytics
 
@@ -60,9 +58,9 @@ This document outlines the major development epics for the NoteChain project. Ea
 
 **Primary Goal:** Successfully deploy the application across all target platforms and implement the tiered revenue model.
 
-- **Description:** This epic covers the final packaging, store submissions (iOS App Store, Google Play), and web deployment. It also includes building the in-app purchase and subscription management system for the **Free, Pro, and Premium Add-on** tiers, including logic for device limits and feature gating.
+- **Description:** This epic covers the final packaging and web deployment. It also includes building the in-app purchase and subscription management system for the **Free, Pro, and Premium Add-on** tiers, including logic for session limits and feature gating.
 - **Relation to Project Goals:**
-  - **Go-to-Market:** Enables the "Launch with iOS/Android + Web simultaneously" strategy.
+  - **Go-to-Market:** Enables the "Launch with web application" strategy.
   - **Revenue Model:** Directly implements the **Aggressive Conversion** model. The structure of the free tier is designed to create the viral funnel, while Pro and Add-ons capture value.
   - **Unit Economics:** The technical implementation of this epic directly enables the projected conversion rates and ARR.
 
@@ -99,7 +97,7 @@ This section details the specific, user-centric requirements for the NoteChain a
   - AC1: Upon first launch, the user is guided through a mandatory master password creation screen.
   - AC2: The master password is used to generate and encrypt a local AES-256 key (the Data Encryption Key) using a key derivation function (e.g., Argon2id).
   - AC3: The encrypted Data Encryption Key is stored locally. The plaintext master password and plaintext Data Encryption Key are **never** persisted to disk or transmitted over the network.
-  - AC4: A clear, non-technical explanation is presented, stating: "Your key never leaves this device. NoteChain servers cannot read your notes, todos, or files."
+  - AC4: A clear, non-technical explanation is presented, stating: "Your key never leaves this browser. NoteChain servers cannot read your notes, todos, or files."
 
 **US-1.2: Transparent Security Model**
 
@@ -203,7 +201,7 @@ This section decomposes the defined user stories into specific, actionable techn
 **Subsystem: Local Data Persistence**
 
 - **TT-1.3.1: Select and Configure Encrypted Local Database**
-  - **Description:** Configure platform-specific encrypted local databases: React Native MMKV for mobile, Dexie.js (IndexedDB wrapper) for web, and Tauri storage API for desktop. All databases must support robust encryption at rest using the user's DEK. This database will store all user data (notes, todos, PDF metadata, sync logs) locally.
+  - **Description:** Configure the encrypted local database: Dexie.js (IndexedDB wrapper) for web. The database must support robust encryption at rest using the user's DEK. This database will store all user data (notes, todos, PDF metadata, sync logs) locally.
   - **Dependencies:** TT-1.1.1 (Cryptographic Primitives).
   - **Acceptance Criteria:**
     - Database file is encrypted using the user's DEK.

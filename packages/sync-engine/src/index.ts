@@ -1,30 +1,26 @@
-export interface SyncQueueItem {
-  id: string;
-  operation: 'create' | 'update' | 'delete';
-  entityType: string;
-  entityId: string;
-  payload: unknown;
-  timestamp: number;
-  retryCount: number;
-  maxRetries: number;
-}
+// packages/sync-engine/src/index.ts
+export { LWWElementSet } from './crdt';
+export { SyncService } from './syncService';
+export type { SyncOperation, SyncStatus, SyncRepositoryAdapter } from './syncService';
 
-export interface ConflictResolution {
-  strategy: 'server-wins' | 'client-wins' | 'manual';
-  resolvedData?: unknown;
-}
+// Platform adapter exports
+export {
+  PlatformAdapter,
+  BrowserPlatformAdapter,
+  NodePlatformAdapter,
+  TestPlatformAdapter,
+  detectPlatform,
+  defaultPlatform,
+} from './platform';
+export type { NetworkStatus } from './platform';
 
-export interface SyncState {
-  lastSyncVersion: number;
-  pendingChanges: number;
-  isOnline: boolean;
-  isSyncing: boolean;
-}
+// Sync queue exports
+export { SyncQueue } from './queue/sync-queue';
+export type {
+  SyncQueueConfig,
+  SendOperationCallback,
+  PersistQueueCallback,
+} from './queue/sync-queue';
 
-export declare function initializeSync(userId: string): Promise<void>;
-export declare function queueOperation(item: SyncQueueItem): Promise<void>;
-export declare function processSyncQueue(): Promise<ConflictResolution[]>;
-export declare function pullChanges(sinceVersion: number): Promise<unknown[]>;
-export declare function pushChanges(): Promise<void>;
-export declare function getSyncState(): SyncState;
-export declare function subscribeToChanges(callback: (changes: unknown[]) => void): void;
+// Enhanced CRDT exports
+export type { LWWEntry } from './crdt/lww-element-set';

@@ -2,34 +2,58 @@
   "name": "notechain",
   "version": "0.0.1",
   "private": true,
-  "description": "Privacy-first, offline-first productivity suite with end-to-end encryption",
+  "description": "Privacy-first, web-based productivity suite with end-to-end encryption",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter @notechain/mobile dev",
-    "build": "bun run build --filter 'apps/*'",
-    "test": "bun run test --filter '@notechain/*'",
+    "dev": "bun run --filter='@notechain/web' dev",
+    "dev:marketing": "bun run --filter='@notechain/marketing' dev",
+    "build": "bun run build:packages && bun run build:apps",
+    "build:packages": "bun run --filter='@notechain/core-crypto' --filter='@notechain/data-models' --filter='@notechain/sync-engine' --filter='@notechain/ai-engine' --filter='@notechain/ui-components' build",
+    "build:apps": "bun run --filter='@notechain/web' --filter='@notechain/marketing' build",
+    "test": "bun run --filter='@notechain/*' test",
+    "test:ci": "bun run test --coverage",
     "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "typecheck": "bun run --filter='@notechain/*' typecheck",
+    "typecheck:apps": "bun run --filter='@notechain/web' --filter='@notechain/marketing' typecheck",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
-    "supabase:start": "supabase start",
-    "supabase:stop": "supabase stop",
-    "supabase:push": "supabase db push",
-    "supabase:generate": "supabase gen types typescript --project-id your-project-id > packages/data-models/src/supabase-types.ts"
+    "clean:all": "bun run clean && rm -rf bun.lock",
+    "prepare": "husky install || true",
+    "validate": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.1.6",
     "@types/bun": "latest",
-    "supabase": "^1.100.0",
-    "typescript": "^5.3.0",
-    "prettier": "^3.1.0",
-    "eslint": "^8.55.0",
-    "@typescript-eslint/eslint-plugin": "^6.18.0",
-    "@typescript-eslint/parser": "^6.18.0"
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^9.27.0",
+    "globals": "^17.3.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.4.0",
+    "prettier": "^3.5.0",
+    "typescript": "^5.7.3"
   },
   "engines": {
     "bun": ">=1.0.0",
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.95.3"
   }
 }

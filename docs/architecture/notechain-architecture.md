@@ -1,6 +1,6 @@
 # NoteChain Architecture Diagrams
 
-This document contains comprehensive architecture diagrams for the NoteChain system, visualizing the data flow, platform components, and monorepo structure as defined in ADR-001 and ADR-002.
+This document contains comprehensive architecture diagrams for the NoteChain system, visualizing the data flow, platform components, and monorepo structure as defined in ADR-001.
 
 ## 1. System Overview (C4 Container Diagram)
 
@@ -8,55 +8,31 @@ This document contains comprehensive architecture diagrams for the NoteChain sys
 C4Container
     title NoteChain System Overview
 
-    Person(user, "End User", "Creates, edits, and syncs encrypted notes across devices")
+    Person(user, "End User", "Creates, edits, and syncs encrypted notes across browser sessions")
 
     ContainerDb(rel_db, "PostgreSQL", "Supabase", "Stores encrypted note blobs and metadata")
     Container(rel_auth, "Supabase Auth", "Manages user authentication and sessions")
     Container(rel_realtime, "Supabase Realtime", "Broadcasts sync events to connected clients")
     Container(rel_storage, "Supabase Storage", "Stores encrypted file attachments")
 
-    Container(mobile, "Mobile App", "React Native", "iOS/Android application with native encryption")
     Container(web, "Web App", "Next.js 14", "Progressive web application")
-    Container(desktop, "Desktop App", "Tauri", "Cross-platform desktop application")
 
     Container(shared_core_crypto, "core-crypto", "TypeScript", "Shared encryption/decryption logic")
     Container(shared_data_models, "data-models", "TypeScript", "Shared TypeScript interfaces and types")
     Container(shared_sync_engine, "sync-engine", "TypeScript", "CRDT-based sync logic")
     Container(shared_ui_components, "ui-components", "React", "Shared UI components")
 
-    Rel(user, mobile, "Uses", "HTTPS/WSS")
     Rel(user, web, "Uses", "HTTPS/WSS")
-    Rel(user, desktop, "Uses", "HTTPS/WSS")
-
-    Rel(mobile, shared_core_crypto, "Uses", "Local calls")
-    Rel(mobile, shared_data_models, "Uses", "TypeScript")
-    Rel(mobile, shared_sync_engine, "Uses", "Local calls")
-    Rel(mobile, shared_ui_components, "Uses", "React components")
 
     Rel(web, shared_core_crypto, "Uses", "Local calls")
     Rel(web, shared_data_models, "Uses", "TypeScript")
     Rel(web, shared_sync_engine, "Uses", "Local calls")
     Rel(web, shared_ui_components, "Uses", "React components")
 
-    Rel(desktop, shared_core_crypto, "Uses", "Local calls")
-    Rel(desktop, shared_data_models, "Uses", "TypeScript")
-    Rel(desktop, shared_sync_engine, "Uses", "Local calls")
-    Rel(desktop, shared_ui_components, "Uses", "React components")
-
-    Rel(mobile, rel_db, "Reads/Writes encrypted data", "HTTPS")
-    Rel(mobile, rel_auth, "Authenticates", "HTTPS")
-    Rel(mobile, rel_realtime, "Subscribes to changes", "WSS")
-    Rel(mobile, rel_storage, "Stores attachments", "HTTPS")
-
     Rel(web, rel_db, "Reads/Writes encrypted data", "HTTPS")
     Rel(web, rel_auth, "Authenticates", "HTTPS")
     Rel(web, rel_realtime, "Subscribes to changes", "WSS")
     Rel(web, rel_storage, "Stores attachments", "HTTPS")
-
-    Rel(desktop, rel_db, "Reads/Writes encrypted data", "HTTPS")
-    Rel(desktop, rel_auth, "Authenticates", "HTTPS")
-    Rel(desktop, rel_realtime, "Subscribes to changes", "WSS")
-    Rel(desktop, rel_storage, "Stores attachments", "HTTPS")
 ```
 
 ## 2. Data Flow Diagram (Note Creation & Sync)
@@ -65,14 +41,14 @@ C4Container
 flowchart TD
     subgraph Client["Client Application"]
         UI["User Interface"]
-        Store["Local Storage\nMMKV/Dexie"]
+        Store["Local Storage\nIndexedDB/Dexie"]
         Crypto["core-crypto\nPackage"]
         Sync["sync-engine\nPackage"]
         Models["data-models\nPackage"]
     end
 
     subgraph Security["Platform Security"]
-        KS["iOS Keychain\nor\nAndroid Keystore"]
+        KS["Web Crypto API\nand\nSecure Browser Storage"]
     end
 
     subgraph Supabase["Supabase Backend"]
@@ -83,10 +59,9 @@ flowchart TD
     end
 
     subgraph Remote["Other Clients"]
-        RC1["iOS Client"]
-        RC2["Android Client"]
+        RC1["Web Client"]
+        RC2["Web Client"]
         RC3["Web Client"]
-        RC4["Desktop Client"]
     end
 
     %% User creates note
@@ -112,7 +87,6 @@ flowchart TD
     RT -- "12. WSS notification" --> RC1
     RT -- "12. WSS notification" --> RC2
     RT -- "12. WSS notification" --> RC3
-    RT -- "12. WSS notification" --> RC4
 
     %% Other clients sync
     RC1 -- "13. Fetch changes" --> DB
@@ -121,8 +95,6 @@ flowchart TD
     RC2 -- "14. Decrypt & merge" --> Crypto
     RC3 -- "13. Fetch changes" --> DB
     RC3 -- "14. Decrypt & merge" --> Crypto
-    RC4 -- "13. Fetch changes" --> DB
-    RC4 -- "14. Decrypt & merge" --> Crypto
 
     %% File attachments
     UI -- "15. Attach file" --> Crypto
@@ -186,7 +158,7 @@ flowchart LR
     EncNote -- "1. Retrieve encrypted blob" --> EncNote
     EncFile -- "1. Retrieve encrypted file" --> EncFile
 
-    MK -- "2. Fetch from\nKeychain/Keystore" --> MK
+    MK -- "2. Fetch from\nWeb Crypto API\nand Secure Storage" --> MK
     MK -- "3. Key derivation\n(PBKKDF2)" --> DEK
 
     DEK -- "4. Decrypt with DEK\n(AES-256-GCM)" --> Note
@@ -198,7 +170,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph Local["Local Client"]
-        LocalDB["Local Database\n(MMKV/Dexie)"]
+        LocalDB["Local Database\n(Dexie.js/IndexedDB)"]
         CRDT["CRDT Operations"]
         Queue["Sync Queue"]
         Crypto["core-crypto"]
@@ -210,7 +182,7 @@ flowchart TD
     end
 
     subgraph Remote["Remote Clients"]
-        RC["Other Devices"]
+        RC["Other Browser Sessions"]
     end
 
     %% Local changes
@@ -418,23 +390,11 @@ flowchart TD
     end
 
     subgraph Apps["apps/ - Platform Applications"]
-        subgraph Mobile["mobile/ - React Native"]
-            MobileConfig["package.json"]
-            MobileTS["tsconfig.json"]
-            MobileSrc["src/\n• screens/\n• components/\n• stores/\n• hooks/"]
-        end
-
         subgraph Web["web/ - Next.js"]
             WebConfig["package.json"]
             WebNext["next.config.js"]
             WebTS["tsconfig.json"]
             WebSrc["src/\n• app/\n• components/\n• lib/"]
-        end
-
-        subgraph Desktop["desktop/ - Tauri"]
-            DesktopConfig["package.json"]
-            DesktopRust["src-tauri/\n• Cargo.toml\n• src/\n• icons/"]
-            DesktopSrc["src/\n• components/\n• hooks/"]
         end
     end
 
@@ -472,7 +432,7 @@ flowchart TD
     end
 
     subgraph Docs["docs/ - Documentation"]
-        ADR["adr/\n• ADR-001.md\n• ADR-002.md"]
+        ADR["adr/\n• ADR-001.md"]
         Architecture["architecture/\n• notechain-architecture.md"]
         Guides["guides/\n• setup.md\n• development.md"]
     end
@@ -482,9 +442,7 @@ flowchart TD
     Root --> Supabase
     Root --> Docs
 
-    Apps --> Mobile
     Apps --> Web
-    Apps --> Desktop
 
     Packages --> CoreCrypto
     Packages --> DataModels
@@ -549,16 +507,11 @@ erDiagram
 flowchart TD
     subgraph Frontend["Frontend (Client)"]
         subgraph Platforms["Platforms"]
-            Mobile["React Native 0.73+\niOS / Android"]
             Web["Next.js 14\nPWA / SSR"]
-            Desktop["Tauri 2.0\nRust / React"]
         end
 
         subgraph Languages["Languages"]
             TypeScript["TypeScript 5.x"]
-            Rust["Rust 1.75+"]
-            Swift["Swift (iOS)"]
-            Kotlin["Kotlin (Android)"]
         end
 
         subgraph State["State Management"]
@@ -610,9 +563,7 @@ flowchart TD
         end
 
         subgraph Platform["Platform Security"]
-            Keychain["iOS Keychain"]
-            Keystore["Android Keystore"]
-            SystemAuth["Desktop System Auth"]
+            Browser["Web Crypto API\nand Secure Browser Storage"]
         end
     end
 
@@ -629,9 +580,7 @@ flowchart TD
     TLS -- "Secures" --> Transport
     WSS -- "Secures" --> Transport
 
-    Keychain -- "Stores keys" --> Platform
-    Keystore -- "Stores keys" --> Platform
-    SystemAuth -- "Authenticates" --> Platform
+    Browser -- "Stores keys" --> Platform
 
     Application -- "HTTPS" --> InFlight
     Application -- "Encrypted blobs" --> AtRest
@@ -642,8 +591,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph Local["Local Device"]
-        LocalDB["Local Database\n(MMKV/Dexie)"]
+    subgraph Local["Local Browser"]
+        LocalDB["Local Database\n(Dexie.js/IndexedDB)"]
         SyncQueue["Sync Queue"]
         Crypto["Encryption"]
     end
@@ -653,8 +602,8 @@ flowchart TD
         RT["Realtime"]
     end
 
-    subgraph Remote["Remote Devices"]
-        RD["Other Devices"]
+    subgraph Remote["Remote Sessions"]
+        RD["Other Browser Sessions"]
     end
 
     %% Local operations
@@ -705,5 +654,4 @@ flowchart TD
 ## References
 
 - [ADR-001: Technology Stack Selection](../adr/ADR-001-technology-stack.md)
-- [ADR-002: React Native Framework Choice](../adr/ADR-002-framework-choice.md)
 - [Technical Specifications](../../specs/Specs-Technical-Specifications.md)

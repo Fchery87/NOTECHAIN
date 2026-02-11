@@ -25,7 +25,7 @@ CRDT-based synchronization logic for offline-first data sync.
 ## Usage
 
 ```typescript
-import { SyncEngine } from "@notechain/sync-engine";
+import { SyncEngine } from '@notechain/sync-engine';
 
 const sync = new SyncEngine({
   supabase,
