@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import type { ExternalEvent } from '@notechain/data-models';
+import { CalendarEventTranscript } from './CalendarEventTranscript';
 
 /**
  * Props for CalendarView component
@@ -34,6 +35,37 @@ export function CalendarView({
 }: CalendarViewProps) {
   const [currentView, setCurrentView] = useState<CalendarView>(initialView);
   const [currentDate, setCurrentDate] = useState(initialDate ?? new Date());
+  const [selectedEvent, setSelectedEvent] = useState<ExternalEvent | null>(null);
+  const [showEventDetails, setShowEventDetails] = useState(false);
+
+  // Handle event click - show event details
+  const handleEventClick = useCallback(
+    (event: ExternalEvent) => {
+      setSelectedEvent(event);
+      setShowEventDetails(true);
+      onEventClick?.(event);
+    },
+    [onEventClick]
+  );
+
+  // Close event details modal
+  const handleCloseEventDetails = useCallback(() => {
+    setShowEventDetails(false);
+    setSelectedEvent(null);
+  }, []);
+
+  // Handle transcribe from calendar event
+  const handleTranscribe = useCallback((eventId: string) => {
+    // Callback when user initiates transcription
+    // The modal is already handled by CalendarEventTranscript
+  }, []);
+
+  // Handle view meeting
+  const handleViewMeeting = useCallback((meetingId: string) => {
+    // Navigate to meeting detail page or show meeting details
+    // This will be implemented based on the routing system
+    console.log('View meeting:', meetingId);
+  }, []);
 
   // Get days in month
   const getDaysInMonth = useCallback((date: Date) => {
@@ -255,7 +287,7 @@ export function CalendarView({
                     {dayEvents.slice(0, 3).map((event, i) => (
                       <div
                         key={i}
-                        onClick={() => onEventClick?.(event)}
+                        onClick={() => handleEventClick(event)}
                         className={`
                           text-xs px-1.5 py-0.5 rounded truncate cursor-pointer
                           ${
@@ -356,7 +388,7 @@ export function CalendarView({
                         {dayEvents.map((event, i) => (
                           <div
                             key={i}
-                            onClick={() => onEventClick?.(event)}
+                            onClick={() => handleEventClick(event)}
                             className={`
                               text-xs px-1.5 py-0.5 rounded truncate cursor-pointer
                               ${
@@ -452,7 +484,7 @@ export function CalendarView({
                       {hourEvents.map((event, j) => (
                         <div
                           key={j}
-                          onClick={() => onEventClick?.(event)}
+                          onClick={() => handleEventClick(event)}
                           className={`
                             text-sm px-3 py-2 rounded-lg cursor-pointer
                             ${
@@ -533,12 +565,70 @@ export function CalendarView({
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-stone-200 overflow-hidden">
-      {currentView === 'month' && renderMonthView()}
-      {currentView === 'week' && renderWeekView()}
-      {currentView === 'day' && renderDayView()}
-      {renderViewSwitcher()}
-    </div>
+    <>
+      <div className="bg-white rounded-2xl shadow-lg border border-stone-200 overflow-hidden">
+        {currentView === 'month' && renderMonthView()}
+        {currentView === 'week' && renderWeekView()}
+        {currentView === 'day' && renderDayView()}
+        {renderViewSwitcher()}
+      </div>
+
+      {/* Event Details Modal */}
+      {showEventDetails && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+              <div>
+                <h2 className="font-serif text-xl font-medium text-stone-900">
+                  {selectedEvent.title}
+                </h2>
+                <p className="text-sm text-stone-500 mt-1">
+                  {new Date(selectedEvent.startDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                  {' - '}
+                  {new Date(selectedEvent.endDate).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={handleCloseEventDetails}
+                className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Transcription Section */}
+              <CalendarEventTranscript
+                eventId={selectedEvent.id}
+                eventTitle={selectedEvent.title}
+                eventDate={new Date(selectedEvent.startDate)}
+                onTranscribe={handleTranscribe}
+                onViewMeeting={handleViewMeeting}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
