@@ -62,6 +62,47 @@ describe('voiceSettings', () => {
       const settings = getVoiceSettings();
       expect(settings).toEqual(savedSettings);
     });
+
+    it('returns default settings when window is undefined (SSR)', () => {
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      const settings = getVoiceSettings();
+      expect(settings).toEqual({
+        enabled: false,
+        language: 'en-US',
+        autoPunctuation: false,
+        showCommands: true,
+      });
+    });
+
+    it('returns default settings when JSON parsing fails', () => {
+      getItemSpy.mockReturnValue('invalid json');
+
+      const settings = getVoiceSettings();
+      expect(settings).toEqual({
+        enabled: false,
+        language: 'en-US',
+        autoPunctuation: false,
+        showCommands: true,
+      });
+    });
+
+    it('merges partial settings with defaults', () => {
+      const partialSettings = { language: 'es-ES' };
+      getItemSpy.mockReturnValue(JSON.stringify(partialSettings));
+
+      const settings = getVoiceSettings();
+      expect(settings).toEqual({
+        enabled: false,
+        language: 'es-ES',
+        autoPunctuation: false,
+        showCommands: true,
+      });
+    });
   });
 
   describe('saveVoiceSettings', () => {
@@ -91,6 +132,23 @@ describe('voiceSettings', () => {
       saveVoiceSettings(newSettings);
 
       expect(setItemSpy).toHaveBeenCalledWith('voiceSettings', JSON.stringify(newSettings));
+    });
+
+    it('does not throw when window is undefined (SSR)', () => {
+      Object.defineProperty(globalThis, 'window', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      const settings = {
+        enabled: true,
+        language: 'en-US',
+        autoPunctuation: false,
+        showCommands: true,
+      };
+
+      expect(() => saveVoiceSettings(settings)).not.toThrow();
     });
   });
 });

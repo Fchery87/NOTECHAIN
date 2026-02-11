@@ -25,7 +25,7 @@ export function getVoiceSettings(): VoiceSettings {
       return defaultVoiceSettings;
     }
 
-    return JSON.parse(stored);
+    return { ...defaultVoiceSettings, ...JSON.parse(stored) };
   } catch {
     return defaultVoiceSettings;
   }
@@ -38,5 +38,7 @@ export function saveVoiceSettings(settings: VoiceSettings): void {
 
   try {
     globalThis.window.localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(settings));
-  } catch {}
+  } catch {
+    // Silently fail if localStorage is not available
+  }
 }
