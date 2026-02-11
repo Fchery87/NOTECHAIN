@@ -103,6 +103,13 @@ export default function Navigation() {
               Meetings
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-500 transition-all duration-300 group-hover:w-full" />
             </a>
+            <a
+              href="/ocr"
+              className="text-sm font-medium text-stone-600 hover:text-stone-900 transition-colors relative group"
+            >
+              OCR
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-amber-500 transition-all duration-300 group-hover:w-full" />
+            </a>
           </div>
 
           {/* CTA Buttons */}
@@ -185,6 +192,13 @@ export default function Navigation() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Meetings
+              </a>
+              <a
+                href="/ocr"
+                className="text-sm font-medium text-stone-600 hover:text-stone-900 py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                OCR
               </a>
               <hr className="border-stone-200" />
               <a
