@@ -2,12 +2,14 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { PDFDocument, PDFAnnotation } from '@notechain/data-models';
+import { PDFTextExtractor } from './PDFTextExtractor';
 
 /**
  * Props for PDFViewer component
  */
 export interface PDFViewerProps {
   pdf: PDFDocument;
+  pdfBlob?: Blob;
   onAddAnnotation?: (
     annotation: Omit<PDFAnnotation, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>
   ) => void;
@@ -17,6 +19,7 @@ export interface PDFViewerProps {
     signatureData: string;
     position: { x: number; y: number; pageNumber: number };
   }) => void;
+  onTextExtracted?: (text: string, pageNumber?: number) => void;
   readOnly?: boolean;
 }
 
@@ -104,10 +107,12 @@ const annotationColors = [
  */
 export function PDFViewer({
   pdf,
+  pdfBlob,
   onAddAnnotation,
   onUpdateAnnotation: _onUpdateAnnotation,
   onDeleteAnnotation: _onDeleteAnnotation,
   onAddSignature,
+  onTextExtracted,
   readOnly = false,
 }: PDFViewerProps) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,6 +124,7 @@ export function PDFViewer({
   const [drawingPoints, setDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [showTextExtractor, setShowTextExtractor] = useState(false);
 
   // Handle page navigation
   const handlePreviousPage = useCallback(() => {
@@ -431,6 +437,16 @@ export function PDFViewer({
                   />
                 </svg>
               </button>
+            )}
+
+            {/* Extract Text button */}
+            {pdfBlob && (
+              <PDFTextExtractor
+                pdfBlob={pdfBlob}
+                pdfName={pdf.title}
+                onTextExtracted={onTextExtracted}
+                onClose={() => setShowTextExtractor(false)}
+              />
             )}
           </div>
         </div>
