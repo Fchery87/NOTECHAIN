@@ -29,3 +29,7 @@ export {
   useResourceTiming,
   useNetworkStatus,
 } from './usePerformanceMonitor';
+
+// Voice Input Hooks
+export { useVoiceInput } from './useVoiceInput';
+export type { UseVoiceInputOptions, UseVoiceInputReturn } from './useVoiceInput';
