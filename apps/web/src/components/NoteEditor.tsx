@@ -9,6 +9,7 @@ import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
+import { VoiceInputButton } from './VoiceInputButton';
 
 /**
  * Props for the NoteEditor component
@@ -361,6 +362,11 @@ export function NoteEditor({
               />
             </svg>
           </ToolbarButton>
+
+          <ToolbarSeparator />
+
+          {/* Voice Input */}
+          <VoiceInputButton editor={editor} />
 
           <ToolbarSeparator />
 
