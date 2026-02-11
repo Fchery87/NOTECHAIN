@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 
 export interface UseVoiceInputOptions {
   onTranscript?: (transcript: string) => void;
   onError?: (error: VoiceInputError) => void;
   language?: string;
   continuous?: boolean;
+  interimResults?: boolean;
 }
 
 export interface VoiceInputError {
@@ -18,6 +19,7 @@ export interface UseVoiceInputReturn {
   transcript: string;
   startListening: () => void;
   stopListening: () => void;
+  resetTranscript: () => void;
   error: VoiceInputError | null;
 }
 
@@ -69,17 +71,26 @@ interface SpeechRecognitionErrorEvent extends Event {
 }
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInputReturn {
-  const { onTranscript, onError, language = 'en-US', continuous = false } = options;
+  const {
+    onTranscript,
+    onError,
+    language = 'en-US',
+    continuous = false,
+    interimResults = true,
+  } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<VoiceInputError | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  // Check browser support
-  const isSupported =
-    typeof window !== 'undefined' &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition) !== undefined;
+  // Check browser support - memoized to avoid recalculation on every render
+  const isSupported = useMemo(() => {
+    return (
+      typeof window !== 'undefined' &&
+      (window.SpeechRecognition || window.webkitSpeechRecognition) !== undefined
+    );
+  }, []);
 
   const startListening = useCallback(() => {
     if (!isSupported) {
@@ -100,7 +111,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     const recognition = new SpeechRecognition();
 
     recognition.continuous = continuous;
-    recognition.interimResults = false;
+    recognition.interimResults = interimResults;
     recognition.lang = language;
 
     recognition.onstart = () => {
@@ -130,12 +141,16 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [isSupported, language, continuous, onTranscript, onError]);
+  }, [isSupported, language, continuous, interimResults, onTranscript, onError]);
+
+  const resetTranscript = useCallback(() => {
+    setTranscript('');
+  }, []);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      recognitionRef.current = null;
+      // Don't set recognitionRef.current = null here - let onend handler handle cleanup
     }
     setIsListening(false);
   }, []);
@@ -156,6 +171,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     transcript,
     startListening,
     stopListening,
+    resetTranscript,
     error,
   };
 }

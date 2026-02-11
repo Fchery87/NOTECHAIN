@@ -385,6 +385,72 @@ describe('useVoiceInput', () => {
       const { result } = renderHook(() => useVoiceInput({ continuous: true }));
       expect(result.current).toBeDefined();
     });
+
+    test('should default interimResults to true', async () => {
+      const { result } = renderHook(() => useVoiceInput({}));
+
+      act(() => {
+        result.current.startListening();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isListening).toBe(true);
+      });
+
+      const recognition = getLastRecognition();
+      expect(recognition.interimResults).toBe(true);
+    });
+
+    test('should accept interimResults option', async () => {
+      const { result } = renderHook(() => useVoiceInput({ interimResults: false }));
+
+      act(() => {
+        result.current.startListening();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isListening).toBe(true);
+      });
+
+      const recognition = getLastRecognition();
+      expect(recognition.interimResults).toBe(false);
+    });
+  });
+
+  describe('Reset Transcript', () => {
+    test('should reset transcript to empty string', async () => {
+      const { result } = renderHook(() => useVoiceInput({}));
+
+      act(() => {
+        result.current.startListening();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isListening).toBe(true);
+      });
+
+      const recognition = getLastRecognition();
+      const event = createMockSpeechRecognitionEvent('Hello world', true);
+
+      act(() => {
+        if (recognition.onresult) {
+          recognition.onresult(event);
+        }
+      });
+
+      expect(result.current.transcript).toBe('Hello world');
+
+      act(() => {
+        result.current.resetTranscript();
+      });
+
+      expect(result.current.transcript).toBe('');
+    });
+
+    test('should have resetTranscript function in return object', () => {
+      const { result } = renderHook(() => useVoiceInput({}));
+      expect(typeof result.current.resetTranscript).toBe('function');
+    });
   });
 
   describe('Cleanup', () => {
