@@ -1,4 +1,5 @@
-import { interpretVoiceCommand } from '../voiceCommands';
+import { interpretVoiceCommand, executeVoiceCommand, VoiceCommand } from '../voiceCommands';
+import type { Editor } from '@tiptap/react';
 
 describe('interpretVoiceCommand', () => {
   describe('Regular text returns null', () => {
@@ -8,6 +9,38 @@ describe('interpretVoiceCommand', () => {
 
     it('returns null for incomplete commands', () => {
       expect(interpretVoiceCommand('bold')).toBeNull();
+    });
+  });
+
+  describe('Edge case inputs', () => {
+    it('returns null for empty string', () => {
+      expect(interpretVoiceCommand('')).toBeNull();
+    });
+
+    it('returns null for whitespace only', () => {
+      expect(interpretVoiceCommand('   ')).toBeNull();
+      expect(interpretVoiceCommand('\t\n\r')).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      expect(interpretVoiceCommand(null as unknown as string)).toBeNull();
+    });
+
+    it('returns null for undefined input', () => {
+      expect(interpretVoiceCommand(undefined as unknown as string)).toBeNull();
+    });
+
+    it('returns null for non-string types', () => {
+      expect(interpretVoiceCommand(123 as unknown as string)).toBeNull();
+      expect(interpretVoiceCommand({} as unknown as string)).toBeNull();
+      expect(interpretVoiceCommand([] as unknown as string)).toBeNull();
+    });
+
+    it('trims whitespace before matching', () => {
+      const result = interpretVoiceCommand('  new paragraph  ');
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('NEW_PARAGRAPH');
+      expect(result?.raw).toBe('new paragraph');
     });
   });
 
@@ -154,6 +187,136 @@ describe('interpretVoiceCommand', () => {
 
     it('handles punctuation', () => {
       expect(interpretVoiceCommand('redo that.')).not.toBeNull();
+    });
+  });
+});
+
+describe('executeVoiceCommand', () => {
+  let mockEditor: jest.Mocked<Editor>;
+  let mockChain: any;
+
+  beforeEach(() => {
+    mockChain = {
+      focus: jest.fn().mockReturnThis(),
+      setParagraph: jest.fn().mockReturnThis(),
+      toggleBold: jest.fn().mockReturnThis(),
+      toggleItalic: jest.fn().mockReturnThis(),
+      toggleUnderline: jest.fn().mockReturnThis(),
+      setHeading: jest.fn().mockReturnThis(),
+      undo: jest.fn().mockReturnThis(),
+      redo: jest.fn().mockReturnThis(),
+      run: jest.fn(),
+    };
+
+    mockEditor = {
+      chain: jest.fn().mockReturnValue(mockChain),
+    } as unknown as jest.Mocked<Editor>;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('NEW_PARAGRAPH command', () => {
+    it('calls editor.chain().focus().setParagraph().run()', () => {
+      const command: VoiceCommand = { type: 'NEW_PARAGRAPH', raw: 'new paragraph' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.setParagraph).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('NEW_LINE command', () => {
+    it('calls editor.chain().focus().setParagraph().run()', () => {
+      const command: VoiceCommand = { type: 'NEW_LINE', raw: 'new line' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.setParagraph).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('BOLD command', () => {
+    it('calls editor.chain().focus().toggleBold().run()', () => {
+      const command: VoiceCommand = { type: 'BOLD', raw: 'bold that' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.toggleBold).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('ITALIC command', () => {
+    it('calls editor.chain().focus().toggleItalic().run()', () => {
+      const command: VoiceCommand = { type: 'ITALIC', raw: 'italicize that' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.toggleItalic).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('UNDERLINE command', () => {
+    it('calls editor.chain().focus().toggleUnderline().run()', () => {
+      const command: VoiceCommand = { type: 'UNDERLINE', raw: 'underline that' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.toggleUnderline).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('HEADING command', () => {
+    it('calls editor.chain().focus().setHeading({ level: 2 }).run()', () => {
+      const command: VoiceCommand = { type: 'HEADING', raw: 'heading' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.setHeading).toHaveBeenCalledWith({ level: 2 });
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('UNDO command', () => {
+    it('calls editor.chain().focus().undo().run()', () => {
+      const command: VoiceCommand = { type: 'UNDO', raw: 'undo that' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.undo).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('REDO command', () => {
+    it('calls editor.chain().focus().redo().run()', () => {
+      const command: VoiceCommand = { type: 'REDO', raw: 'redo that' };
+      executeVoiceCommand(command, mockEditor);
+
+      expect(mockEditor.chain).toHaveBeenCalled();
+      expect(mockChain.focus).toHaveBeenCalled();
+      expect(mockChain.redo).toHaveBeenCalled();
+      expect(mockChain.run).toHaveBeenCalled();
+    });
+  });
+
+  describe('Unknown command type', () => {
+    it('throws error for unknown command type', () => {
+      const command = { type: 'UNKNOWN_COMMAND', raw: 'unknown' } as unknown as VoiceCommand;
+      expect(() => executeVoiceCommand(command, mockEditor)).toThrow('Unknown voice command type');
     });
   });
 });

@@ -1,3 +1,5 @@
+import type { Editor } from '@tiptap/react';
+
 export type VoiceCommandType =
   | 'NEW_PARAGRAPH'
   | 'NEW_LINE'
@@ -11,7 +13,6 @@ export type VoiceCommandType =
 export interface VoiceCommand {
   type: VoiceCommandType;
   raw: string;
-  level?: number;
 }
 
 const COMMAND_PATTERNS = [
@@ -54,19 +55,29 @@ const COMMAND_PATTERNS = [
 ];
 
 export function interpretVoiceCommand(transcript: string): VoiceCommand | null {
+  if (typeof transcript !== 'string') {
+    return null;
+  }
+
+  const trimmedTranscript = transcript.trim();
+
+  if (trimmedTranscript.length === 0) {
+    return null;
+  }
+
   for (const { pattern, type } of COMMAND_PATTERNS) {
-    const match = transcript.match(pattern);
+    const match = trimmedTranscript.match(pattern);
     if (match) {
       return {
         type,
-        raw: transcript.trim(),
+        raw: trimmedTranscript,
       };
     }
   }
   return null;
 }
 
-export function executeVoiceCommand(command: VoiceCommand, editor: any): void {
+export function executeVoiceCommand(command: VoiceCommand, editor: Editor): void {
   switch (command.type) {
     case 'NEW_PARAGRAPH':
       editor.chain().focus().setParagraph().run();
@@ -92,5 +103,9 @@ export function executeVoiceCommand(command: VoiceCommand, editor: any): void {
     case 'REDO':
       editor.chain().focus().redo().run();
       break;
+    default: {
+      const _exhaustiveCheck: never = command.type;
+      throw new Error(`Unknown voice command type: ${_exhaustiveCheck}`);
+    }
   }
 }
