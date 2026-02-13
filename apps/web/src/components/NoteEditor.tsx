@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -10,6 +10,7 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
 import { VoiceInputButton } from './VoiceInputButton';
+import { CollaborativeEditor } from './CollaborativeEditor';
 
 /**
  * Props for the NoteEditor component
@@ -21,6 +22,19 @@ export interface NoteEditorProps {
   editable?: boolean;
   minHeight?: string;
   maxHeight?: string;
+  /** Current user ID */
+  userId?: string;
+  /** Current user display name */
+  displayName?: string;
+  /** Collaborators on this note */
+  collaborators?: Array<{
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+    permissionLevel: 'view' | 'comment' | 'edit' | 'admin';
+  }>;
+  /** Callback for share button */
+  onShare?: () => void;
 }
 
 /**
@@ -67,6 +81,7 @@ function ToolbarSeparator() {
  * NoteEditor component - Rich text editor with Markdown support
  * FR-NOTE-01: Create, edit, delete notes
  * FR-NOTE-02: Rich-text editor with Markdown support
+ * Supports collaboration when collaborators are provided
  */
 export function NoteEditor({
   content,
@@ -75,7 +90,30 @@ export function NoteEditor({
   editable = true,
   minHeight = '300px',
   maxHeight = '600px',
+  userId,
+  displayName = 'Anonymous',
+  collaborators = [],
+  onShare,
 }: NoteEditorProps) {
+  const hasCollaborators = collaborators.length > 0;
+  const userPermission = collaborators.find(c => c.id === userId)?.permissionLevel || 'view';
+
+  if (hasCollaborators && userId) {
+    return (
+      <CollaborativeEditor
+        documentId=""
+        userId={userId}
+        displayName={displayName}
+        permissionLevel={userPermission}
+        initialContent={content}
+        onChange={onChange}
+        placeholder={placeholder}
+        minHeight={minHeight}
+        maxHeight={maxHeight}
+        onShare={onShare}
+      />
+    );
+  }
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -400,6 +438,53 @@ export function NoteEditor({
               />
             </svg>
           </ToolbarButton>
+
+          {/* Share button */}
+          {onShare && (
+            <div className="ml-auto flex items-center gap-3">
+              {/* Collaborators indicator */}
+              {collaborators.length > 0 && (
+                <div className="flex items-center -space-x-2">
+                  {collaborators.slice(0, 3).map(collaborator => (
+                    <div
+                      key={collaborator.id}
+                      className="w-7 h-7 rounded-full bg-stone-200 border-2 border-white flex items-center justify-center text-xs font-medium text-stone-600"
+                      title={`${collaborator.displayName} (${collaborator.permissionLevel})`}
+                    >
+                      {collaborator.avatarUrl ? (
+                        <img
+                          src={collaborator.avatarUrl}
+                          alt={collaborator.displayName}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        collaborator.displayName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  ))}
+                  {collaborators.length > 3 && (
+                    <div className="w-7 h-7 rounded-full bg-stone-100 border-2 border-white flex items-center justify-center text-xs font-medium text-stone-500">
+                      +{collaborators.length - 3}
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={onShare}
+                className="flex items-center gap-2 px-3 py-1.5 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                  />
+                </svg>
+                Share
+              </button>
+            </div>
+          )}
         </div>
       )}
 
