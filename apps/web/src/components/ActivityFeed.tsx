@@ -332,10 +332,13 @@ function ActivityItem({
 
         {!compact && activity.metadata && Object.keys(activity.metadata).length > 0 && (
           <div className="mt-1 text-xs text-stone-400">
-            {activity.metadata.targetUserDisplayName &&
-              typeof activity.metadata.targetUserDisplayName === 'string' && (
-                <span>to {activity.metadata.targetUserDisplayName}</span>
-              )}
+            {(() => {
+              const targetUser = activity.metadata.targetUserDisplayName;
+              if (typeof targetUser === 'string') {
+                return <span>to {targetUser}</span>;
+              }
+              return null;
+            })()}
           </div>
         )}
       </div>

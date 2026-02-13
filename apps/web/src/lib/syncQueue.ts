@@ -1,6 +1,8 @@
-// @ts-nocheck
-import { SyncService } from '@notechain/sync-engine';
-import type { SyncOperation } from '@notechain/sync-engine';
+import {
+  SyncService,
+  type SyncOperation,
+  type SyncRepositoryAdapter,
+} from '@notechain/sync-engine';
 
 /**
  * SyncQueue manages offline-first data synchronization
@@ -17,20 +19,59 @@ const MAX_QUEUE_SIZE = 1000;
 const MAX_RETRY_COUNT = 5;
 const RETRY_DELAY_MS = 5000; // 5 seconds
 
+/**
+ * Sync log entry for database storage
+ */
+interface SyncLogEntry {
+  operation: string;
+  entityId: string;
+  entityType: string;
+  timestamp: number;
+  success: boolean;
+  errorMessage?: string;
+}
+
 class SyncQueue {
   private queue: QueuedOperation[] = [];
   private isProcessing = false;
   private isOnline = true;
   private listeners: Set<() => void> = new Set();
+  private syncService: SyncService | null = null;
+  private userId: string | null = null;
+  private sessionId: string | null = null;
+
+  /**
+   * Initialize the sync queue with user context
+   */
+  initialize(userId: string, sessionId: string, repository?: SyncRepositoryAdapter): void {
+    this.userId = userId;
+    this.sessionId = sessionId;
+    this.syncService = new SyncService(userId, sessionId, repository ?? null);
+
+    // Set up network listeners
+    this.syncService.setupNetworkListeners();
+
+    // Set up real-time subscription if repository exists
+    if (repository) {
+      this.syncService.setupRealtimeSubscription();
+    }
+  }
 
   /**
    * Adds an operation to the sync queue
    * @param operation The sync operation to queue
    */
-  async enqueue(operation: Omit<SyncOperation, 'id'>): Promise<void> {
+  async enqueue(operation: Omit<SyncOperation, 'id' | 'timestamp'>): Promise<void> {
+    if (!this.userId || !this.sessionId) {
+      throw new Error('SyncQueue not initialized. Call initialize() first.');
+    }
+
     const queuedOp: QueuedOperation = {
       ...operation,
       id: this.generateId(),
+      userId: this.userId,
+      sessionId: this.sessionId,
+      timestamp: Date.now(),
       retryCount: 0,
       nextRetryTime: 0,
       createdAt: Date.now(),
@@ -52,7 +93,7 @@ class SyncQueue {
    * Processes queued sync operations
    */
   private async processQueue(): Promise<void> {
-    if (this.isProcessing || this.queue.length === 0) {
+    if (this.isProcessing || this.queue.length === 0 || !this.syncService) {
       return;
     }
 
@@ -68,11 +109,23 @@ class SyncQueue {
       }
 
       try {
-        await this.executeOperation(operation);
+        // Use the sync service to process the operation
+        await this.syncService.enqueueOperation({
+          userId: operation.userId,
+          sessionId: operation.sessionId,
+          operationType: operation.operationType,
+          entityType: operation.entityType,
+          entityId: operation.entityId,
+          encryptedPayload: operation.encryptedPayload,
+          version: operation.version,
+        });
 
         // Remove from queue on success
         this.queue.shift();
         await this.persistQueue();
+
+        // Log success
+        await this.logSyncSuccess(operation);
 
         // Reset retry count
         operation.retryCount = 0;
@@ -85,6 +138,9 @@ class SyncQueue {
           this.queue.shift();
           await this.persistQueue();
           console.error('Sync operation failed after max retries:', operation.id, error);
+
+          // Log failure
+          await this.logSyncFailure(operation, error);
         } else {
           // Schedule retry with exponential backoff
           const delay = RETRY_DELAY_MS * Math.pow(2, operation.retryCount);
@@ -105,42 +161,74 @@ class SyncQueue {
   }
 
   /**
-   * Executes a single sync operation
-   * @param operation The operation to execute
-   */
-  private async executeOperation(operation: QueuedOperation): Promise<void> {
-    const syncService = new SyncService();
-
-    switch (operation.type) {
-      case 'upload':
-        await syncService.uploadBlob(operation.blobId, operation.data);
-        break;
-      case 'download':
-        await syncService.downloadBlob(operation.blobId);
-        break;
-      case 'delete':
-        await syncService.deleteBlob(operation.blobId);
-        break;
-      default:
-        throw new Error(`Unknown operation type: ${(operation as any).type}`);
-    }
-
-    // Log successful sync operation
-    await this.logSyncSuccess(operation);
-  }
-
-  /**
    * Logs successful sync operation to database
    */
   private async logSyncSuccess(operation: QueuedOperation): Promise<void> {
-    // Import dynamically to avoid circular dependency
-    const { createSyncLog } = await import('../lib/db').then(m => m);
-    await createSyncLog({
-      operation: operation.type,
-      blobId: operation.blobId,
-      timestamp: Date.now(),
-      success: true,
-    });
+    try {
+      const logEntry: SyncLogEntry = {
+        operation: operation.operationType,
+        entityId: operation.entityId,
+        entityType: operation.entityType,
+        timestamp: Date.now(),
+        success: true,
+      };
+
+      // Store in local storage for now
+      const logs = this.getStoredLogs();
+      logs.push(logEntry);
+      this.storeLogs(logs);
+    } catch (error) {
+      console.error('Failed to log sync success:', error);
+    }
+  }
+
+  /**
+   * Logs failed sync operation
+   */
+  private async logSyncFailure(operation: QueuedOperation, error: unknown): Promise<void> {
+    try {
+      const logEntry: SyncLogEntry = {
+        operation: operation.operationType,
+        entityId: operation.entityId,
+        entityType: operation.entityType,
+        timestamp: Date.now(),
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      };
+
+      const logs = this.getStoredLogs();
+      logs.push(logEntry);
+      this.storeLogs(logs);
+    } catch (err) {
+      console.error('Failed to log sync failure:', err);
+    }
+  }
+
+  /**
+   * Get stored logs from local storage
+   */
+  private getStoredLogs(): SyncLogEntry[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem('sync-logs');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Store logs in local storage
+   */
+  private storeLogs(logs: SyncLogEntry[]): void {
+    if (typeof window === 'undefined') return;
+    try {
+      // Keep only last 100 logs
+      const trimmedLogs = logs.slice(-100);
+      localStorage.setItem('sync-logs', JSON.stringify(trimmedLogs));
+    } catch (error) {
+      console.error('Failed to store logs:', error);
+    }
   }
 
   /**
@@ -183,22 +271,29 @@ class SyncQueue {
   }
 
   /**
-   * Persists the current queue to IndexedDB
+   * Persists the current queue to storage
    */
   private async persistQueue(): Promise<void> {
-    const { setItem } = await import('../lib/storage').then(m => m);
-    await setItem('sync-queue', JSON.stringify(this.queue));
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('sync-queue', JSON.stringify(this.queue));
+    } catch (error) {
+      console.error('Failed to persist sync queue:', error);
+    }
   }
 
   /**
-   * Loads persisted queue from IndexedDB
+   * Loads persisted queue from storage
    */
   async loadQueue(): Promise<void> {
-    const { getItem } = await import('../lib/storage').then(m => m);
-    const stored = await getItem('sync-queue');
-
-    if (stored) {
-      this.queue = JSON.parse(stored as string) as QueuedOperation[];
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('sync-queue');
+      if (stored) {
+        this.queue = JSON.parse(stored) as QueuedOperation[];
+      }
+    } catch (error) {
+      console.error('Failed to load sync queue:', error);
     }
   }
 
@@ -225,7 +320,17 @@ class SyncQueue {
    * Generates a unique operation ID
    */
   private generateId(): string {
-    return `op-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `op-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  }
+
+  /**
+   * Cleanup resources
+   */
+  destroy(): void {
+    if (this.syncService) {
+      this.syncService.destroy();
+    }
+    this.listeners.clear();
   }
 }
 

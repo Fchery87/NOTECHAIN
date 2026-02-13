@@ -3,7 +3,7 @@
  * Converts KnowledgeGraph data to Cytoscape.js format
  */
 
-import type { KnowledgeGraph } from '../../ai/notes/types';
+import type { KnowledgeGraph } from '../ai/notes/types';
 
 /**
  * Cytoscape node data structure
