@@ -3,11 +3,22 @@ node_modules
 bun.lockb
 .pnp
 .pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Build outputs
 dist
 build
 *.tsbuildinfo
+.next
+out
+.nuxt
+.vuepress/dist
+.serverless
+.fusebox
+.dynamodb
+.tern-port
 
 # Environment files
 .env
@@ -25,6 +36,9 @@ build
 # OS
 .DS_Store
 Thumbs.db
+*.pem
+*.cert
+*.key
 
 # Logs
 logs
@@ -35,13 +49,44 @@ yarn-error.log*
 
 # Test coverage
 coverage
+.nyc_output
+*.lcov
 
 # Supabase
 .supabase
+supabase/.temp
+supabase/.branches
 
 # Tauri
 apps/desktop/src-tauri/target
 apps/desktop/src-tauri/bin
+
+# Cache directories
+.cache
+.parcel-cache
+.rpt2_cache
+.rts2_cache_cjs
+.rts2_cache_es
+.rts2_cache_umd
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# Temporary files
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+*.tgz
+*.tar.gz
+
+# Debug files
+.node_repl_history
+.vscode-test
+
+# TypeScript
+*.tsbuildinfo
 
 # Native builds
 *.apk
@@ -52,3 +97,15 @@ Pods
 android/.cxx
 android/app/build
 ios/build
+
+# Storybook
+storybook-static
+
+# Local history
+.history
+
+# Misc
+*.local
+.vercel
+.netlify
+.turbo

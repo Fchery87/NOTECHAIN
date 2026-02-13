@@ -311,7 +311,6 @@ export class MultiUserCRDT {
    */
   generateDiff(otherCRDT: MultiUserCRDT): CRDTOperation[] {
     const otherClock = otherCRDT.getVectorClock();
-    const thisClock = this.vectorClock;
 
     // Find operations that the other CRDT doesn't have
     return this.operations.filter(op => {

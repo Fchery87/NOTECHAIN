@@ -67,6 +67,7 @@ export function MemberList({
             {/* Avatar */}
             <div className="relative">
               {member.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={member.avatar}
                   alt={member.name}

@@ -55,7 +55,7 @@ export function CalendarView({
   }, []);
 
   // Handle transcribe from calendar event
-  const handleTranscribe = useCallback((eventId: string) => {
+  const handleTranscribe = useCallback((_eventId: string) => {
     // Callback when user initiates transcription
     // The modal is already handled by CalendarEventTranscript
   }, []);

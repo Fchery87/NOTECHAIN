@@ -111,7 +111,7 @@ export function PermissionSelector({
   size = 'md',
   showDescriptions = false,
 }: PermissionSelectorProps) {
-  const selectedOption = PERMISSION_OPTIONS.find(opt => opt.value === value);
+  const _selectedOption = PERMISSION_OPTIONS.find(opt => opt.value === value);
 
   const sizeClasses = {
     sm: 'text-sm py-1.5 px-3',

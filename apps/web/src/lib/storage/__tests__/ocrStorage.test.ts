@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { OCRStorage, type OCRResultInput, type OCRResult } from '../ocrStorage';
+import { OCRStorage, type OCRResultInput } from '../ocrStorage';
 
 // Mock the crypto module - use base64 encoding to preserve full data
 vi.mock('@notechain/core-crypto', () => ({

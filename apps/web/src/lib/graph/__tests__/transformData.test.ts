@@ -3,8 +3,6 @@ import {
   transformGraphData,
   filterGraphByType,
   filterGraphByEdgeType,
-  type CytoscapeNode,
-  type CytoscapeEdge,
   type CytoscapeData,
 } from '../transformData';
 import type { KnowledgeGraph, KnowledgeGraphNode, KnowledgeGraphEdge } from '../../ai/notes/types';

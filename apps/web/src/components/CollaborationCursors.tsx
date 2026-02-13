@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import type { UserPresence, CursorPosition } from '../hooks/useCollaboration';
+import type { UserPresence } from '../hooks/useCollaboration';
 
 /**
  * Props for CollaborationCursors component

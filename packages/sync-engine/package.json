@@ -10,10 +10,12 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "start:ws": "bun run src/server/index.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
+    "@supabase/supabase-js": "^2.47.0",
     "uuid": "^11.0.5",
     "dexie": "^4.0.11",
     "eventemitter3": "^5.0.1"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -128,6 +128,9 @@ export function NoteEditor({
           keepMarks: true,
           keepAttributes: false,
         },
+        codeBlock: false,
+        link: false,
+        underline: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -158,6 +161,7 @@ export function NoteEditor({
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+    immediatelyRender: false,
   });
 
   // Update content when prop changes
@@ -452,6 +456,7 @@ export function NoteEditor({
                       title={`${collaborator.displayName} (${collaborator.permissionLevel})`}
                     >
                       {collaborator.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={collaborator.avatarUrl}
                           alt={collaborator.displayName}

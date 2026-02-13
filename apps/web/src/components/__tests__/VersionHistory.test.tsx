@@ -7,12 +7,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { VersionHistory, VersionHistoryProps } from '../VersionHistory';
-import {
-  VersionManager,
-  type Version,
-  type DiffResult,
-  getVersionManager,
-} from '../../lib/versions/versionManager';
+import { VersionManager, type Version, type DiffResult } from '../../lib/versions/versionManager';
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -153,7 +148,7 @@ describe('VersionHistory', () => {
         return resourceVersions.get(resourceId)?.length || 0;
       }),
       getTotalVersionCount: vi.fn(() => versions.size),
-      formatVersionTime: vi.fn((version: Version) => 'just now'),
+      formatVersionTime: vi.fn((_version: Version) => 'just now'),
       scheduleAutoSave: vi.fn(),
     } as unknown as VersionManager & {
       addVersion: (version: Version) => void;

@@ -175,11 +175,15 @@ export function CollaborativeEditor({
 
   // Initialize editor
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         bulletList: { keepMarks: true, keepAttributes: false },
         orderedList: { keepMarks: true, keepAttributes: false },
+        codeBlock: false,
+        link: false,
+        underline: false,
       }),
       Placeholder.configure({ placeholder }),
       CodeBlock,

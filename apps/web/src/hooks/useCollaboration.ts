@@ -153,7 +153,7 @@ const USER_COLORS = [
   '#84cc16', // lime
 ];
 
-function getRandomColor(): string {
+function _getRandomColor(): string {
   return USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)];
 }
 
@@ -168,7 +168,7 @@ function getColorForUserId(userId: string): string {
 
 const DEFAULT_WS_URL =
   typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}:3001`
+    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`
     : 'ws://localhost:3001';
 
 export function useCollaboration(options: CollaborationOptions): UseCollaborationReturn {
@@ -523,7 +523,7 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
   }, []);
 
   // Clear pending operations after they're processed
-  const clearPendingOperations = useCallback(() => {
+  const _clearPendingOperations = useCallback(() => {
     setPendingOperations([]);
   }, []);
 

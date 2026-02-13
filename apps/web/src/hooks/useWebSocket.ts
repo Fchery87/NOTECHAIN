@@ -50,7 +50,7 @@ export interface UseWebSocketReturn {
   subscribe: (type: string, handler: (message: WebSocketMessage) => void) => () => void;
 }
 
-const DEFAULT_OPTIONS: Partial<WebSocketOptions> = {
+const _DEFAULT_OPTIONS: Partial<WebSocketOptions> = {
   autoConnect: true,
   reconnectInterval: 3000,
   maxReconnectAttempts: 10,

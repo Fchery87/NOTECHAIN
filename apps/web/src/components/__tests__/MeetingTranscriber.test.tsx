@@ -1,10 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { describe, test, expect, beforeEach, afterEach, jest } from 'bun:test';
 import { MeetingTranscriber, MeetingTranscriberProps } from '../MeetingTranscriber';
-import type { Meeting } from '../../lib/storage/meetingStorage';
-import type { ActionItem } from '../../lib/ai/transcription/actionItemExtractor';
+
 import { act } from '@testing-library/react';
 
 // Mock hooks

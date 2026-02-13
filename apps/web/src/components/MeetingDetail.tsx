@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
-import type { ActionItem } from '../lib/ai/transcription/actionItemExtractor';
 
 export interface MeetingDetailProps {
   /** Meeting ID to display */

@@ -302,11 +302,11 @@ function ShareLinkItem({
  * Manage shareable links for a resource
  */
 export function ShareLinkManager({
-  resourceId,
+  resourceId: _resourceId,
   links,
   onCreateLink,
   onRevokeLink,
-  userId,
+  userId: _userId,
 }: ShareLinkManagerProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);

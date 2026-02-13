@@ -124,7 +124,7 @@ export function PDFViewer({
   const [drawingPoints, setDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [showTextExtractor, setShowTextExtractor] = useState(false);
+  const [_showTextExtractor, setShowTextExtractor] = useState(false);
 
   // Handle page navigation
   const handlePreviousPage = useCallback(() => {

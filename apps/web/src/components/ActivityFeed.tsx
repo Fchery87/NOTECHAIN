@@ -311,6 +311,7 @@ function ActivityItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {activity.userAvatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={activity.userAvatarUrl} alt="" className="w-5 h-5 rounded-full" />
           ) : (
             <div className="w-5 h-5 rounded-full bg-stone-200 flex items-center justify-center text-xs font-medium text-stone-600">

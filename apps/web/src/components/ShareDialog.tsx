@@ -91,7 +91,7 @@ function UserSearchInput({
           const users = await onSearch(query);
           setResults(users);
           setShowResults(true);
-        } catch (error) {
+        } catch {
           // Silently handle search errors - just show empty results
           setResults([]);
           setShowResults(false);
@@ -156,6 +156,7 @@ function UserSearchInput({
               className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-50 transition-colors"
             >
               {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-sm font-medium text-stone-600">
@@ -196,6 +197,7 @@ function PermissionItem({
     <div className="flex items-center justify-between gap-4 p-3 bg-white border border-stone-200 rounded-lg">
       <div className="flex items-center gap-3">
         {permission.user?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={permission.user.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
         ) : (
           <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-sm font-medium text-stone-600">

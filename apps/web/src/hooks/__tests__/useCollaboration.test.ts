@@ -2,7 +2,7 @@
  * Tests for useCollaboration and useWebSocket hooks
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useWebSocket } from '../useWebSocket';
 import { useCollaboration } from '../useCollaboration';
@@ -26,7 +26,7 @@ class MockWebSocket {
     }, 0);
   }
 
-  send(data: string) {
+  send(_data: string) {
     // Echo back for testing
   }
 
@@ -123,7 +123,7 @@ describe('useWebSocket', () => {
   });
 
   it('should handle received messages', async () => {
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useWebSocket({
         url: 'ws://localhost:3001',
         autoConnect: true,
@@ -133,9 +133,6 @@ describe('useWebSocket', () => {
     await act(async () => {
       vi.runAllTimers();
     });
-
-    // Get the WebSocket instance
-    const ws = result.current as unknown as { _ws: MockWebSocket };
 
     act(() => {
       // Simulate receiving a message

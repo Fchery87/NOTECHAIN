@@ -96,6 +96,9 @@ export function NoteEditorWithSelection({
           keepMarks: true,
           keepAttributes: false,
         },
+        codeBlock: false,
+        link: false,
+        underline: false,
       }),
       Placeholder.configure({
         placeholder,
@@ -126,6 +129,7 @@ export function NoteEditorWithSelection({
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+    immediatelyRender: false,
   });
 
   // Update content when prop changes

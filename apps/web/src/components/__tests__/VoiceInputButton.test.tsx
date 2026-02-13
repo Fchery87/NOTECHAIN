@@ -16,7 +16,7 @@ let mockTranscript = '';
 let mockError: { error: string; message: string } | null = null;
 
 jest.mock('../../hooks/useVoiceInput', () => ({
-  useVoiceInput: jest.fn(options => {
+  useVoiceInput: jest.fn(_options => {
     return {
       isListening: mockIsListening,
       isSupported: mockIsSupported,

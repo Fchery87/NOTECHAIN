@@ -7,7 +7,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { ShareDialog, ShareDialogProps, Permission } from '../ShareDialog';
-import type { PermissionLevel } from '../PermissionSelector';
+
 import type { ShareLink } from '../ShareLinkManager';
 
 // Mock navigator.clipboard

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractActionItems, ActionItem } from '../actionItemExtractor';
+import { extractActionItems } from '../actionItemExtractor';
 
 describe('extractActionItems', () => {
   it('should exist as a function', () => {

@@ -9,7 +9,6 @@ import {
   type Meeting,
   type MeetingInput,
 } from '../lib/storage/meetingStorage';
-import { encryptData } from '@notechain/core-crypto';
 
 export interface MeetingTranscriberProps {
   /** Optional calendar event ID to link the meeting */
@@ -86,7 +85,7 @@ export function MeetingTranscriber({
     const init = async () => {
       try {
         await transcriptionService.initialize();
-      } catch (err) {
+      } catch {
         setError('Failed to initialize transcription service');
       }
     };

@@ -46,7 +46,7 @@ function countPendingActionItems(meeting: Meeting): number {
 export function CalendarEventTranscript({
   eventId,
   eventTitle,
-  eventDate,
+  eventDate: _eventDate,
   onTranscribe,
   onViewMeeting,
 }: CalendarEventTranscriptProps) {
@@ -113,7 +113,7 @@ export function CalendarEventTranscript({
    * Handle meeting save from transcriber modal
    */
   const handleSaveMeeting = useCallback(
-    (savedMeeting: Meeting) => {
+    (_savedMeeting: Meeting) => {
       setShowTranscriber(false);
       // Refresh meeting data
       loadMeeting();

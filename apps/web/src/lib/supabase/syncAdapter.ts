@@ -119,13 +119,14 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .eq('user_id', userId)
       .order('version', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      console.error('Error getting latest version:', error);
       return 0;
     }
 
-    return data.version;
+    return data?.version ?? 0;
   }
 
   /**

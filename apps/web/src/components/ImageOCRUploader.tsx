@@ -40,7 +40,7 @@ export function ImageOCRUploader({
   const [extractedText, setExtractedText] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [_selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [language, setLanguage] = useState('eng');
   const [isHandwriting, setIsHandwriting] = useState(false);
@@ -314,6 +314,7 @@ export function ImageOCRUploader({
           {/* Image Preview */}
           {imagePreview && (
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imagePreview}
                 alt="Preview"

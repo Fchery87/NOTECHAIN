@@ -26,7 +26,7 @@ export type {
 export type { LWWEntry } from './crdt/lww-element-set';
 
 // Multi-user CRDT exports
-export { VectorClock, OperationTransformer, MultiUserCRDT } from './crdt';
+export { VectorClock, OperationTransformer, MultiUserCRDT } from './crdt/index.js';
 export type {
   CRDTOperation,
   VectorClockMap,

@@ -151,7 +151,7 @@ export class WebSocketServer {
             })
           );
       }
-    } catch (_error) {
+    } catch {
       ws.send(
         JSON.stringify({
           type: 'ERROR',
@@ -187,7 +187,7 @@ export class WebSocketServer {
         );
         return false;
       }
-    } catch (_error) {
+    } catch {
       ws.send(
         JSON.stringify({
           type: 'AUTH_ERROR',

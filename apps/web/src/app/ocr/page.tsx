@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ImageOCRUploader } from '@/components/ImageOCRUploader';
-import { OCRStorage, OCRResult, createOCRStorage } from '@/lib/storage/ocrStorage';
+import { OCRResult, createOCRStorage } from '@/lib/storage/ocrStorage';
 
 /**
  * OCR Page
@@ -37,7 +37,7 @@ export default function OCRPage() {
 
   // Handle text extraction from image
   const handleTextExtracted = useCallback(
-    async (text: string, image: File) => {
+    async (text: string, _image: File) => {
       try {
         // Save the OCR result to storage
         const key = new Uint8Array(32).fill(1);

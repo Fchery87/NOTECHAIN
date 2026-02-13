@@ -15,9 +15,11 @@ mock.module('next/navigation', () => ({
 }));
 
 // Mock MeetingList component
-const MockMeetingList = ({ onMeetingSelect }: { onMeetingSelect?: (id: string) => void }) => (
-  <div data-testid="meeting-list">Meeting List Component</div>
-);
+const MockMeetingList = ({
+  onMeetingSelect: _onMeetingSelect,
+}: {
+  onMeetingSelect?: (id: string) => void;
+}) => <div data-testid="meeting-list">Meeting List Component</div>;
 
 mock.module('@/components/MeetingList', () => ({
   MeetingList: MockMeetingList,

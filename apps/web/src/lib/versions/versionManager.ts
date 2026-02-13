@@ -274,8 +274,8 @@ export class VersionManager {
   scheduleAutoSave(
     resourceId: string,
     content: string,
-    userId: string,
-    userDisplayName: string
+    _userId: string,
+    _userDisplayName: string
   ): void {
     this.pendingVersions.set(resourceId, {
       content,

@@ -1,7 +1,7 @@
 import { VectorClock } from '../VectorClock';
 import { OperationTransformer } from '../OperationTransformer';
 import { MultiUserCRDT } from '../MultiUserCRDT';
-import { CRDTOperation, CRDTOperationType, VectorClockMap } from '../types';
+import { CRDTOperation, CRDTOperationType } from '../types';
 
 // Helper to create operations
 const createOp = (
@@ -48,7 +48,7 @@ describe('MultiUserCRDT', () => {
     test('should compare vector clocks correctly', () => {
       const clock1 = new VectorClock({ user1: 3, user2: 2 });
       const clock2 = new VectorClock({ user1: 4, user2: 2 });
-      const clock3 = new VectorClock({ user1: 3, user2: 3 });
+      const _clock3 = new VectorClock({ user1: 3, user2: 3 });
       const clock4 = new VectorClock({ user1: 3, user2: 2 });
       const clock5 = new VectorClock({ user1: 4, user2: 1 });
 
@@ -131,11 +131,6 @@ describe('MultiUserCRDT', () => {
     test('should transform insert against delete', () => {
       const insertOp = createOp(CRDTOperationType.INSERT, 15, 'user1', 1, 'hello');
       const deleteOp = createOp(CRDTOperationType.DELETE, 5, 'user2', 2, undefined, 5);
-
-      const result = OperationTransformer.transformInsertAgainstInsert(
-        insertOp,
-        deleteOp as unknown as ReturnType<typeof createOp>
-      );
 
       // Since insert is after delete, position should shift
       const transformed = OperationTransformer.transformInsertAgainstDelete(insertOp, deleteOp);
@@ -309,7 +304,7 @@ describe('MultiUserCRDT', () => {
       const op2 = createOp(CRDTOperationType.INSERT, 3, 'user2', 1, 'XXX');
 
       crdt.applyLocalOperation(op1);
-      const hasConflict = crdt.applyRemoteOperation(op2);
+      crdt.applyRemoteOperation(op2);
 
       // Conflict detection depends on implementation
       // This test verifies the method exists and works
