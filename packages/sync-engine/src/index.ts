@@ -24,3 +24,38 @@ export type {
 
 // Enhanced CRDT exports
 export type { LWWEntry } from './crdt/lww-element-set';
+
+// Multi-user CRDT exports
+export { VectorClock, OperationTransformer, MultiUserCRDT } from './crdt';
+export type {
+  CRDTOperation,
+  VectorClockMap,
+  DocumentState,
+  CursorPosition,
+  SyncMessage,
+  Conflict,
+  CRDTEventMap,
+  CRDTOptions,
+  VectorClockComparison,
+  TransformResult,
+} from './crdt/types';
+export { CRDTOperationType } from './crdt/types';
+
+// Server exports
+export { WebSocketServer } from './server/WebSocketServer';
+export { ConnectionManager } from './server/ConnectionManager';
+export type {
+  UserConnection,
+  DocumentRoom,
+  BaseMessage,
+  JoinDocumentMessage,
+  LeaveDocumentMessage,
+  OperationMessage,
+  CursorPositionMessage,
+  SelectionMessage,
+  PresenceMessage,
+  SyncRequestMessage,
+  SyncResponseMessage,
+  CollaborationMessage,
+} from './server/types';
+export { MessageType } from './server/types';

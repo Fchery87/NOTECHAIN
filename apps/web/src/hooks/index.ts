@@ -33,3 +33,24 @@ export {
 // Voice Input Hooks
 export { useVoiceInput } from './useVoiceInput';
 export type { UseVoiceInputOptions, UseVoiceInputReturn } from './useVoiceInput';
+
+// Collaboration Hooks
+export { useWebSocket } from './useWebSocket';
+export type {
+  ConnectionState,
+  WebSocketOptions,
+  WebSocketMessage,
+  UseWebSocketReturn,
+} from './useWebSocket';
+export { useCollaboration } from './useCollaboration';
+export type {
+  UserPresence,
+  CollaborationOptions,
+  UseCollaborationReturn,
+  CRDTOperation,
+  CursorPosition,
+  VectorClockMap,
+  DocumentState,
+  SyncMessage,
+  CRDTOperationType,
+} from './useCollaboration';
