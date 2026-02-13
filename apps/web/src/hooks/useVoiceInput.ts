@@ -129,7 +129,24 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      const err = { error: event.error, message: event.message || 'Speech recognition error' };
+      // Map error codes to user-friendly messages
+      const errorMessages: Record<string, string> = {
+        'not-allowed':
+          'Microphone access denied. Please allow microphone permissions in your browser settings.',
+        'no-speech': 'No speech detected. Please try speaking again.',
+        'audio-capture': 'No microphone found. Please connect a microphone and try again.',
+        network: 'Network error. Speech recognition requires an internet connection.',
+        aborted: 'Speech recognition was cancelled.',
+        'service-not-allowed': 'Speech recognition service is not allowed in this browser.',
+        'language-not-supported': 'The selected language is not supported.',
+        'grammar-not-supported': 'Grammar is not supported.',
+      };
+
+      const message =
+        errorMessages[event.error] ||
+        event.message ||
+        'Speech recognition error. Please try again.';
+      const err = { error: event.error, message };
       setError(err);
       setIsListening(false);
       onError?.(err);
