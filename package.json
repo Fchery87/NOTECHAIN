@@ -23,7 +23,7 @@
     "typecheck:apps": "bun run --filter='@notechain/web' --filter='@notechain/marketing' typecheck",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "clean:all": "bun run clean && rm -rf bun.lock",
-    "prepare": "husky install || true",
+    "prepare": "husky || true",
     "validate": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
