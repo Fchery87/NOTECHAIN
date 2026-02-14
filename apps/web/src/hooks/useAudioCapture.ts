@@ -135,11 +135,19 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
     });
   }, [isRecording, mimeType]);
 
-  // Clean up on unmount
+  // Use ref to track recording state for cleanup (avoids dependency on isRecording)
+  const isRecordingRef = useRef(isRecording);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  // Clean up on unmount only (empty dependency array)
   useEffect(() => {
     return () => {
       // Stop recording if still active
-      if (mediaRecorderRef.current && isRecording) {
+      if (mediaRecorderRef.current && isRecordingRef.current) {
         mediaRecorderRef.current.stop();
       }
 
@@ -153,7 +161,7 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
         clearInterval(durationIntervalRef.current);
       }
     };
-  }, [isRecording]);
+  }, []);
 
   return {
     isRecording,
