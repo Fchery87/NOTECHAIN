@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AppLayout from '@/components/AppLayout';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<'general' | 'security' | 'account'>('general');
@@ -12,22 +13,8 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState('light');
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-700">Settings</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+    <AppLayout>
+      <div className="py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="md:col-span-1">
@@ -345,7 +332,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

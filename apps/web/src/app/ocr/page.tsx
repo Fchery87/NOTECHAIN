@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { ImageOCRUploader } from '@/components/ImageOCRUploader';
 import { OCRResult, createOCRStorage } from '@/lib/storage/ocrStorage';
 
@@ -114,24 +115,15 @@ export default function OCRPage() {
   };
 
   return (
-    <div data-testid="ocr-page" className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header data-testid="ocr-header" className="bg-white border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <div>
-            <h1 className="font-serif text-3xl font-medium text-stone-900 mb-2">
-              OCR & Document Intelligence
-            </h1>
-            <p className="text-stone-600 max-w-2xl">
-              Extract text from images and PDFs using AI. All processing happens locally on your
-              device for maximum privacy.
-            </p>
-          </div>
+    <AppLayout pageTitle="OCR & Document Intelligence">
+      <div className="py-6">
+        <div className="mb-8">
+          <p className="text-stone-600 max-w-2xl">
+            Extract text from images and PDFs using AI. All processing happens locally on your
+            device for maximum privacy.
+          </p>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {/* OCR Uploader */}
         <section className="mb-12">
           <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
@@ -272,7 +264,7 @@ export default function OCRPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Detail Modal */}
       {selectedResult && (
@@ -344,6 +336,6 @@ export default function OCRPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }

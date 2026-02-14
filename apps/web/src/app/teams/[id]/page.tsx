@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { TeamSettings } from '../../../components/TeamSettings';
 import type { Team } from '../../../components/TeamSwitcher';
 import type { TeamMember } from '../../../components/MemberList';
@@ -113,50 +114,11 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <a
-                href="/teams"
-                className="text-lg text-stone-600 hover:text-stone-900 transition-colors"
-              >
-                Teams
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-900 font-medium">{currentTeam.name}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-green-100 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-green-700">Synced</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-stone-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-                <span>AES-256</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b border-stone-200">
-        <div className="max-w-6xl mx-auto px-6 lg:px-8">
-          <nav className="flex gap-1">
+    <AppLayout pageTitle={currentTeam.name} showBackButton backHref="/teams">
+      <div className="py-6">
+        {/* Navigation Tabs */}
+        <div className="mb-6">
+          <nav className="flex gap-1 border-b border-stone-200">
             {[
               {
                 id: 'notes',
@@ -189,103 +151,103 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
             ))}
           </nav>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 lg:px-8 py-8">
-        {activeTab === 'notes' && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Folders Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
-                <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-3">
-                  Folders
-                </h3>
-                <div className="space-y-1">
-                  {folders.map(folder => (
-                    <button
-                      key={folder.id}
+        {/* Main Content */}
+        <div>
+          {activeTab === 'notes' && (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Folders Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
+                  <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-3">
+                    Folders
+                  </h3>
+                  <div className="space-y-1">
+                    {folders.map(folder => (
+                      <button
+                        key={folder.id}
+                        className="
+                          w-full flex items-center justify-between px-3 py-2.5 rounded-lg
+                          text-stone-700 hover:bg-stone-50 hover:text-stone-900
+                          transition-colors
+                        "
+                      >
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className="w-4 h-4 text-stone-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                            />
+                          </svg>
+                          <span className="font-medium">{folder.name}</span>
+                        </div>
+                        <span className="text-xs text-stone-400">{folder.noteCount}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Grid */}
+              <div className="lg:col-span-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium text-stone-900">All Notes</h2>
+                  <button className="px-4 py-2 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-colors">
+                    New Note
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {notes.map(note => (
+                    <a
+                      key={note.id}
+                      href={`/notes/${note.id}`}
                       className="
-                        w-full flex items-center justify-between px-3 py-2.5 rounded-lg
-                        text-stone-700 hover:bg-stone-50 hover:text-stone-900
-                        transition-colors
+                        group bg-white rounded-xl shadow-sm border border-stone-200
+                        hover:border-amber-300 hover:shadow-md
+                        transition-all duration-200 p-5
                       "
                     >
-                      <div className="flex items-center gap-3">
-                        <svg
-                          className="w-4 h-4 text-stone-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                          />
-                        </svg>
-                        <span className="font-medium">{folder.name}</span>
+                      <div className="flex items-start justify-between mb-2">
+                        <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                          {note.folder}
+                        </span>
+                        <span className="text-xs text-stone-400">
+                          {note.updatedAt.toLocaleDateString()}
+                        </span>
                       </div>
-                      <span className="text-xs text-stone-400">{folder.noteCount}</span>
-                    </button>
+                      <h3 className="text-base font-medium text-stone-900 group-hover:text-amber-700 transition-colors mb-2">
+                        {note.title}
+                      </h3>
+                      <p className="text-sm text-stone-500 line-clamp-2">{note.preview}</p>
+                    </a>
                   ))}
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Notes Grid */}
-            <div className="lg:col-span-3">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-medium text-stone-900">All Notes</h2>
-                <button className="px-4 py-2 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-colors">
-                  New Note
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {notes.map(note => (
-                  <a
-                    key={note.id}
-                    href={`/notes/${note.id}`}
-                    className="
-                      group bg-white rounded-xl shadow-sm border border-stone-200
-                      hover:border-amber-300 hover:shadow-md
-                      transition-all duration-200 p-5
-                    "
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                        {note.folder}
-                      </span>
-                      <span className="text-xs text-stone-400">
-                        {note.updatedAt.toLocaleDateString()}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-medium text-stone-900 group-hover:text-amber-700 transition-colors mb-2">
-                      {note.title}
-                    </h3>
-                    <p className="text-sm text-stone-500 line-clamp-2">{note.preview}</p>
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <TeamSettings
-            team={currentTeam}
-            members={members}
-            currentUserRole={currentTeam.role}
-            onUpdateTeam={handleUpdateTeam}
-            onInviteMember={handleInviteMember}
-            onRemoveMember={handleRemoveMember}
-            onUpdateMemberRole={handleUpdateMemberRole}
-            onDeleteTeam={handleDeleteTeam}
-          />
-        )}
-      </main>
-    </div>
+          {activeTab === 'settings' && (
+            <TeamSettings
+              team={currentTeam}
+              members={members}
+              currentUserRole={currentTeam.role}
+              onUpdateTeam={handleUpdateTeam}
+              onInviteMember={handleInviteMember}
+              onRemoveMember={handleRemoveMember}
+              onUpdateMemberRole={handleUpdateMemberRole}
+              onDeleteTeam={handleDeleteTeam}
+            />
+          )}
+        </div>
+      </div>
+    </AppLayout>
   );
 }

@@ -1,31 +1,33 @@
+import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import { getVoiceSettings, saveVoiceSettings } from '../voiceSettings';
 
 describe('voiceSettings', () => {
-  let getItemSpy: jest.Mock;
-  let setItemSpy: jest.Mock;
+  let getItemSpy: ReturnType<typeof mock>;
+  let setItemSpy: ReturnType<typeof mock>;
 
   beforeEach(() => {
-    getItemSpy = jest.fn();
-    setItemSpy = jest.fn();
+    getItemSpy = mock();
+    setItemSpy = mock();
 
     Object.defineProperty(globalThis, 'window', {
       value: {
         localStorage: {
           getItem: getItemSpy,
           setItem: setItemSpy,
-          clear: jest.fn(),
-          removeItem: jest.fn(),
+          clear: mock(),
+          removeItem: mock(),
         },
       },
       writable: true,
       configurable: true,
     });
 
-    jest.clearAllMocks();
+    getItemSpy.mockClear();
+    setItemSpy.mockClear();
   });
 
   describe('getVoiceSettings', () => {
-    it('returns default settings when none saved', () => {
+    test('returns default settings when none saved', () => {
       getItemSpy.mockReturnValue(null);
 
       const settings = getVoiceSettings();
@@ -37,7 +39,7 @@ describe('voiceSettings', () => {
       });
     });
 
-    it('returns saved settings when present', () => {
+    test('returns saved settings when present', () => {
       const savedSettings = {
         enabled: true,
         language: 'en-GB',
@@ -50,7 +52,7 @@ describe('voiceSettings', () => {
       expect(settings).toEqual(savedSettings);
     });
 
-    it('parses JSON correctly', () => {
+    test('parses JSON correctly', () => {
       const savedSettings = {
         enabled: false,
         language: 'fr-FR',
@@ -63,7 +65,7 @@ describe('voiceSettings', () => {
       expect(settings).toEqual(savedSettings);
     });
 
-    it('returns default settings when window is undefined (SSR)', () => {
+    test('returns default settings when window is undefined (SSR)', () => {
       Object.defineProperty(globalThis, 'window', {
         value: undefined,
         writable: true,
@@ -79,7 +81,7 @@ describe('voiceSettings', () => {
       });
     });
 
-    it('returns default settings when JSON parsing fails', () => {
+    test('returns default settings when JSON parsing fails', () => {
       getItemSpy.mockReturnValue('invalid json');
 
       const settings = getVoiceSettings();
@@ -91,7 +93,7 @@ describe('voiceSettings', () => {
       });
     });
 
-    it('merges partial settings with defaults', () => {
+    test('merges partial settings with defaults', () => {
       const partialSettings = { language: 'es-ES' };
       getItemSpy.mockReturnValue(JSON.stringify(partialSettings));
 
@@ -106,7 +108,7 @@ describe('voiceSettings', () => {
   });
 
   describe('saveVoiceSettings', () => {
-    it('saves settings to localStorage', () => {
+    test('saves settings to localStorage', () => {
       const settings = {
         enabled: true,
         language: 'en-US',
@@ -119,7 +121,7 @@ describe('voiceSettings', () => {
       expect(setItemSpy).toHaveBeenCalledWith('voiceSettings', JSON.stringify(settings));
     });
 
-    it('overwrites existing settings', () => {
+    test('overwrites existing settings', () => {
       getItemSpy.mockReturnValue(undefined);
 
       const newSettings = {
@@ -134,7 +136,7 @@ describe('voiceSettings', () => {
       expect(setItemSpy).toHaveBeenCalledWith('voiceSettings', JSON.stringify(newSettings));
     });
 
-    it('does not throw when window is undefined (SSR)', () => {
+    test('does not throw when window is undefined (SSR)', () => {
       Object.defineProperty(globalThis, 'window', {
         value: undefined,
         writable: true,

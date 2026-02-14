@@ -22,6 +22,21 @@ interface NoteBlobRow {
 }
 
 /**
+ * Helper to wrap Supabase errors in proper Error instances
+ */
+function createRepositoryError(operation: string, error: unknown): Error {
+  if (error instanceof Error) {
+    return new Error(`${operation} failed: ${error.message}`);
+  }
+  if (error && typeof error === 'object') {
+    const err = error as { message?: string; code?: string; details?: string };
+    const message = err.message || err.details || err.code || 'Unknown error';
+    return new Error(`${operation} failed: ${message}`);
+  }
+  return new Error(`${operation} failed: ${String(error)}`);
+}
+
+/**
  * Repository for managing notes with encryption
  * Uses encrypted_blobs table for storage
  */
@@ -70,7 +85,7 @@ export class NoteRepository {
       is_deleted: false,
     });
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Create note', error);
 
     return noteData;
   }
@@ -90,7 +105,7 @@ export class NoteRepository {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw error;
+      throw createRepositoryError('Get note by ID', error);
     }
 
     return this.decryptNote(data as NoteBlobRow);
@@ -109,7 +124,7 @@ export class NoteRepository {
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Get all notes', error);
 
     const notes: Note[] = [];
     for (const row of data || []) {
@@ -132,7 +147,7 @@ export class NoteRepository {
       .eq('is_deleted', false)
       .order('updated_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Get notes by notebook', error);
 
     const notes: Note[] = [];
     for (const row of data || []) {
@@ -178,7 +193,7 @@ export class NoteRepository {
       .eq('id', noteId)
       .eq('user_id', this.userId);
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Update note', error);
 
     return updatedNote;
   }
@@ -196,7 +211,7 @@ export class NoteRepository {
       .eq('id', noteId)
       .eq('user_id', this.userId);
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Delete note', error);
     return true;
   }
 
@@ -211,7 +226,7 @@ export class NoteRepository {
       .eq('blob_type', 'note')
       .eq('is_deleted', false);
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Search notes by tags', error);
 
     const notes: Note[] = [];
     for (const row of data || []) {
@@ -271,13 +286,13 @@ export class NoteRepository {
       .eq('blob_type', 'note')
       .eq('is_deleted', false);
 
-    if (error) throw error;
+    if (error) throw createRepositoryError('Count notes', error);
     return count ?? 0;
   }
 
   /**
    * Decrypt a note from database row
-   */
+n   */
   private async decryptNote(row: NoteBlobRow): Promise<Note | null> {
     try {
       const decrypted = await decryptData(

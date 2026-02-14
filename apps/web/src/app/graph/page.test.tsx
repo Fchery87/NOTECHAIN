@@ -3,6 +3,47 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import KnowledgeGraphPage from './page';
+import type { KnowledgeGraph } from '@/lib/ai/notes/types';
+
+// Mock data defined first
+const mockNotes = [
+  {
+    id: 'note-1',
+    title: 'Test Note 1',
+    content: 'Test content 1',
+    userId: 'user-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    tags: ['work'],
+    backlinks: [],
+    attachments: [],
+    wordCount: 100,
+    notebookId: 'nb-1',
+    encryptionKeyId: 'key-1',
+    contentHash: 'hash-1',
+    syncVersion: 1,
+  },
+];
+
+const mockGraphData: KnowledgeGraph = {
+  nodes: [
+    {
+      id: 'note-1',
+      label: 'Test Note 1',
+      type: 'note',
+      size: 20,
+      color: '#57534e',
+      metadata: {
+        wordCount: 100,
+        createdAt: new Date(),
+        tagCount: 1,
+        backlinkCount: 0,
+      },
+    },
+  ],
+  edges: [],
+  clusters: [],
+};
 
 // Mock next/navigation
 const mockPush = mock(() => {});
@@ -13,11 +54,7 @@ mock.module('next/navigation', () => ({
 }));
 
 // Mock getKnowledgeGraphGenerator
-const mockGenerateGraph = mock(async () => ({
-  nodes: [],
-  edges: [],
-  clusters: [],
-}));
+const mockGenerateGraph = mock(async (): Promise<KnowledgeGraph> => mockGraphData);
 
 mock.module('@/lib/ai/notes', () => ({
   getKnowledgeGraphGenerator: () => ({
@@ -26,7 +63,7 @@ mock.module('@/lib/ai/notes', () => ({
 }));
 
 // Mock createNoteRepository
-const mockGetAll = mock(async () => []);
+const mockGetAll = mock(async () => mockNotes);
 
 mock.module('@/lib/repositories', () => ({
   createNoteRepository: () => ({
@@ -52,45 +89,6 @@ mock.module('cytoscape', () => ({
 }));
 
 describe('KnowledgeGraphPage', () => {
-  const mockNotes = [
-    {
-      id: 'note-1',
-      title: 'Test Note 1',
-      content: 'Test content 1',
-      userId: 'user-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      tags: ['work'],
-      backlinks: [],
-      attachments: [],
-      wordCount: 100,
-      notebookId: 'nb-1',
-      encryptionKeyId: 'key-1',
-      contentHash: 'hash-1',
-      syncVersion: 1,
-    },
-  ];
-
-  const mockGraphData = {
-    nodes: [
-      {
-        id: 'note-1',
-        label: 'Test Note 1',
-        type: 'note',
-        size: 20,
-        color: '#57534e',
-        metadata: {
-          wordCount: 100,
-          createdAt: new Date(),
-          tagCount: 1,
-          backlinkCount: 0,
-        },
-      },
-    ],
-    edges: [],
-    clusters: [],
-  };
-
   beforeEach(() => {
     mockPush.mockClear();
     mockGenerateGraph.mockImplementation(async () => mockGraphData);
@@ -100,21 +98,21 @@ describe('KnowledgeGraphPage', () => {
   test('renders page title', () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText('Knowledge Graph')).toBeInTheDocument();
+    expect(screen.getByText('Knowledge Graph')).toBeDefined();
   });
 
   test('renders subtitle/description', () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText(/Visualize connections between your notes/)).toBeInTheDocument();
+    expect(screen.getByText(/Visualize connections between your notes/)).toBeDefined();
   });
 
   test('shows loading state initially', () => {
     render(<KnowledgeGraphPage />);
 
     // The KnowledgeGraphView component shows loading state with data-testid="graph-loading-container"
-    expect(screen.getByTestId('graph-loading-container')).toBeInTheDocument();
-    expect(screen.getByText(/loading.*graph/i)).toBeInTheDocument();
+    expect(screen.getByTestId('graph-loading-container')).toBeDefined();
+    expect(screen.getByText(/loading.*graph/i)).toBeDefined();
   });
 
   test('loads notes on mount', async () => {
@@ -147,19 +145,19 @@ describe('KnowledgeGraphPage', () => {
     await waitFor(
       () => {
         // After loading, the graph container should be rendered
-        expect(screen.queryByTestId('graph-loading-container')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('graph-loading-container')).toBeNull();
       },
       { timeout: 3000 }
     );
 
     // The graph should show the toolbar with controls
-    expect(screen.getByTestId('graph-toolbar')).toBeInTheDocument();
+    expect(screen.getByTestId('graph-toolbar')).toBeDefined();
   });
 
   test('renders tips section', () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText(/Tips/)).toBeInTheDocument();
+    expect(screen.getByText(/Tips/)).toBeDefined();
   });
 
   test('shows empty state when no notes exist', async () => {
@@ -173,7 +171,7 @@ describe('KnowledgeGraphPage', () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('graph-empty-state')).toBeInTheDocument();
+      expect(screen.getByTestId('graph-empty-state')).toBeDefined();
     });
   });
 
@@ -187,7 +185,7 @@ describe('KnowledgeGraphPage', () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/error loading graph/i)).toBeInTheDocument();
+      expect(screen.getByText(/error loading graph/i)).toBeDefined();
     });
 
     // Restore console.error

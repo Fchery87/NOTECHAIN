@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AppLayout from '@/components/AppLayout';
 import type { Team } from '../../components/TeamSwitcher';
 
 export default function TeamsPage() {
@@ -63,35 +64,22 @@ export default function TeamsPage() {
     return styles[role];
   };
 
-  return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-700">Teams</span>
-            </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="
-                px-5 py-2.5 bg-stone-900 text-stone-50 font-medium rounded-lg
-                hover:bg-stone-800 transition-all duration-300
-                hover:shadow-lg hover:shadow-stone-900/20
-              "
-            >
-              Create Team
-            </button>
-          </div>
-        </div>
-      </header>
+  const headerActions = (
+    <button
+      onClick={() => setShowCreateModal(true)}
+      className="
+        px-5 py-2.5 bg-stone-900 text-stone-50 font-medium rounded-lg
+        hover:bg-stone-800 transition-all duration-300
+        hover:shadow-lg hover:shadow-stone-900/20
+      "
+    >
+      Create Team
+    </button>
+  );
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 lg:px-8 py-8">
+  return (
+    <AppLayout pageTitle="Teams" actions={headerActions}>
+      <div className="py-6">
         {/* Teams Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teams.map(team => (
@@ -184,7 +172,7 @@ export default function TeamsPage() {
             </span>
           </button>
         </div>
-      </main>
+      </div>
 
       {/* Create Modal */}
       {showCreateModal && (
@@ -270,6 +258,6 @@ export default function TeamsPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }

@@ -98,22 +98,7 @@ export function NoteEditor({
   const hasCollaborators = collaborators.length > 0;
   const userPermission = collaborators.find(c => c.id === userId)?.permissionLevel || 'view';
 
-  if (hasCollaborators && userId) {
-    return (
-      <CollaborativeEditor
-        documentId=""
-        userId={userId}
-        displayName={displayName}
-        permissionLevel={userPermission}
-        initialContent={content}
-        onChange={onChange}
-        placeholder={placeholder}
-        minHeight={minHeight}
-        maxHeight={maxHeight}
-        onShare={onShare}
-      />
-    );
-  }
+  // Always call useEditor hook unconditionally (Rules of Hooks)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -197,6 +182,24 @@ export function NoteEditor({
       editor?.chain().focus().setImage({ src: url }).run();
     }
   }, [editor]);
+
+  // Render collaborative editor if there are collaborators
+  if (hasCollaborators && userId) {
+    return (
+      <CollaborativeEditor
+        documentId=""
+        userId={userId}
+        displayName={displayName}
+        permissionLevel={userPermission}
+        initialContent={content}
+        onChange={onChange}
+        placeholder={placeholder}
+        minHeight={minHeight}
+        maxHeight={maxHeight}
+        onShare={onShare}
+      />
+    );
+  }
 
   if (!editor) {
     return (

@@ -43,7 +43,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">
+      <body className="antialiased bg-stone-50">
         <UserProvider>
           <SyncProvider>
             {/* Accessibility: Skip to main content link */}
@@ -52,10 +52,7 @@ export default function RootLayout({
             {/* Accessibility: Live region for screen reader announcements */}
             <AriaLiveRegion />
 
-            {/* Main content area */}
-            <main id="main-content" className="outline-none focus:ring-0">
-              {children}
-            </main>
+            {children}
           </SyncProvider>
         </UserProvider>
       </body>

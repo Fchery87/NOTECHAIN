@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import AppLayout from '@/components/AppLayout';
 import { NoteEditor } from '@/components/NoteEditor';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
@@ -135,34 +136,21 @@ export default function NotesPage() {
     setShowShareDialog(false);
   }, []);
 
+  const headerActions = (
+    <>
+      <SyncStatusIndicator />
+      <button
+        onClick={handleCreateNote}
+        className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+      >
+        + New Note
+      </button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-700">Notes</span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <SyncStatusIndicator />
-
-              <button
-                onClick={handleCreateNote}
-                className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                + New Note
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+    <AppLayout pageTitle="Notes" actions={headerActions}>
+      <div className="py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
@@ -227,7 +215,7 @@ export default function NotesPage() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

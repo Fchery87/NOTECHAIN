@@ -2,6 +2,7 @@
 
 import React, { useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import AppLayout from '@/components/AppLayout';
 import { MeetingDetail } from '@/components/MeetingDetail';
 
 /**
@@ -30,38 +31,10 @@ export default function MeetingDetailPage() {
   );
 
   return (
-    <div data-testid="meeting-detail-page" className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header className="bg-white border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="flex items-center gap-2 text-stone-600 hover:text-stone-900 transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Back to Meetings
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+    <AppLayout showBackButton backHref="/meetings">
+      <div className="py-6">
         <MeetingDetail meetingId={meetingId} onBack={handleBack} onDelete={handleDelete} />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

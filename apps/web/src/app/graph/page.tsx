@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { getKnowledgeGraphGenerator } from '@/lib/ai/notes';
 import { createNoteRepository } from '@/lib/repositories';
@@ -53,7 +54,15 @@ export default function KnowledgeGraphPage() {
         setGraph(graphData);
       } catch (err) {
         console.error('Failed to load knowledge graph:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load knowledge graph');
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : err && typeof err === 'object'
+                ? JSON.stringify(err)
+                : 'Failed to load knowledge graph';
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -73,19 +82,12 @@ export default function KnowledgeGraphPage() {
   };
 
   return (
-    <main className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <div className="bg-white border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-          <h1 className="font-serif text-4xl md:text-5xl font-medium text-stone-900 tracking-tight">
-            Knowledge Graph
-          </h1>
-          <p className="mt-3 text-lg text-stone-600">Visualize connections between your notes</p>
+    <AppLayout pageTitle="Knowledge Graph">
+      <div className="py-6">
+        <div className="mb-6">
+          <p className="text-stone-600">Visualize connections between your notes</p>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {/* Error State */}
         {error && (
           <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl">
@@ -174,6 +176,6 @@ export default function KnowledgeGraphPage() {
           </ul>
         </div>
       </div>
-    </main>
+    </AppLayout>
   );
 }

@@ -13,6 +13,9 @@ const plans = [
       'Basic AI assistance',
       '1GB storage',
       'Community support',
+      'Knowledge Graph (limited)',
+      'Calendar sync',
+      'Basic search',
     ],
     cta: 'Get Started Free',
     href: '/waitlist',
@@ -30,12 +33,39 @@ const plans = [
       'Unlimited storage',
       'API access',
       'Priority support',
-      'Team collaboration (coming soon)',
-      'Custom domains (coming soon)',
+      'Meeting transcription',
+      'OCR & document processing',
+      'PDF annotation & signing',
+      'Voice input',
+      'Version history',
+      'Advanced search & tags',
+      'Full Knowledge Graph',
+      'Team collaboration',
     ],
     cta: 'Join Pro Waitlist',
     href: '/waitlist?plan=pro',
     popular: true,
+  },
+  {
+    name: 'Team',
+    price: '$19',
+    period: 'per user/month',
+    description: 'For teams who value privacy',
+    features: [
+      'Everything in Pro',
+      'Up to 10 team members',
+      'Shared encrypted workspaces',
+      'Admin controls',
+      'Team analytics',
+      'SSO integration',
+      'Custom data retention',
+      'Dedicated support',
+      'Audit logs',
+      'Advanced permissions',
+    ],
+    cta: 'Contact Sales',
+    href: '/waitlist?plan=team',
+    popular: false,
   },
 ];
 
@@ -55,7 +85,7 @@ export default function Pricing() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map(plan => (
             <PricingCard key={plan.name} {...plan} />
           ))}

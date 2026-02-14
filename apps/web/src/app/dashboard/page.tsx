@@ -1,52 +1,12 @@
 'use client';
 
+import AppLayout from '@/components/AppLayout';
 import { SyncDebugPanel } from '@/components/SyncDebugPanel';
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-2xl font-medium text-stone-900">NoteChain</span>
-              <span className="text-xs text-stone-400">|</span>
-              <span className="text-sm text-stone-600">Dashboard</span>
-            </div>
-
-            <nav className="flex items-center gap-6">
-              <a
-                href="/notes"
-                className="text-sm text-stone-600 hover:text-stone-900 transition-colors"
-              >
-                Notes
-              </a>
-              <a
-                href="/todos"
-                className="text-sm text-stone-600 hover:text-stone-900 transition-colors"
-              >
-                Todos
-              </a>
-              <a
-                href="/calendar"
-                className="text-sm text-stone-600 hover:text-stone-900 transition-colors"
-              >
-                Calendar
-              </a>
-              <a
-                href="/pdfs"
-                className="text-sm text-stone-600 hover:text-stone-900 transition-colors"
-              >
-                PDFs
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
+    <AppLayout pageTitle="Dashboard">
+      <div className="py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Notes Card */}
           <a
@@ -94,7 +54,7 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-lg font-medium text-stone-900 mb-2">Todos</h2>
+            <h2 className="text-lg font-medium text-stone-900 mb-2">Tasks</h2>
             <p className="text-sm text-stone-600">Manage tasks with AI-powered prioritization.</p>
           </a>
 
@@ -172,6 +132,80 @@ export default function DashboardPage() {
             <p className="text-sm text-stone-600">Search across all your encrypted content.</p>
           </a>
 
+          {/* Teams Card */}
+          <a
+            href="/teams"
+            className="group block bg-white rounded-2xl shadow-sm border border-stone-200 p-6 hover:shadow-lg hover:border-amber-300 transition-all"
+          >
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-amber-200 transition-colors">
+              <svg
+                className="w-6 h-6 text-amber-700"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-lg font-medium text-stone-900 mb-2">Teams</h2>
+            <p className="text-sm text-stone-600">
+              Collaborate with your team in shared workspaces.
+            </p>
+          </a>
+
+          {/* Graph Card */}
+          <a
+            href="/graph"
+            className="group block bg-white rounded-2xl shadow-sm border border-stone-200 p-6 hover:shadow-lg hover:border-amber-300 transition-all"
+          >
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-amber-200 transition-colors">
+              <svg
+                className="w-6 h-6 text-amber-700"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-lg font-medium text-stone-900 mb-2">Knowledge Graph</h2>
+            <p className="text-sm text-stone-600">Visualize connections between your notes.</p>
+          </a>
+
+          {/* Meetings Card */}
+          <a
+            href="/meetings"
+            className="group block bg-white rounded-2xl shadow-sm border border-stone-200 p-6 hover:shadow-lg hover:border-amber-300 transition-all"
+          >
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-amber-200 transition-colors">
+              <svg
+                className="w-6 h-6 text-amber-700"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-lg font-medium text-stone-900 mb-2">Meetings</h2>
+            <p className="text-sm text-stone-600">Record and transcribe meetings automatically.</p>
+          </a>
+
           {/* Settings Card */}
           <a
             href="/settings"
@@ -202,10 +236,10 @@ export default function DashboardPage() {
             <p className="text-sm text-stone-600">Manage your account and encryption keys.</p>
           </a>
         </div>
-      </main>
+      </div>
 
       {/* Sync Debug Panel - Development Tool */}
       <SyncDebugPanel />
-    </div>
+    </AppLayout>
   );
 }

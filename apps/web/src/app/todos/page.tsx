@@ -2,9 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import type { Todo } from '@notechain/data-models';
+import AppLayout from '@/components/AppLayout';
 import { TodoList } from '@/components/TodoList';
 import { TodoForm } from '@/components/TodoForm';
-import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 import { useTodosSync } from '@/lib/sync/useTodosSync';
 
 // Mock data for demonstration
@@ -181,44 +181,29 @@ export default function TodosPage() {
     setIsFormVisible(true);
   }, []);
 
+  const headerActions = (
+    <button
+      onClick={openCreateForm}
+      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+    >
+      + New Task
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-700">Todos</span>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Sync Status Indicator */}
-              <SyncStatusIndicator />
-
-              <button
-                onClick={openCreateForm}
-                className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
-              >
-                + New Task
-              </button>
-            </div>
+    <AppLayout pageTitle="Tasks" actions={headerActions}>
+      <div className="py-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-xl shadow-sm border border-stone-200">
+            <TodoList
+              todos={todos}
+              onToggle={handleToggle}
+              onPress={handlePress}
+              onDelete={handleDelete}
+            />
           </div>
         </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-sm border border-stone-200">
-          <TodoList
-            todos={todos}
-            onToggle={handleToggle}
-            onPress={handlePress}
-            onDelete={handleDelete}
-          />
-        </div>
-      </main>
+      </div>
 
       <TodoForm
         visible={isFormVisible}
@@ -227,6 +212,6 @@ export default function TodosPage() {
         initialData={editingTodo}
         mode={editingTodo ? 'edit' : 'create'}
       />
-    </div>
+    </AppLayout>
   );
 }

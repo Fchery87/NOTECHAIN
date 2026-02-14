@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import AppLayout from '@/components/AppLayout';
 
 // Mock search results
 interface SearchResult {
@@ -157,22 +158,8 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <a href="/dashboard" className="font-serif text-2xl font-medium text-stone-900">
-                NoteChain
-              </a>
-              <span className="text-stone-300">/</span>
-              <span className="text-lg text-stone-700">Search</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+    <AppLayout>
+      <div className="py-6 max-w-4xl mx-auto">
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
@@ -277,7 +264,7 @@ export default function SearchPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
