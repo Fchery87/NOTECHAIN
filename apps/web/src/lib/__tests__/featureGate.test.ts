@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, test, expect, beforeEach } from 'bun:test';
 import { FeatureGate, UserService } from '../featureGate';
 import type { FeatureType } from '../featureGate';
 
@@ -8,7 +8,7 @@ describe('Feature Gate', () => {
   });
 
   describe('Access Control', () => {
-    it('should allow free tier access to basic features', () => {
+    test('should allow free tier access to basic features', () => {
       const freeFeatures: FeatureType[] = [
         'basic_notes',
         'basic_todos',
@@ -22,7 +22,7 @@ describe('Feature Gate', () => {
       });
     });
 
-    it('should deny free tier access to Pro features', () => {
+    test('should deny free tier access to Pro features', () => {
       const proFeatures: FeatureType[] = [
         'unlimited_folders',
         'unlimited_tags',
@@ -40,7 +40,7 @@ describe('Feature Gate', () => {
       });
     });
 
-    it('should allow Pro tier access to all Pro features', () => {
+    test('should allow Pro tier access to all Pro features', () => {
       const proFeatures: FeatureType[] = [
         'unlimited_folders',
         'unlimited_tags',
@@ -58,7 +58,7 @@ describe('Feature Gate', () => {
       });
     });
 
-    it('should allow Premium tier access to all features', () => {
+    test('should allow Premium tier access to all features', () => {
       const allFeatures: FeatureType[] = [
         'basic_notes',
         'basic_todos',
@@ -87,41 +87,41 @@ describe('Feature Gate', () => {
   });
 
   describe('Feature Requirements', () => {
-    it('should return correct required tier for free features', () => {
+    test('should return correct required tier for free features', () => {
       expect(FeatureGate.getRequiredTier('basic_notes')).toBe('free');
       expect(FeatureGate.getRequiredTier('basic_todos')).toBe('free');
     });
 
-    it('should return correct required tier for Pro features', () => {
+    test('should return correct required tier for Pro features', () => {
       expect(FeatureGate.getRequiredTier('unlimited_folders')).toBe('pro');
       expect(FeatureGate.getRequiredTier('pdf_signing')).toBe('pro');
     });
 
-    it('should return correct required tier for Premium features', () => {
+    test('should return correct required tier for Premium features', () => {
       expect(FeatureGate.getRequiredTier('templates')).toBe('premium');
       expect(FeatureGate.getRequiredTier('weekly_analytics')).toBe('premium');
     });
   });
 
   describe('Upgrade Detection', () => {
-    it('should detect free users need upgrade for Pro features', () => {
+    test('should detect free users need upgrade for Pro features', () => {
       expect(FeatureGate.requiresUpgrade('free', 'pdf_signing')).toBe(true);
       expect(FeatureGate.requiresUpgrade('free', 'unlimited_folders')).toBe(true);
     });
 
-    it('should detect free users do not need upgrade for basic features', () => {
+    test('should detect free users do not need upgrade for basic features', () => {
       expect(FeatureGate.requiresUpgrade('free', 'basic_notes')).toBe(false);
       expect(FeatureGate.requiresUpgrade('free', 'basic_todos')).toBe(false);
     });
 
-    it('should detect Pro users do not need upgrade for Pro features', () => {
+    test('should detect Pro users do not need upgrade for Pro features', () => {
       expect(FeatureGate.requiresUpgrade('pro', 'pdf_signing')).toBe(false);
       expect(FeatureGate.requiresUpgrade('pro', 'unlimited_folders')).toBe(false);
     });
   });
 
   describe('Feature Configuration', () => {
-    it('should return feature config', () => {
+    test('should return feature config', () => {
       const config = FeatureGate.getFeatureConfig('pdf_signing');
 
       expect(config.name).toBe('PDF Signing');
@@ -129,7 +129,7 @@ describe('Feature Gate', () => {
       expect(config.requiredTier).toBe('pro');
     });
 
-    it('should return all Pro features', () => {
+    test('should return all Pro features', () => {
       const proFeatures = FeatureGate.getProFeatures();
 
       expect(proFeatures).toContain('pdf_signing');
@@ -137,7 +137,7 @@ describe('Feature Gate', () => {
       expect(proFeatures).toContain('calendar_integration');
     });
 
-    it('should return all Premium add-ons', () => {
+    test('should return all Premium add-ons', () => {
       const premiumAddOns = FeatureGate.getPremiumAddOns();
 
       expect(premiumAddOns).toContain('templates');
@@ -147,35 +147,35 @@ describe('Feature Gate', () => {
   });
 
   describe('User Service', () => {
-    it('should get user tier', async () => {
+    test('should get user tier', async () => {
       UserService.setUserTier('pro');
       const tier = await UserService.getUserTier();
 
       expect(tier).toBe('pro');
     });
 
-    it('should upgrade user to Pro', async () => {
+    test('should upgrade user to Pro', async () => {
       await UserService.upgradeToPro();
       const tier = await UserService.getUserTier();
 
       expect(tier).toBe('pro');
     });
 
-    it('should upgrade user to Premium', async () => {
+    test('should upgrade user to Premium', async () => {
       await UserService.upgradeToPremium();
       const tier = await UserService.getUserTier();
 
       expect(tier).toBe('premium');
     });
 
-    it('should downgrade user to Free', async () => {
+    test('should downgrade user to Free', async () => {
       await UserService.downgradeToFree();
       const tier = await UserService.getUserTier();
 
       expect(tier).toBe('free');
     });
 
-    it('should check feature access for user', async () => {
+    test('should check feature access for user', async () => {
       UserService.setUserTier('free');
       const canAccess = await UserService.canAccessFeature('pdf_signing');
 

@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { GoogleCalendarService } from '../googleCalendar';
+
+// Mock fetch globally
+let fetchMock: ReturnType<typeof jest.fn>;
 
 describe('Google Calendar Service', () => {
   const mockAccessToken = 'mock-access-token';
@@ -7,15 +10,16 @@ describe('Google Calendar Service', () => {
 
   beforeEach(() => {
     // Setup test environment
-    global.fetch = jest.fn() as any;
+    fetchMock = jest.fn();
+    global.fetch = fetchMock as any;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    fetchMock.mockClear();
   });
 
   describe('Sync from Google Calendar', () => {
-    it('should fetch calendar events with proper headers', async () => {
+    test('should fetch calendar events with proper headers', async () => {
       const mockResponse = {
         items: [
           {
@@ -28,14 +32,14 @@ describe('Google Calendar Service', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
 
       const events = await GoogleCalendarService.syncFromGoogle(mockAccessToken, mockCalendarId);
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events',
         {
           headers: {
@@ -48,7 +52,7 @@ describe('Google Calendar Service', () => {
       expect(events[0].source).toBe('google');
     });
 
-    it('should handle all-day events', async () => {
+    test('should handle all-day events', async () => {
       const mockResponse = {
         items: [
           {
@@ -60,7 +64,7 @@ describe('Google Calendar Service', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
       });
@@ -73,21 +77,21 @@ describe('Google Calendar Service', () => {
   });
 
   describe('Push to Google Calendar', () => {
-    it('should push todo as calendar event', async () => {
+    test('should push todo as calendar event', async () => {
       const todo = {
         id: 'todo-1',
         title: 'Test Todo',
         dueDate: new Date('2024-01-01T10:00:00Z'),
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 'google-event-1' }),
       });
 
       await GoogleCalendarService.pushToGoogle(todo, mockCalendarId, mockAccessToken);
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events',
         {
           method: 'POST',
@@ -100,7 +104,7 @@ describe('Google Calendar Service', () => {
       );
     });
 
-    it('should update existing calendar event', async () => {
+    test('should update existing calendar event', async () => {
       const todo = {
         id: 'todo-1',
         title: 'Updated Todo',
@@ -108,14 +112,14 @@ describe('Google Calendar Service', () => {
         externalId: 'google-event-1',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 'google-event-1' }),
       });
 
       await GoogleCalendarService.pushToGoogle(todo, mockCalendarId, mockAccessToken);
 
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         'https://www.googleapis.com/calendar/v3/calendars/primary/events/google-event-1',
         {
           method: 'PUT',
@@ -129,8 +133,8 @@ describe('Google Calendar Service', () => {
   });
 
   describe('Error Handling', () => {
-    it('should throw error on invalid access token', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+    test('should throw error on invalid access token', async () => {
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 401,
       });
@@ -140,8 +144,8 @@ describe('Google Calendar Service', () => {
       ).rejects.toThrow('Authentication failed');
     });
 
-    it('should throw error on network failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+    test('should throw error on network failure', async () => {
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(
         GoogleCalendarService.syncFromGoogle(mockAccessToken, mockCalendarId)
