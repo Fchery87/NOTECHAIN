@@ -1,5 +1,11 @@
 // packages/core-crypto/src/index.ts
-import { EncryptionService, encryptData, decryptData, type EncryptedData } from './encryption';
+import {
+  EncryptionService,
+  encryptData,
+  decryptData,
+  type EncryptedData,
+  PBKDF2_CONFIG,
+} from './encryption';
 import { KeyManager } from './keyManagement';
 import {
   StorageAdapter,
@@ -8,8 +14,15 @@ import {
   detectStorage,
   defaultStorage,
 } from './storage';
+import {
+  SecureStorageAdapter,
+  SecureIndexedDBStorage,
+  SecureMemoryStorage,
+  detectSecureStorage,
+  defaultSecureStorage,
+} from './secureStorage';
 
-export { EncryptionService, KeyManager, encryptData, decryptData };
+export { EncryptionService, KeyManager, encryptData, decryptData, PBKDF2_CONFIG };
 export type { EncryptedData };
 
 // Storage exports
@@ -19,4 +32,13 @@ export {
   MemoryStorageAdapter,
   detectStorage,
   defaultStorage,
+};
+
+// Secure storage exports
+export {
+  SecureStorageAdapter,
+  SecureIndexedDBStorage,
+  SecureMemoryStorage,
+  detectSecureStorage,
+  defaultSecureStorage,
 };

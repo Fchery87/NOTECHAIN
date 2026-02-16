@@ -1,6 +1,8 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { useEffect, ReactNode, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/lib/supabase/UserProvider';
 import AppHeader from './AppHeader';
 
 interface AppLayoutProps {
@@ -10,6 +12,7 @@ interface AppLayoutProps {
   backHref?: string;
   actions?: React.ReactNode;
   fullWidth?: boolean;
+  requireAuth?: boolean;
 }
 
 export default function AppLayout({
@@ -19,9 +22,74 @@ export default function AppLayout({
   backHref,
   actions,
   fullWidth = false,
+  requireAuth = true,
 }: AppLayoutProps) {
+  const { user, isLoading } = useUser();
+  const router = useRouter();
   const hasPageHeader = pageTitle || showBackButton;
   const headerHeight = hasPageHeader ? 'h-30' : 'h-16';
+
+  // Track if user was ever logged in (to detect logout vs never-logged-in)
+  const wasAuthenticated = useRef(false);
+  // Track if we've already handled the initial auth check
+  const initialCheckDone = useRef(false);
+
+  // Client-side authentication check
+  // Only redirect if user was logged in and then logged out (session expiry, etc.)
+  // Initial auth protection is handled by middleware
+  useEffect(() => {
+    // Wait for loading to complete
+    if (isLoading) return;
+
+    // Mark that initial check is done
+    if (!initialCheckDone.current) {
+      initialCheckDone.current = true;
+      // If user is authenticated on initial load, mark it
+      if (user) {
+        wasAuthenticated.current = true;
+      }
+      return; // Don't redirect on initial check - middleware handles this
+    }
+
+    // After initial check, only redirect if:
+    // 1. Auth is required
+    // 2. User was previously authenticated (had a session)
+    // 3. User is now null (session expired or logged out)
+    // This prevents redirect loops while still handling session expiry
+    if (requireAuth && wasAuthenticated.current && !user) {
+      const currentPath = window.location.pathname;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}&reason=session_expired`);
+    }
+
+    // Update authentication state
+    if (user) {
+      wasAuthenticated.current = true;
+    }
+  }, [requireAuth, isLoading, user, router]);
+
+  // Show loading state while checking authentication
+  if (requireAuth && isLoading) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-stone-200 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-stone-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If auth is required and no user after loading, show minimal UI
+  // Middleware should have already redirected, but this is a safety net
+  if (requireAuth && !isLoading && !user && initialCheckDone.current) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-stone-600 mb-4">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50">

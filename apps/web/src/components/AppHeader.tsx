@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useUser } from '@/lib/supabase/UserProvider';
 
 interface AppHeaderProps {
   pageTitle?: string;
@@ -145,6 +146,19 @@ function SettingsIcon({ className }: { className?: string }) {
   );
 }
 
+function ShieldIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+      />
+    </svg>
+  );
+}
+
 function UserIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +181,53 @@ export default function AppHeader({
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAdmin, signOut } = useUser();
+
+  // Get user display info from Google OAuth or fallback
+  // Google OAuth returns: full_name, name, given_name, family_name in user_metadata
+  const userDisplayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.user_metadata?.given_name ||
+    user?.email?.split('@')[0] ||
+    'User';
+  const userEmail = user?.email || '';
+
+  // Extract initials from display name
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase();
+    }
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const userInitials = getInitials(userDisplayName);
+
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (isSigningOut) return;
+
+    try {
+      setIsSigningOut(true);
+      setUserMenuOpen(false);
+      await signOut();
+      // Redirect to login page after sign out
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Still redirect even if there was an error, since local state is cleared
+      router.push('/auth/login');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -276,7 +336,7 @@ export default function AppHeader({
                   className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-100 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-rose-400 flex items-center justify-center text-white text-sm font-medium">
-                    JD
+                    {userInitials}
                   </div>
                   <svg
                     className="w-4 h-4 text-stone-500 hidden sm:block"
@@ -298,9 +358,19 @@ export default function AppHeader({
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-stone-200 py-2 z-50 animate-fade-in">
                       <div className="px-4 py-2 border-b border-stone-100">
-                        <p className="font-medium text-stone-900">John Doe</p>
-                        <p className="text-sm text-stone-500">john@example.com</p>
+                        <p className="font-medium text-stone-900">{userDisplayName}</p>
+                        <p className="text-sm text-stone-500">{userEmail}</p>
                       </div>
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <ShieldIcon className="w-4 h-4" />
+                          Admin Dashboard
+                        </Link>
+                      )}
                       <Link
                         href="/settings"
                         className="flex items-center gap-3 px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
@@ -318,7 +388,12 @@ export default function AppHeader({
                         Profile
                       </Link>
                       <div className="border-t border-stone-100 mt-2 pt-2">
-                        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        <button
+                          onClick={handleSignOut}
+                          disabled={isSigningOut}
+                          type="button"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                        >
                           <svg
                             className="w-4 h-4"
                             fill="none"
@@ -332,7 +407,7 @@ export default function AppHeader({
                               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                             />
                           </svg>
-                          Sign out
+                          {isSigningOut ? 'Signing out...' : 'Sign out'}
                         </button>
                       </div>
                     </div>

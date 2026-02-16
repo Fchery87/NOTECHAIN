@@ -1,7 +1,7 @@
 // apps/web/src/components/SyncDebugPanel.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSync } from '@/lib/sync/SyncProvider';
 import { offlineQueue } from '@/lib/sync/offlineQueue';
 import { encryptedSyncService } from '@/lib/sync/encryptedSyncService';
@@ -28,32 +28,51 @@ export function SyncDebugPanel() {
   });
   const [isEncryptionReady, setIsEncryptionReady] = useState(false);
 
+  // Use ref for the refresh function to avoid interval recreation
+  const refreshStatsRef = useRef<(() => Promise<void>) | null>(null);
+
   const refreshStats = useCallback(async () => {
-    const stats = await offlineQueue.getStats();
-    setQueueStats(stats);
-    setIsEncryptionReady(encryptedSyncService.isReady());
+    try {
+      const stats = await offlineQueue.getStats();
+      setQueueStats(stats);
+      setIsEncryptionReady(encryptedSyncService.isReady());
+    } catch (error) {
+      console.error('[SyncDebugPanel] Error refreshing stats:', error);
+    }
   }, []);
 
+  // Keep ref updated
   useEffect(() => {
-    refreshStats();
-    const interval = setInterval(refreshStats, 2000);
-    return () => clearInterval(interval);
+    refreshStatsRef.current = refreshStats;
   }, [refreshStats]);
+
+  // Set up polling interval with stable ref
+  useEffect(() => {
+    // Initial refresh
+    refreshStatsRef.current?.();
+
+    // Set up interval using ref to avoid dependency issues
+    const interval = setInterval(() => {
+      refreshStatsRef.current?.();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []); // No dependencies - interval runs independently
 
   const handleClearQueue = async () => {
     await offlineQueue.clear();
-    refreshStats();
+    await refreshStats();
   };
 
   const handleForceSync = async () => {
     await triggerSync();
-    refreshStats();
+    await refreshStats();
   };
 
   const handleRegenerateKey = async () => {
     await encryptedSyncService.clear();
     await encryptedSyncService.initialize();
-    refreshStats();
+    await refreshStats();
   };
 
   if (!isOpen) {

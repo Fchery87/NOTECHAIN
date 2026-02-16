@@ -197,6 +197,7 @@ export default function NotesPage() {
                 </div>
                 <div className="p-4">
                   <NoteEditor
+                    noteId={selectedNote.id}
                     content={selectedNote.content}
                     onChange={handleContentChange}
                     placeholder="Start writing your encrypted note..."

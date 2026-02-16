@@ -22,6 +22,8 @@ export interface NoteEditorProps {
   editable?: boolean;
   minHeight?: string;
   maxHeight?: string;
+  /** Note ID for collaboration */
+  noteId?: string;
   /** Current user ID */
   userId?: string;
   /** Current user display name */
@@ -90,6 +92,7 @@ export function NoteEditor({
   editable = true,
   minHeight = '300px',
   maxHeight = '600px',
+  noteId,
   userId,
   displayName = 'Anonymous',
   collaborators = [],
@@ -97,6 +100,8 @@ export function NoteEditor({
 }: NoteEditorProps) {
   const hasCollaborators = collaborators.length > 0;
   const userPermission = collaborators.find(c => c.id === userId)?.permissionLevel || 'view';
+
+  const collaborationDocumentId = noteId || (userId ? `note-${userId}-local` : undefined);
 
   // Always call useEditor hook unconditionally (Rules of Hooks)
   const editor = useEditor({
@@ -184,10 +189,10 @@ export function NoteEditor({
   }, [editor]);
 
   // Render collaborative editor if there are collaborators
-  if (hasCollaborators && userId) {
+  if (hasCollaborators && userId && collaborationDocumentId) {
     return (
       <CollaborativeEditor
-        documentId=""
+        documentId={collaborationDocumentId}
         userId={userId}
         displayName={displayName}
         permissionLevel={userPermission}

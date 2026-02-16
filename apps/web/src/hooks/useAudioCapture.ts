@@ -15,8 +15,32 @@ export interface UseAudioCaptureReturn {
   stopRecording: () => Promise<Blob | null>;
 }
 
+/**
+ * Get the best supported MIME type for audio recording
+ * Prioritizes formats that are both recordable and decodable
+ */
+function getBestSupportedMimeType(): string {
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/ogg',
+    'audio/mp4',
+    'audio/mpeg',
+  ];
+
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+
+  // Fallback
+  return 'audio/webm';
+}
+
 export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioCaptureReturn {
-  const { onDataAvailable, onError, mimeType = 'audio/webm' } = options;
+  const { onDataAvailable, onError, mimeType } = options;
 
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +50,7 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
   const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resolvedMimeTypeRef = useRef<string>(mimeType || 'audio/webm');
 
   // Check browser support
   const isSupported =
@@ -57,12 +82,22 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
     audioChunksRef.current = [];
 
     try {
-      // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request microphone access with optimal settings
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000, // Whisper expects 16kHz
+        },
+      });
       streamRef.current = stream;
 
+      // Determine the best supported MIME type
+      const actualMimeType = mimeType || getBestSupportedMimeType();
+      resolvedMimeTypeRef.current = actualMimeType;
+
       // Create MediaRecorder instance
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: actualMimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       // Handle data available event
@@ -73,8 +108,9 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
         }
       };
 
-      // Start recording
-      mediaRecorder.start();
+      // Start recording with timeslice to ensure data is captured periodically
+      // This is critical for ensuring audio data is actually collected
+      mediaRecorder.start(100); // Collect data every 100ms
       setIsRecording(true);
 
       // Start duration tracking
@@ -102,6 +138,7 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
     return new Promise(resolve => {
       const mediaRecorder = mediaRecorderRef.current!;
       const stream = streamRef.current;
+      const mimeType = resolvedMimeTypeRef.current;
 
       // Handle stop event
       mediaRecorder.onstop = () => {
@@ -133,7 +170,7 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
         durationIntervalRef.current = null;
       }
     });
-  }, [isRecording, mimeType]);
+  }, [isRecording]);
 
   // Use ref to track recording state for cleanup (avoids dependency on isRecording)
   const isRecordingRef = useRef(isRecording);

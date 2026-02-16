@@ -1,6 +1,17 @@
 /**
  * Content Security Policy (CSP) Configuration
- * Defines strict CSP to prevent XSS and other injection attacks
+ *
+ * SECURITY UPDATE (Sprint 2):
+ * - Now uses nonce-based CSP for scripts and styles
+ * - Removed 'unsafe-inline' and 'unsafe-eval' for production
+ * - Nonces are generated per-request for maximum security
+ *
+ * Nonce-based CSP provides strong XSS protection while allowing
+ * necessary inline scripts/styles in Next.js applications.
+ *
+ * EDGE RUNTIME COMPATIBILITY (Sprint 4):
+ * - Uses Web Crypto API instead of Node.js crypto
+ * - Compatible with Next.js middleware edge runtime
  */
 
 export interface CSPDirectives {
@@ -20,10 +31,128 @@ export interface CSPDirectives {
   'worker-src'?: string[];
   'upgrade-insecure-requests'?: boolean;
   'block-all-mixed-content'?: boolean;
+  'report-uri'?: string[];
+  'report-to'?: string[];
 }
 
 /**
- * Strict CSP configuration for production
+ * Convert Uint8Array to base64 string (edge runtime compatible)
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Generate a cryptographically secure nonce for CSP
+ * Uses Web Crypto API which is available in both edge runtime and browser
+ */
+export function generateNonce(): string {
+  // Web Crypto API is available in edge runtime and browser
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return uint8ArrayToBase64(array);
+  }
+
+  // Fallback (should not happen in normal environments)
+  throw new Error('Web Crypto API is not available - cannot generate secure nonce');
+}
+
+/**
+ * CSP configuration options
+ */
+export interface CSPConfig {
+  /** Include nonce for scripts */
+  scriptNonce?: string;
+  /** Include nonce for styles */
+  styleNonce?: string;
+  /** Development mode (more permissive) */
+  isDevelopment?: boolean;
+  /** Report-only mode (for testing) */
+  reportOnly?: boolean;
+  /** Report URI for violations */
+  reportUri?: string;
+}
+
+/**
+ * Build strict CSP directives with nonce support
+ * This is the production-ready CSP without unsafe-inline/unsafe-eval
+ */
+export function buildStrictCSP(config: CSPConfig = {}): CSPDirectives {
+  const { scriptNonce, styleNonce, reportUri } = config;
+
+  const directives: CSPDirectives = {
+    'default-src': ["'self'"],
+    'script-src': [
+      "'self'",
+      ...(scriptNonce ? [`'nonce-${scriptNonce}'`] : []),
+      'https://challenges.cloudflare.com',
+    ],
+    'style-src': [
+      "'self'",
+      ...(styleNonce ? [`'nonce-${styleNonce}'`] : []),
+      'https://fonts.googleapis.com',
+    ],
+    'img-src': ["'self'", 'data:', 'blob:', 'https://*.supabase.co'],
+    'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+    'connect-src': [
+      "'self'",
+      'https://*.supabase.co',
+      'https://api.openai.com',
+      'wss://*.supabase.co',
+    ],
+    'media-src': ["'self'", 'blob:'],
+    'object-src': ["'none'"],
+    'frame-src': ["'self'", 'https://challenges.cloudflare.com'],
+    'frame-ancestors': ["'none'"],
+    'form-action': ["'self'"],
+    'base-uri': ["'self'"],
+    'manifest-src': ["'self'"],
+    'worker-src': ["'self'", 'blob:'],
+    'upgrade-insecure-requests': true,
+  };
+
+  if (reportUri) {
+    directives['report-uri'] = [reportUri];
+  }
+
+  return directives;
+}
+
+/**
+ * Build development CSP (more permissive for hot reload)
+ */
+export function buildDevelopmentCSP(config: CSPConfig = {}): CSPDirectives {
+  const { scriptNonce, styleNonce: _styleNonce } = config;
+
+  return {
+    ...buildStrictCSP(config),
+    'connect-src': [
+      "'self'",
+      'https://*.supabase.co',
+      'https://api.openai.com',
+      'wss://*.supabase.co',
+      'ws://localhost:3001',
+      'ws://localhost:*',
+      'http://localhost:*',
+    ],
+    'script-src': [
+      "'self'",
+      ...(scriptNonce ? [`'nonce-${scriptNonce}'`] : ["'unsafe-inline'"]),
+      "'unsafe-eval'",
+      'http://localhost:*',
+    ],
+    'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  };
+}
+
+/**
+ * Legacy strict CSP (deprecated - use buildStrictCSP with nonce)
+ * @deprecated Use buildStrictCSP with nonce for better security
  */
 export const strictCSP: CSPDirectives = {
   'default-src': ["'self'"],
@@ -57,7 +186,8 @@ export const strictCSP: CSPDirectives = {
 };
 
 /**
- * Lenient CSP for development
+ * Legacy development CSP
+ * @deprecated Use buildDevelopmentCSP with nonce
  */
 export const developmentCSP: CSPDirectives = {
   ...strictCSP,
@@ -92,7 +222,18 @@ export function buildCSPHeader(directives: CSPDirectives): string {
 }
 
 /**
- * Get CSP based on environment
+ * Get CSP based on environment with nonce support
+ * This is the recommended way to get CSP headers
+ */
+export function getCSPWithNonce(config: CSPConfig = {}): string {
+  const { isDevelopment = false } = config;
+  const directives = isDevelopment ? buildDevelopmentCSP(config) : buildStrictCSP(config);
+  return buildCSPHeader(directives);
+}
+
+/**
+ * Get CSP based on environment (legacy, without nonce)
+ * @deprecated Use getCSPWithNonce for better security
  */
 export function getCSP(isDevelopment: boolean = false): string {
   const csp = isDevelopment ? developmentCSP : strictCSP;
@@ -117,6 +258,7 @@ export function getMetaTagCSP(): string {
  */
 export interface SecurityHeaders {
   'Content-Security-Policy'?: string;
+  'Content-Security-Policy-Report-Only'?: string;
   'X-Content-Type-Options'?: string;
   'X-Frame-Options'?: string;
   'X-XSS-Protection'?: string;
@@ -129,10 +271,48 @@ export interface SecurityHeaders {
 }
 
 /**
- * Get all security headers
+ * Get all security headers with nonce support
+ */
+export function getSecurityHeadersWithNonce(config: CSPConfig = {}): SecurityHeaders {
+  const { isDevelopment = false, reportOnly = false } = config;
+  const hstsMaxAge = isDevelopment ? 0 : 31536000;
+
+  const cspHeader = getCSPWithNonce(config);
+  const headerName = reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+
+  return {
+    [headerName]: cspHeader,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': `max-age=${hstsMaxAge}; includeSubDomains; preload`,
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': [
+      'accelerometer=()',
+      'camera=()',
+      'geolocation=()',
+      'gyroscope=()',
+      'magnetometer=()',
+      'microphone=()',
+      'payment=()',
+      'usb=()',
+    ].join(', '),
+    ...(isDevelopment
+      ? {}
+      : {
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Resource-Policy': 'cross-origin',
+        }),
+  };
+}
+
+/**
+ * Get all security headers (legacy)
+ * @deprecated Use getSecurityHeadersWithNonce for better security
  */
 export function getSecurityHeaders(isDevelopment: boolean = false): SecurityHeaders {
-  const hstsMaxAge = isDevelopment ? 0 : 31536000; // 1 year in production
+  const hstsMaxAge = isDevelopment ? 0 : 31536000;
 
   return {
     'Content-Security-Policy': getCSP(isDevelopment),
@@ -151,19 +331,14 @@ export function getSecurityHeaders(isDevelopment: boolean = false): SecurityHead
       'payment=()',
       'usb=()',
     ].join(', '),
-    'Cross-Origin-Embedder-Policy': 'require-corp',
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Resource-Policy': 'cross-origin',
+    ...(isDevelopment
+      ? {}
+      : {
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Resource-Policy': 'cross-origin',
+        }),
   };
-}
-
-/**
- * Generate nonce for inline scripts
- */
-export function generateNonce(): string {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array));
 }
 
 /**
@@ -209,25 +384,36 @@ export function handleCSPViolation(report: CSPViolationReport): void {
 }
 
 /**
- * CSP middleware for Next.js
+ * CSP middleware for Next.js with nonce support
  */
 export function createCSPMiddleware(
   options: {
     isDevelopment?: boolean;
     reportOnly?: boolean;
+    reportUri?: string;
   } = {}
 ) {
-  const { isDevelopment = false, reportOnly = false } = options;
+  const { isDevelopment = false, reportOnly = false, reportUri } = options;
 
-  return function cspMiddleware(headers: Headers): Headers {
-    const csp = getCSP(isDevelopment);
+  return function cspMiddleware(headers: Headers): { headers: Headers; nonce: string } {
+    // Generate nonce for this request
+    const nonce = generateNonce();
+
+    const csp = getCSPWithNonce({
+      scriptNonce: nonce,
+      styleNonce: nonce,
+      isDevelopment,
+      reportOnly,
+      reportUri,
+    });
+
     const headerName = reportOnly
       ? 'Content-Security-Policy-Report-Only'
       : 'Content-Security-Policy';
 
     headers.set(headerName, csp);
 
-    return headers;
+    return { headers, nonce };
   };
 }
 
@@ -239,11 +425,15 @@ export const CSP = {
   developmentCSP,
   buildCSPHeader,
   getCSP,
+  getCSPWithNonce,
   getMetaTagCSP,
   getSecurityHeaders,
+  getSecurityHeadersWithNonce,
   generateNonce,
   handleCSPViolation,
   createCSPMiddleware,
+  buildStrictCSP,
+  buildDevelopmentCSP,
 };
 
 export default CSP;

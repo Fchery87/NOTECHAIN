@@ -77,6 +77,96 @@ export interface SyncMessage {
   timestamp: number;
 }
 
+/**
+ * WebSocket message types for collaboration
+ */
+export interface WebSocketMessage {
+  type: string;
+  documentId?: string;
+  userId?: string;
+  timestamp?: number;
+  [key: string]: unknown;
+}
+
+export interface OperationMessage extends WebSocketMessage {
+  type: 'OPERATION';
+  documentId: string;
+  userId: string;
+  timestamp: number;
+  operation: CRDTOperation;
+  vectorClock?: VectorClockMap;
+}
+
+export interface CursorPositionMessage extends WebSocketMessage {
+  type: 'CURSOR_POSITION';
+  userId: string;
+  position?: { x: number; y: number };
+  selection?: { start: number; end: number };
+}
+
+export interface PresenceMessage extends WebSocketMessage {
+  type: 'PRESENCE';
+  userId: string;
+  status: 'active' | 'idle' | 'offline';
+  displayName?: string;
+  avatarUrl?: string;
+  color?: string;
+}
+
+export interface SyncResponseMessage extends WebSocketMessage {
+  type: 'SYNC_RESPONSE';
+  operations?: CRDTOperation[];
+  currentVectorClock?: VectorClockMap;
+}
+
+export interface UserListMessage extends WebSocketMessage {
+  type: 'USER_LIST';
+  users: Array<{
+    userId: string;
+    displayName?: string;
+    avatarUrl?: string;
+    color?: string;
+    status?: 'active' | 'idle' | 'offline';
+    lastSeen?: number;
+    cursor?: CursorPosition;
+  }>;
+}
+
+/**
+ * Type guard for OperationMessage
+ */
+function isOperationMessage(message: WebSocketMessage): message is OperationMessage {
+  return message.type === 'OPERATION' && 'operation' in message;
+}
+
+/**
+ * Type guard for CursorPositionMessage
+ */
+function isCursorPositionMessage(message: WebSocketMessage): message is CursorPositionMessage {
+  return message.type === 'CURSOR_POSITION';
+}
+
+/**
+ * Type guard for PresenceMessage
+ */
+function isPresenceMessage(message: WebSocketMessage): message is PresenceMessage {
+  return message.type === 'PRESENCE';
+}
+
+/**
+ * Type guard for SyncResponseMessage
+ */
+function isSyncResponseMessage(message: WebSocketMessage): message is SyncResponseMessage {
+  return message.type === 'SYNC_RESPONSE';
+}
+
+/**
+ * Type guard for UserListMessage
+ */
+function isUserListMessage(message: WebSocketMessage): message is UserListMessage {
+  return message.type === 'USER_LIST' && 'users' in message;
+}
+
 export interface UserPresence {
   userId: string;
   displayName: string;
@@ -152,10 +242,6 @@ const USER_COLORS = [
   '#06b6d4', // cyan
   '#84cc16', // lime
 ];
-
-function _getRandomColor(): string {
-  return USER_COLORS[Math.floor(Math.random() * USER_COLORS.length)];
-}
 
 function getColorForUserId(userId: string): string {
   // Generate consistent color based on user ID
@@ -268,7 +354,8 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     // Handle operations
     unsubscribers.push(
       subscribe('OPERATION', message => {
-        const { operation, vectorClock, userId: opUserId } = message as any;
+        if (!isOperationMessage(message)) return;
+        const { operation, vectorClock, userId: opUserId } = message;
         if (opUserId !== userId && operation) {
           log('Received operation:', operation);
           setPendingOperations(prev => [...prev, operation]);
@@ -288,7 +375,8 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     // Handle cursor updates
     unsubscribers.push(
       subscribe('CURSOR_POSITION', message => {
-        const { userId: cursorUserId, position, selection } = message as any;
+        if (!isCursorPositionMessage(message)) return;
+        const { userId: cursorUserId, position, selection } = message;
         if (cursorUserId !== userId) {
           log('Received cursor update:', cursorUserId, position);
 
@@ -311,13 +399,14 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     // Handle presence updates
     unsubscribers.push(
       subscribe('PRESENCE', message => {
+        if (!isPresenceMessage(message)) return;
         const {
           userId: presenceUserId,
           status,
           displayName: name,
           avatarUrl: avatar,
           color,
-        } = message as any;
+        } = message;
         log('Received presence:', presenceUserId, status);
 
         setConnectedUsers(users => {
@@ -356,7 +445,8 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     // Handle sync responses
     unsubscribers.push(
       subscribe('SYNC_RESPONSE', message => {
-        const { operations, currentVectorClock } = message as any;
+        if (!isSyncResponseMessage(message)) return;
+        const { operations, currentVectorClock } = message;
         log('Received sync response:', operations?.length, 'operations');
 
         if (operations && operations.length > 0) {
@@ -375,24 +465,23 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     // Handle user list on join
     unsubscribers.push(
       subscribe('USER_LIST', message => {
-        const { users } = message as any;
+        if (!isUserListMessage(message)) return;
+        const { users } = message;
         log('Received user list:', users);
 
-        if (Array.isArray(users)) {
-          const presenceUsers: UserPresence[] = users
-            .filter((u: any) => u.userId !== userId)
-            .map((u: any) => ({
-              userId: u.userId,
-              displayName: u.displayName || 'Anonymous',
-              avatarUrl: u.avatarUrl,
-              color: u.color || getColorForUserId(u.userId),
-              status: u.status || 'active',
-              lastSeen: u.lastSeen || Date.now(),
-              cursor: u.cursor,
-            }));
+        const presenceUsers: UserPresence[] = users
+          .filter(u => u.userId !== userId)
+          .map(u => ({
+            userId: u.userId,
+            displayName: u.displayName || 'Anonymous',
+            avatarUrl: u.avatarUrl,
+            color: u.color || getColorForUserId(u.userId),
+            status: u.status || 'active',
+            lastSeen: u.lastSeen || Date.now(),
+            cursor: u.cursor,
+          }));
 
-          setConnectedUsers(presenceUsers);
-        }
+        setConnectedUsers(presenceUsers);
       })
     );
 
@@ -520,11 +609,6 @@ export function useCollaboration(options: CollaborationOptions): UseCollaboratio
     return () => {
       userLeaveHandlersRef.current.delete(handler);
     };
-  }, []);
-
-  // Clear pending operations after they're processed
-  const _clearPendingOperations = useCallback(() => {
-    setPendingOperations([]);
   }, []);
 
   return {

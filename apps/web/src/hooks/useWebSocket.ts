@@ -3,11 +3,20 @@
  *
  * Manages WebSocket connection for real-time collaboration.
  * Handles connection, reconnection, authentication, and message handling.
+ *
+ * Security: Authentication is performed via the first message after connection,
+ * not via URL query parameters, to prevent token leakage in server logs.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'authenticated'
+  | 'disconnected'
+  | 'reconnecting'
+  | 'authenticating';
 
 export interface WebSocketOptions {
   /** WebSocket server URL */
@@ -24,6 +33,8 @@ export interface WebSocketOptions {
   heartbeatInterval?: number;
   /** Debug mode */
   debug?: boolean;
+  /** Authentication timeout in ms */
+  authTimeout?: number;
 }
 
 export interface WebSocketMessage {
@@ -34,8 +45,10 @@ export interface WebSocketMessage {
 export interface UseWebSocketReturn {
   /** Current connection state */
   connectionState: ConnectionState;
-  /** Whether connected */
+  /** Whether connected and authenticated */
   isConnected: boolean;
+  /** Whether authenticated */
+  isAuthenticated: boolean;
   /** Send a message */
   send: (message: WebSocketMessage) => void;
   /** Connect manually */
@@ -50,13 +63,20 @@ export interface UseWebSocketReturn {
   subscribe: (type: string, handler: (message: WebSocketMessage) => void) => () => void;
 }
 
-const _DEFAULT_OPTIONS: Partial<WebSocketOptions> = {
-  autoConnect: true,
-  reconnectInterval: 3000,
-  maxReconnectAttempts: 10,
-  heartbeatInterval: 30000,
-  debug: false,
-};
+/**
+ * Generate a short-lived one-time token for WebSocket authentication
+ * In production, this would call an API endpoint to get a time-limited token
+ */
+async function getOneTimeToken(jwtToken: string): Promise<string> {
+  // In a real implementation, this would call an API endpoint like:
+  // const response = await fetch('/api/auth/ws-token', {
+  //   headers: { Authorization: `Bearer ${jwtToken}` }
+  // });
+  // return response.json().token;
+
+  // For now, we use the JWT directly but send it via message, not URL
+  return jwtToken;
+}
 
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
@@ -67,6 +87,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     maxReconnectAttempts = 10,
     heartbeatInterval = 30000,
     debug = false,
+    authTimeout = 10000,
   } = options;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
@@ -77,8 +98,10 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const authTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const subscribersRef = useRef<Map<string, Set<(message: WebSocketMessage) => void>>>(new Map());
   const messageQueueRef = useRef<WebSocketMessage[]>([]);
+  const isAuthenticatedRef = useRef(false);
 
   const log = useCallback(
     (...args: unknown[]) => {
@@ -96,17 +119,28 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
   }, []);
 
+  const clearAuthTimeout = useCallback(() => {
+    if (authTimeoutRef.current) {
+      clearTimeout(authTimeoutRef.current);
+      authTimeoutRef.current = null;
+    }
+  }, []);
+
   const startHeartbeat = useCallback(() => {
     clearHeartbeat();
     heartbeatTimeoutRef.current = setInterval(() => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
+      if (socketRef.current?.readyState === WebSocket.OPEN && isAuthenticatedRef.current) {
         socketRef.current.send(JSON.stringify({ type: 'PING' }));
       }
     }, heartbeatInterval);
   }, [heartbeatInterval, clearHeartbeat]);
 
   const processMessageQueue = useCallback(() => {
-    if (socketRef.current?.readyState === WebSocket.OPEN && messageQueueRef.current.length > 0) {
+    if (
+      socketRef.current?.readyState === WebSocket.OPEN &&
+      isAuthenticatedRef.current &&
+      messageQueueRef.current.length > 0
+    ) {
       log('Processing queued messages:', messageQueueRef.current.length);
       while (messageQueueRef.current.length > 0) {
         const message = messageQueueRef.current.shift();
@@ -117,6 +151,45 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
   }, [log]);
 
+  const authenticate = useCallback(async () => {
+    if (!token) {
+      log('No token provided, skipping authentication');
+      setConnectionState('connected');
+      return;
+    }
+
+    setConnectionState('authenticating');
+    log('Authenticating...');
+
+    try {
+      // Get a one-time token for WebSocket authentication
+      const oneTimeToken = await getOneTimeToken(token);
+
+      // Send authentication message
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(
+          JSON.stringify({
+            type: 'AUTH',
+            token: oneTimeToken,
+            timestamp: Date.now(),
+          })
+        );
+
+        // Set auth timeout
+        clearAuthTimeout();
+        authTimeoutRef.current = setTimeout(() => {
+          log('Authentication timeout');
+          setError(new Error('Authentication timeout'));
+          disconnect();
+        }, authTimeout);
+      }
+    } catch (err) {
+      log('Authentication error:', err);
+      setError(err instanceof Error ? err : new Error('Authentication failed'));
+      disconnect();
+    }
+  }, [token, log, authTimeout, clearAuthTimeout]);
+
   const connect = useCallback(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       log('Already connected');
@@ -125,21 +198,23 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 
     setConnectionState('connecting');
     setError(null);
+    isAuthenticatedRef.current = false;
 
     try {
-      const wsUrl = token ? `${url}?token=${encodeURIComponent(token)}` : url;
-      log('Connecting to:', wsUrl);
+      // Connect without token in URL - authentication happens via first message
+      log('Connecting to:', url);
 
-      const socket = new WebSocket(wsUrl);
+      const socket = new WebSocket(url);
       socketRef.current = socket;
 
       socket.onopen = () => {
-        log('Connected');
+        log('Connected, initiating authentication');
         setConnectionState('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
-        startHeartbeat();
-        processMessageQueue();
+
+        // Start authentication process
+        authenticate();
       };
 
       socket.onmessage = event => {
@@ -147,8 +222,34 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
           const message = JSON.parse(event.data) as WebSocketMessage;
           log('Received:', message);
 
+          // Handle authentication response
+          if (message.type === 'AUTH_SUCCESS') {
+            clearAuthTimeout();
+            isAuthenticatedRef.current = true;
+            setConnectionState('authenticated');
+            log('Authentication successful');
+            startHeartbeat();
+            processMessageQueue();
+            return;
+          }
+
+          if (message.type === 'AUTH_FAILED') {
+            clearAuthTimeout();
+            const reason = (message as { reason?: string }).reason || 'Authentication failed';
+            log('Authentication failed:', reason);
+            setError(new Error(reason));
+            disconnect();
+            return;
+          }
+
           // Handle pong response
           if (message.type === 'PONG') {
+            return;
+          }
+
+          // Only process other messages if authenticated
+          if (!isAuthenticatedRef.current) {
+            log('Ignoring message - not authenticated');
             return;
           }
 
@@ -172,12 +273,15 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 
       socket.onerror = event => {
         log('Error:', event);
-        setError(new Error('WebSocket error'));
+        const errorMsg = `WebSocket error: Unable to connect to ${url}. Ensure the server is running on port 3001.`;
+        setError(new Error(errorMsg));
       };
 
       socket.onclose = event => {
         log('Closed:', event.code, event.reason);
         clearHeartbeat();
+        clearAuthTimeout();
+        isAuthenticatedRef.current = false;
 
         if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           setConnectionState('reconnecting');
@@ -202,12 +306,13 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
   }, [
     url,
-    token,
     reconnectInterval,
     maxReconnectAttempts,
     log,
+    authenticate,
     startHeartbeat,
     clearHeartbeat,
+    clearAuthTimeout,
     processMessageQueue,
   ]);
 
@@ -220,6 +325,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
 
     clearHeartbeat();
+    clearAuthTimeout();
 
     if (socketRef.current) {
       socketRef.current.close(1000, 'User disconnect');
@@ -227,16 +333,26 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
 
     setConnectionState('disconnected');
+    isAuthenticatedRef.current = false;
     reconnectAttemptsRef.current = 0;
-  }, [log, clearHeartbeat]);
+  }, [log, clearHeartbeat, clearAuthTimeout]);
 
   const send = useCallback(
     (message: WebSocketMessage) => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
+      // Only send if authenticated (or if it's an auth message)
+      if (message.type === 'AUTH') {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          log('Sending auth message');
+          socketRef.current.send(JSON.stringify(message));
+        }
+        return;
+      }
+
+      if (socketRef.current?.readyState === WebSocket.OPEN && isAuthenticatedRef.current) {
         log('Sending:', message);
         socketRef.current.send(JSON.stringify(message));
       } else {
-        log('Queueing message (not connected):', message);
+        log('Queueing message (not connected/authenticated):', message);
         messageQueueRef.current.push(message);
       }
     },
@@ -281,7 +397,8 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 
   return {
     connectionState,
-    isConnected: connectionState === 'connected',
+    isConnected: connectionState === 'authenticated',
+    isAuthenticated: isAuthenticatedRef.current,
     send,
     connect,
     disconnect,

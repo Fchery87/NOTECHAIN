@@ -1,7 +1,15 @@
 // apps/web/src/lib/sync/SyncProvider.tsx
 'use client';
 
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+  useCallback,
+} from 'react';
 import { SyncService, type SyncStatus } from '@notechain/sync-engine';
 import { SupabaseSyncAdapter } from '@/lib/supabase/syncAdapter';
 import { useUser } from '@/lib/supabase/UserProvider';
@@ -14,88 +22,155 @@ interface SyncContextType {
   triggerSync: () => Promise<void>;
 }
 
+const defaultStatus: SyncStatus = {
+  isSyncing: false,
+  lastSyncTime: null,
+  pendingOperations: 0,
+  syncErrors: 0,
+  lastSyncVersion: 0,
+};
+
 const SyncContext = createContext<SyncContextType>({
   syncService: null,
-  status: {
-    isSyncing: false,
-    lastSyncTime: null,
-    pendingOperations: 0,
-    syncErrors: 0,
-    lastSyncVersion: 0,
-  },
+  status: defaultStatus,
   isInitialized: false,
   triggerSync: async () => {},
 });
 
+// Get or create a persistent session ID
+function getSessionId(): string {
+  if (typeof window === 'undefined') {
+    return uuidv4();
+  }
+
+  const stored = sessionStorage.getItem('notechain-sync-session-id');
+  if (stored) {
+    return stored;
+  }
+
+  const newId = uuidv4();
+  sessionStorage.setItem('notechain-sync-session-id', newId);
+  return newId;
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
-  const [status, setStatus] = useState<SyncStatus>({
-    isSyncing: false,
-    lastSyncTime: null,
-    pendingOperations: 0,
-    syncErrors: 0,
-    lastSyncVersion: 0,
-  });
+  const [status, setStatus] = useState<SyncStatus>(defaultStatus);
   const [isInitialized, setIsInitialized] = useState(false);
   const syncServiceRef = useRef<SyncService | null>(null);
-  const sessionIdRef = useRef<string>(uuidv4());
+  // Use a stable session ID that persists across remounts
+  const sessionIdRef = useRef<string>(getSessionId());
+  // Track the current user ID to detect actual changes
+  const currentUserIdRef = useRef<string | null>(null);
+
+  // Stable triggerSync function
+  const triggerSync = useCallback(async () => {
+    if (syncServiceRef.current) {
+      await syncServiceRef.current.syncNow();
+    }
+  }, []);
 
   useEffect(() => {
-    if (isUserLoading || !user) {
-      // Clean up existing sync service if user logs out
+    // Get stable user ID primitive for comparison
+    const userId = user?.id ?? null;
+
+    // Wait for user loading to complete
+    if (isUserLoading) {
+      return;
+    }
+
+    // No user - clean up existing sync service
+    if (!userId) {
       if (syncServiceRef.current) {
         syncServiceRef.current.destroy();
         syncServiceRef.current = null;
       }
       setIsInitialized(false);
+      setStatus(defaultStatus);
+      currentUserIdRef.current = null;
       return;
     }
 
+    // Same user - don't reinitialize
+    if (currentUserIdRef.current === userId && syncServiceRef.current) {
+      return;
+    }
+
+    // Different user - clean up old service first
+    if (syncServiceRef.current) {
+      syncServiceRef.current.destroy();
+      syncServiceRef.current = null;
+    }
+
+    // Update current user tracking
+    currentUserIdRef.current = userId;
+
+    // Track if the effect has been cleaned up
+    let isMounted = true;
+
     // Initialize sync service
-    const adapter = new SupabaseSyncAdapter();
-    const syncService = new SyncService(
-      user.id,
-      sessionIdRef.current,
-      adapter,
-      undefined, // Use default conflict resolver
-      undefined // Use default platform adapter (browser)
-    );
+    const initSync = async () => {
+      try {
+        const adapter = new SupabaseSyncAdapter();
+        const syncService = new SyncService(
+          userId,
+          sessionIdRef.current,
+          adapter,
+          undefined, // Use default conflict resolver
+          undefined // Use default platform adapter (browser)
+        );
 
-    syncServiceRef.current = syncService;
+        // Only update ref if still mounted
+        if (!isMounted) {
+          syncService.destroy();
+          return;
+        }
 
-    // Listen for status changes
-    syncService.on('statusChanged', (newStatus: SyncStatus) => {
-      setStatus(newStatus);
-    });
+        syncServiceRef.current = syncService;
 
-    syncService.on('syncComplete', () => {
-      console.log('Sync completed');
-    });
+        // Listen for status changes
+        syncService.on('statusChanged', (newStatus: SyncStatus) => {
+          if (isMounted) {
+            setStatus(newStatus);
+          }
+        });
 
-    syncService.on('remoteOperationReceived', operation => {
-      console.log('Remote operation received:', operation);
-    });
+        syncService.on('syncComplete', () => {
+          console.log('[SyncProvider] Sync completed');
+        });
 
-    // Set up network listeners
-    syncService.setupNetworkListeners();
+        syncService.on('remoteOperationReceived', operation => {
+          console.log('[SyncProvider] Remote operation received:', operation);
+        });
 
-    // Initialize and perform initial sync
-    syncService.initialize().then(() => {
-      setIsInitialized(true);
-      console.log('Sync service initialized');
-    });
+        // Set up network listeners
+        syncService.setupNetworkListeners();
+
+        // Initialize and perform initial sync
+        await syncService.initialize();
+
+        if (isMounted) {
+          setIsInitialized(true);
+          console.log('[SyncProvider] Sync service initialized for user:', userId);
+        }
+      } catch (error) {
+        console.error('[SyncProvider] Failed to initialize sync service:', error);
+        if (isMounted) {
+          setIsInitialized(false);
+        }
+      }
+    };
+
+    initSync();
 
     return () => {
-      syncService.destroy();
-      syncServiceRef.current = null;
+      isMounted = false;
+      if (syncServiceRef.current) {
+        syncServiceRef.current.destroy();
+        syncServiceRef.current = null;
+      }
     };
-  }, [user, isUserLoading]);
-
-  const triggerSync = async () => {
-    if (syncServiceRef.current) {
-      await syncServiceRef.current.syncNow();
-    }
-  };
+  }, [user?.id, isUserLoading]); // Use user?.id instead of user object
 
   return (
     <SyncContext.Provider

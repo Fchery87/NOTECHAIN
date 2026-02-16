@@ -93,34 +93,38 @@ export class KnowledgeGraphGenerator {
 
     // Create similarity edges
     if (includeSimilarity) {
-      await this.relatedNotesFinder.initialize();
-      await this.relatedNotesFinder.indexNotes(notes);
+      try {
+        await this.relatedNotesFinder.initialize();
+        await this.relatedNotesFinder.indexNotes(notes);
 
-      for (const note of notes) {
-        const related = await this.relatedNotesFinder.findRelatedNotes(note, notes, {
-          maxResults: 3,
-          minSimilarity,
-          includeBacklinks: false,
-        });
+        for (const note of notes) {
+          const related = await this.relatedNotesFinder.findRelatedNotes(note, notes, {
+            maxResults: 3,
+            minSimilarity,
+            includeBacklinks: false,
+          });
 
-        for (const relatedNote of related) {
-          // Avoid duplicate edges
-          const existingEdge = edges.find(
-            e =>
-              (e.source === note.id && e.target === relatedNote.note.id) ||
-              (e.source === relatedNote.note.id && e.target === note.id)
-          );
+          for (const relatedNote of related) {
+            // Avoid duplicate edges
+            const existingEdge = edges.find(
+              e =>
+                (e.source === note.id && e.target === relatedNote.note.id) ||
+                (e.source === relatedNote.note.id && e.target === note.id)
+            );
 
-          if (!existingEdge) {
-            edges.push({
-              source: note.id,
-              target: relatedNote.note.id,
-              type: 'similarity',
-              weight: relatedNote.similarityScore * 0.6,
-              label: relatedNote.sharedKeywords.slice(0, 2).join(', ') || 'related',
-            });
+            if (!existingEdge) {
+              edges.push({
+                source: note.id,
+                target: relatedNote.note.id,
+                type: 'similarity',
+                weight: relatedNote.similarityScore * 0.6,
+                label: relatedNote.sharedKeywords.slice(0, 2).join(', ') || 'related',
+              });
+            }
           }
         }
+      } catch (error) {
+        console.warn('Failed to generate similarity edges, continuing without them:', error);
       }
     }
 
@@ -201,25 +205,29 @@ export class KnowledgeGraphGenerator {
     }
 
     // Add some similar notes
-    await this.relatedNotesFinder.initialize();
-    const related = await this.relatedNotesFinder.findRelatedNotes(
-      centerNote,
-      allNotes.filter(n => !includedNoteIds.has(n.id)),
-      { maxResults: 5, minSimilarity: 0.4 }
-    );
+    try {
+      await this.relatedNotesFinder.initialize();
+      const related = await this.relatedNotesFinder.findRelatedNotes(
+        centerNote,
+        allNotes.filter(n => !includedNoteIds.has(n.id)),
+        { maxResults: 5, minSimilarity: 0.4 }
+      );
 
-    for (const relatedNote of related) {
-      if (!includedNoteIds.has(relatedNote.note.id)) {
-        nodes.push(this.createNoteNode(relatedNote.note, allNotes));
-        includedNoteIds.add(relatedNote.note.id);
+      for (const relatedNote of related) {
+        if (!includedNoteIds.has(relatedNote.note.id)) {
+          nodes.push(this.createNoteNode(relatedNote.note, allNotes));
+          includedNoteIds.add(relatedNote.note.id);
 
-        edges.push({
-          source: centerNote.id,
-          target: relatedNote.note.id,
-          type: 'similarity',
-          weight: relatedNote.similarityScore * 0.6,
-        });
+          edges.push({
+            source: centerNote.id,
+            target: relatedNote.note.id,
+            type: 'similarity',
+            weight: relatedNote.similarityScore * 0.6,
+          });
+        }
       }
+    } catch (error) {
+      console.warn('Failed to generate similarity edges, continuing without them:', error);
     }
 
     // Detect clusters

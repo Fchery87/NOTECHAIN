@@ -1,5 +1,5 @@
 // apps/web/src/lib/supabase/syncAdapter.ts
-import { createClient } from './client';
+import { createClient, isSupabaseConfigured } from './client';
 import type { SyncRepositoryAdapter, SyncOperation } from '@notechain/sync-engine';
 
 /**
@@ -28,7 +28,37 @@ function parseEncryptedPayload(payload: string): {
  * Implements SyncRepositoryAdapter interface for Supabase backend
  */
 export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
-  private supabase = createClient();
+  private supabase: ReturnType<typeof createClient> | null = null;
+  private initializationError: string | null = null;
+
+  constructor() {
+    try {
+      if (!isSupabaseConfigured()) {
+        this.initializationError = 'Supabase is not configured';
+        console.warn('[SupabaseSyncAdapter] Supabase is not configured');
+        return;
+      }
+      this.supabase = createClient();
+    } catch (error) {
+      this.initializationError =
+        error instanceof Error ? error.message : 'Failed to initialize Supabase client';
+      console.error('[SupabaseSyncAdapter] Failed to create Supabase client:', error);
+    }
+  }
+
+  /**
+   * Check if the adapter is ready to use
+   */
+  isReady(): boolean {
+    return this.supabase !== null;
+  }
+
+  /**
+   * Get initialization error if any
+   */
+  getInitializationError(): string | null {
+    return this.initializationError;
+  }
 
   /**
    * Push local operations to Supabase
@@ -36,6 +66,15 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
   async pushOperations(
     operations: SyncOperation[]
   ): Promise<Array<{ operationId: string; success: boolean; error?: string }>> {
+    // Handle uninitialized client
+    if (!this.supabase) {
+      return operations.map(op => ({
+        operationId: op.id,
+        success: false,
+        error: this.initializationError || 'Supabase client not initialized',
+      }));
+    }
+
     const results: Array<{ operationId: string; success: boolean; error?: string }> = [];
 
     for (const op of operations) {
@@ -83,6 +122,11 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
     sinceVersion: number,
     limit: number = 100
   ): Promise<SyncOperation[]> {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot pull changes - client not initialized');
+      return [];
+    }
+
     const { data, error } = await this.supabase
       .from('sync_operations')
       .select('*')
@@ -92,7 +136,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .limit(limit);
 
     if (error) {
-      console.error('Error pulling changes:', error);
+      console.error('[SupabaseSyncAdapter] Error pulling changes:', error);
       return [];
     }
 
@@ -113,6 +157,11 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
    * Get the latest version for a user
    */
   async getLatestVersion(userId: string): Promise<number> {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot get latest version - client not initialized');
+      return 0;
+    }
+
     const { data, error } = await this.supabase
       .from('encrypted_blobs')
       .select('version')
@@ -122,7 +171,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .maybeSingle();
 
     if (error) {
-      console.error('Error getting latest version:', error);
+      console.error('[SupabaseSyncAdapter] Error getting latest version:', error);
       return 0;
     }
 
@@ -145,13 +194,20 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
     _status: string,
     lastSyncVersion?: number
   ): Promise<void> {
-    console.log(`Sync metadata updated for ${userId}: version ${lastSyncVersion}`);
+    console.log(
+      `[SupabaseSyncAdapter] Sync metadata updated for ${userId}: version ${lastSyncVersion}`
+    );
   }
 
   /**
    * Subscribe to real-time changes
    */
   subscribeToChanges(userId: string, onChange: (operation: SyncOperation) => void): () => void {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot subscribe to changes - client not initialized');
+      return () => {};
+    }
+
     const channel = this.supabase
       .channel(`sync:${userId}`)
       .on(
@@ -182,7 +238,9 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .subscribe();
 
     return () => {
-      this.supabase.removeChannel(channel);
+      if (this.supabase) {
+        this.supabase.removeChannel(channel);
+      }
     };
   }
 }

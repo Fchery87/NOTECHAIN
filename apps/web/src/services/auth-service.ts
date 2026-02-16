@@ -1,6 +1,31 @@
 // apps/web/src/services/auth-service.ts
-import { EncryptionService } from '@notechain/core-crypto';
+import { EncryptionService, PBKDF2_CONFIG } from '@notechain/core-crypto';
 import { SignJWT } from 'jose';
+
+/**
+ * Validate that JWT secret is properly configured
+ * @returns The JWT secret as Uint8Array
+ * @throws Error if JWT_SECRET is not configured
+ */
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.NEXT_PUBLIC_JWT_SECRET;
+
+  if (!secret) {
+    throw new Error(
+      'NEXT_PUBLIC_JWT_SECRET environment variable is not configured. ' +
+        'Please set a strong random secret (at least 32 characters) in your environment.'
+    );
+  }
+
+  if (secret.length < 32) {
+    console.warn(
+      'Warning: JWT secret is shorter than recommended (32+ characters). ' +
+        'Consider using a longer secret for production.'
+    );
+  }
+
+  return new TextEncoder().encode(secret);
+}
 
 /**
  * Generate cryptographically secure random bytes using Web Crypto API
@@ -70,7 +95,7 @@ export class AuthService {
 
   /**
    * Derive master key from password + salt
-   * Uses the EncryptionService's deriveKey method
+   * Uses the EncryptionService's deriveKey method with OWASP-recommended iterations
    * @param password The user's password
    * @param salt The salt for key derivation
    * @returns Derived key as Uint8Array
@@ -79,8 +104,8 @@ export class AuthService {
     const encoder = new TextEncoder();
     const passwordBytes = encoder.encode(password);
 
-    // Use EncryptionService's deriveKey with high iterations for security
-    return EncryptionService.deriveKey(passwordBytes, salt, 100000);
+    // Use EncryptionService's deriveKey with OWASP-recommended iterations
+    return EncryptionService.deriveKey(passwordBytes, salt, PBKDF2_CONFIG.DEFAULT_ITERATIONS);
   }
 
   /**
@@ -151,11 +176,10 @@ export class AuthService {
    * Generate a JWT token
    * @param userId The user's ID
    * @returns JWT token string
+   * @throws Error if JWT_SECRET is not configured
    */
   private static async generateToken(userId: string): Promise<string> {
-    const secret = new TextEncoder().encode(
-      process.env.NEXT_PUBLIC_JWT_SECRET || 'default-secret-change-in-production'
-    );
+    const secret = getJwtSecret();
 
     const token = await new SignJWT({ sub: userId })
       .setProtectedHeader({ alg: 'HS256' })

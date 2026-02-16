@@ -189,8 +189,56 @@ db.version(3).stores({
   noteTagMappings: 'id, noteId, tagId',
 });
 
-// Device ID for key derivation
-const DEVICE_ID = 'web-browser';
+/**
+ * Storage key for the device ID
+ */
+const DEVICE_ID_STORAGE_KEY = 'notechain_device_id';
+
+/**
+ * Generate a unique device ID
+ * Creates a UUID-like identifier with browser fingerprint components
+ */
+function generateDeviceId(): string {
+  // Generate a random UUID-like string with timestamp for uniqueness
+  const timestamp = Date.now().toString(36);
+  const randomPart = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return `web-${timestamp}-${randomPart}`;
+}
+
+/**
+ * Get or create a unique device ID for this browser instance
+ * The ID is persisted in localStorage to maintain consistency across sessions
+ */
+function getDeviceId(): string {
+  // Only run in browser environment
+  if (typeof window === 'undefined') {
+    return 'web-server';
+  }
+
+  try {
+    // Try to get existing device ID
+    const existingId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+
+    if (existingId) {
+      return existingId;
+    }
+
+    // Generate and store new device ID
+    const newId = generateDeviceId();
+    localStorage.setItem(DEVICE_ID_STORAGE_KEY, newId);
+    return newId;
+  } catch {
+    // Fallback if localStorage is not available (e.g., private browsing)
+    // Generate a session-based ID
+    return generateDeviceId();
+  }
+}
+
+// Device ID for key derivation - unique per browser instance
+const DEVICE_ID = getDeviceId();
 
 // Get encryption key
 async function getEncryptionKey(): Promise<Uint8Array> {
@@ -289,10 +337,10 @@ export async function deleteNote(id: string): Promise<void> {
   await db.notes.delete(id);
 }
 
-export async function listNotes(_folderId?: string): Promise<EncryptedNote[]> {
+export async function listNotes(folderId?: string): Promise<EncryptedNote[]> {
   const records = await db.notes.orderBy('createdAt').reverse().toArray();
 
-  return Promise.all(
+  const decrypted = await Promise.all(
     records.map(async record => {
       const decrypted =
         await decryptObject<
@@ -313,6 +361,13 @@ export async function listNotes(_folderId?: string): Promise<EncryptedNote[]> {
       };
     })
   );
+
+  // Filter by folder if specified
+  if (folderId !== undefined) {
+    return decrypted.filter(note => note.folderId === folderId);
+  }
+
+  return decrypted;
 }
 
 // Todo operations

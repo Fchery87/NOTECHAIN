@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { getKnowledgeGraphGenerator } from '@/lib/ai/notes';
 import { createNoteRepository } from '@/lib/repositories';
+import { useUser } from '@/lib/supabase/UserProvider';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 import type { Note } from '@notechain/data-models';
 
@@ -24,20 +25,22 @@ import type { Note } from '@notechain/data-models';
  */
 export default function KnowledgeGraphPage() {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useUser();
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadGraph() {
+      if (isAuthLoading || !user) {
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
 
-        // Load notes from repository
-        // Note: In a real implementation, these would come from auth context
-        // For now, we use placeholder values that would be replaced with actual user data
-        const userId = 'current-user';
+        const userId = user.id;
         const encryptionKey = new Uint8Array(32);
 
         const noteRepository = createNoteRepository(userId, encryptionKey);
@@ -69,7 +72,7 @@ export default function KnowledgeGraphPage() {
     }
 
     loadGraph();
-  }, []);
+  }, [user, isAuthLoading]);
 
   /**
    * Handle node click - navigate to note detail page

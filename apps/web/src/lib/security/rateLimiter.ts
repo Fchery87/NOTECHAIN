@@ -29,6 +29,8 @@ export interface RateLimitResult {
 export class RateLimiter {
   private storage: Map<string, RateLimitState>;
   private config: RateLimitConfig;
+  private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
+  private isDestroyed = false;
 
   constructor(config: RateLimitConfig) {
     this.config = {
@@ -38,13 +40,40 @@ export class RateLimiter {
     this.storage = new Map();
 
     // Cleanup expired entries every minute
-    setInterval(() => this.cleanup(), 60000);
+    this.cleanupIntervalId = setInterval(() => this.cleanup(), 60000);
+  }
+
+  /**
+   * Destroy the rate limiter and clean up resources
+   * Should be called when the rate limiter is no longer needed
+   */
+  destroy(): void {
+    if (this.isDestroyed) return;
+
+    if (this.cleanupIntervalId !== null) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
+
+    this.storage.clear();
+    this.isDestroyed = true;
+  }
+
+  /**
+   * Check if the rate limiter has been destroyed
+   */
+  get destroyed(): boolean {
+    return this.isDestroyed;
   }
 
   /**
    * Check if a request is allowed
    */
   async check(identifier: string): Promise<RateLimitResult> {
+    if (this.isDestroyed) {
+      throw new Error('RateLimiter has been destroyed and cannot be used');
+    }
+
     const key = `${this.config.keyPrefix}${identifier}`;
     const now = Date.now();
 

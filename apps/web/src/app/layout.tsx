@@ -4,6 +4,8 @@ import { SkipLink } from '../components/Accessibility/SkipLink';
 import { AriaLiveRegion } from '../components/Accessibility/AriaLiveRegion';
 import { UserProvider } from '@/lib/supabase/UserProvider';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { getNonce } from '@/lib/security/nonce';
 
 export const metadata: Metadata = {
   title: 'NoteChain — Privacy-First Productivity',
@@ -28,11 +30,14 @@ export const viewport: Viewport = {
   themeColor: '#fafaf9',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Get the CSP nonce from middleware for any inline scripts/styles
+  const nonce = await getNonce();
+
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
       <head>
@@ -42,19 +47,33 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"
           rel="stylesheet"
         />
+        {/* CSP nonce is available via the nonce variable if needed for inline scripts */}
+        {nonce && (
+          <script
+            nonce={nonce}
+            dangerouslySetInnerHTML={{
+              __html: `
+                // Global nonce for any dynamically created scripts
+                window.__CSP_NONCE__ = "${nonce}";
+              `,
+            }}
+          />
+        )}
       </head>
       <body className="antialiased bg-stone-50">
-        <UserProvider>
-          <SyncProvider>
-            {/* Accessibility: Skip to main content link */}
-            <SkipLink targetId="main-content" />
+        <ErrorBoundary>
+          <UserProvider>
+            <SyncProvider>
+              {/* Accessibility: Skip to main content link */}
+              <SkipLink targetId="main-content" />
 
-            {/* Accessibility: Live region for screen reader announcements */}
-            <AriaLiveRegion />
+              {/* Accessibility: Live region for screen reader announcements */}
+              <AriaLiveRegion />
 
-            {children}
-          </SyncProvider>
-        </UserProvider>
+              {children}
+            </SyncProvider>
+          </UserProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

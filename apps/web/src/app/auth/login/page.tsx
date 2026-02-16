@@ -1,13 +1,17 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,8 +45,8 @@ export default function LoginPage() {
       }
 
       if (data.user) {
-        // Successful login - redirect to dashboard
-        router.push('/dashboard');
+        // Successful login - redirect to original protected route or dashboard
+        router.push(redirect);
         router.refresh();
       }
     } catch {
@@ -66,12 +70,15 @@ export default function LoginPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
         },
       });
 
       if (oauthError) {
         setError(oauthError.message);
+      } else {
+        // OAuth flow initiated, user will be redirected back
+        // The redirect will be handled by the callback route
       }
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -247,7 +254,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-stone-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="font-medium text-amber-600 hover:text-amber-500">
                 Sign up
               </Link>
@@ -269,5 +276,36 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoginSkeleton() {
+  return (
+    <div className="min-h-screen bg-stone-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="text-center">
+          <div className="h-10 w-48 bg-stone-200 rounded animate-pulse mx-auto mb-2" />
+          <div className="h-4 w-64 bg-stone-200 rounded animate-pulse mx-auto" />
+        </div>
+      </div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-sm border border-stone-200 rounded-2xl sm:px-10">
+          <div className="h-8 w-48 bg-stone-200 rounded animate-pulse mb-6" />
+          <div className="space-y-6">
+            <div className="h-20 bg-stone-200 rounded animate-pulse" />
+            <div className="h-20 bg-stone-200 rounded animate-pulse" />
+            <div className="h-10 bg-stone-200 rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginSkeleton />}>
+      <LoginForm />
+    </Suspense>
   );
 }

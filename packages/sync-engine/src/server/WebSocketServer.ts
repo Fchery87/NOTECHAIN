@@ -59,13 +59,34 @@ export class WebSocketServer {
     this.server = Bun.serve<AuthenticatedSocket>({
       port: this.port,
       fetch: (req, server) => {
-        const success = server.upgrade(req, {
-          data: { isAuthenticated: false },
-        });
-        if (success) {
-          return undefined as unknown as Response;
+        const origin = req.headers.get('origin');
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+        ];
+
+        const isAllowed =
+          !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*');
+
+        if (isAllowed) {
+          const success = server.upgrade(req, {
+            data: { isAuthenticated: false },
+          });
+          if (success) {
+            return undefined as unknown as Response;
+          }
+          return new Response('WebSocket upgrade failed', { status: 500 });
         }
-        return new Response('WebSocket upgrade failed', { status: 500 });
+
+        console.warn(`[WebSocket] Rejected connection from origin: ${origin}`);
+        return new Response('WebSocket upgrade failed - CORS', {
+          status: 403,
+          headers: {
+            'Access-Control-Allow-Origin': allowedOrigins.includes('*')
+              ? '*'
+              : allowedOrigins[0] || '*',
+          },
+        });
       },
       websocket: {
         open: (ws: ServerWebSocket<AuthenticatedSocket>) => {
