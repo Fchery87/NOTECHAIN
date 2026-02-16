@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { NoteEditor } from '@/components/NoteEditor';
-import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
+
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
 
@@ -137,15 +137,12 @@ export default function NotesPage() {
   }, []);
 
   const headerActions = (
-    <>
-      <SyncStatusIndicator />
-      <button
-        onClick={handleCreateNote}
-        className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
-      >
-        + New Note
-      </button>
-    </>
+    <button
+      onClick={handleCreateNote}
+      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+    >
+      + New Note
+    </button>
   );
 
   return (

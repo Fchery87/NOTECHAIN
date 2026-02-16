@@ -192,7 +192,7 @@ export function TodoForm({
       onKeyDown={handleKeyDown}
     >
       <div
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl"
+        className="w-full max-w-lg max-h-[90vh] bg-white rounded-2xl shadow-xl flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-labelledby="todo-form-title"
@@ -219,7 +219,7 @@ export function TodoForm({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
           {/* Title */}
           <div>
             <label htmlFor="todo-title" className="block text-sm font-medium text-stone-700 mb-1.5">

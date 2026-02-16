@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react';
 import type { ExternalEvent } from '@notechain/data-models';
 import AppLayout from '@/components/AppLayout';
 import { CalendarView } from '@/components/CalendarView';
-import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 
 // Mock events for demonstration
 const mockEvents: ExternalEvent[] = [
@@ -53,15 +52,12 @@ export default function CalendarPage() {
   }, []);
 
   const headerActions = (
-    <>
-      <SyncStatusIndicator />
-      <button
-        onClick={() => handleCreateEvent(new Date())}
-        className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
-      >
-        + New Event
-      </button>
-    </>
+    <button
+      onClick={() => handleCreateEvent(new Date())}
+      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+    >
+      + New Event
+    </button>
   );
 
   return (

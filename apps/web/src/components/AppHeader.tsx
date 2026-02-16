@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/lib/supabase/UserProvider';
+import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
 
 interface AppHeaderProps {
   pageTitle?: string;
@@ -19,7 +20,6 @@ const navItems = [
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/meetings', label: 'Meetings', icon: MeetingsIcon },
   { href: '/teams', label: 'Teams', icon: TeamsIcon },
-  { href: '/search', label: 'Search', icon: SearchIcon },
   { href: '/graph', label: 'Graph', icon: GraphIcon },
 ];
 
@@ -320,10 +320,18 @@ export default function AppHeader({
 
             {/* Right Side */}
             <div className="flex items-center gap-2">
-              {/* Sync Status - placeholder */}
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-green-700">Synced</span>
+              {/* Search Button */}
+              <Link
+                href="/search"
+                className="flex items-center gap-2 px-3 py-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+              >
+                <SearchIcon className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">Search</span>
+              </Link>
+
+              {/* Sync Status */}
+              <div className="hidden sm:flex">
+                <SyncStatusIndicator />
               </div>
 
               {/* Actions */}
