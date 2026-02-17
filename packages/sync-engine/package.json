@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "start:ws": "bun run src/server/index.ts"
+    "start:ws": "bun --env-file=../../apps/web/.env.local run src/server/index.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",

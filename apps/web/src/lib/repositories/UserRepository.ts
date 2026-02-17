@@ -12,14 +12,14 @@ export class UserRepository extends BaseRepository<User> {
     const query = `SELECT * FROM ${this.tableName} WHERE email = $1`;
     const result = await sql(query, [email]);
 
-    return result.length > 0 ? (result[0] as User) : null;
+    return result.length > 0 ? (result[0] as unknown as User) : null;
   }
 
   async createUser(email: string): Promise<User> {
     const query = `INSERT INTO ${this.tableName} (email) VALUES ($1) RETURNING *`;
     const result = await sql(query, [email]);
 
-    return result[0] as User;
+    return result[0] as unknown as User;
   }
 
   async updateUserProfile(userId: string, encryptedProfile: string): Promise<void> {
@@ -36,6 +36,6 @@ export class UserRepository extends BaseRepository<User> {
     const query = `SELECT encrypted_profile_data FROM user_profiles WHERE user_id = $1`;
     const result = await sql(query, [userId]);
 
-    return result.length > 0 ? result[0].encrypted_profile_data : null;
+    return result.length > 0 ? (result[0].encrypted_profile_data as string) : null;
   }
 }

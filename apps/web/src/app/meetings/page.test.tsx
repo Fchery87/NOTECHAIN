@@ -1,7 +1,7 @@
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import MeetingsPage from './page';
 
 // Mock next/navigation

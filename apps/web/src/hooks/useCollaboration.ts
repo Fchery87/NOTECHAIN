@@ -254,7 +254,8 @@ function getColorForUserId(userId: string): string {
 
 const DEFAULT_WS_URL =
   typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`
+    ? process.env.NEXT_PUBLIC_WS_URL ||
+      `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:3001`
     : 'ws://localhost:3001';
 
 export function useCollaboration(options: CollaborationOptions): UseCollaborationReturn {

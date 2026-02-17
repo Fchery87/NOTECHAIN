@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { syncQueue } from '../syncQueue';
 
 describe('Sync Queue', () => {

@@ -12,14 +12,14 @@ export class EncryptedBlobRepository extends BaseRepository<EncryptedBlob> {
     const query = `SELECT * FROM ${this.tableName} WHERE user_id = $1 ORDER BY created_at DESC`;
     const result = await sql(query, [userId]);
 
-    return result as EncryptedBlob[];
+    return result as unknown as EncryptedBlob[];
   }
 
   async findByUserIdAndType(userId: string, blobType: string): Promise<EncryptedBlob[]> {
     const query = `SELECT * FROM ${this.tableName} WHERE user_id = $1 AND blob_type = $2 ORDER BY created_at DESC`;
     const result = await sql(query, [userId, blobType]);
 
-    return result as EncryptedBlob[];
+    return result as unknown as EncryptedBlob[];
   }
 
   async createEncryptedBlob(
@@ -47,7 +47,7 @@ export class EncryptedBlobRepository extends BaseRepository<EncryptedBlob> {
       metadata || {},
     ]);
 
-    return result[0] as EncryptedBlob;
+    return result[0] as unknown as EncryptedBlob;
   }
 
   async updateEncryptedBlob(
@@ -65,7 +65,7 @@ export class EncryptedBlobRepository extends BaseRepository<EncryptedBlob> {
     `;
     const result = await sql(query, [id, encryptedData, nonce, authTag, metadata || {}]);
 
-    return result.length > 0 ? (result[0] as EncryptedBlob) : null;
+    return result.length > 0 ? (result[0] as unknown as EncryptedBlob) : null;
   }
 
   async markAsDeleted(id: string): Promise<boolean> {

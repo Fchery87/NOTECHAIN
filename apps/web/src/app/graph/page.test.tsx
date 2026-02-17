@@ -1,7 +1,7 @@
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import KnowledgeGraphPage from './page';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 

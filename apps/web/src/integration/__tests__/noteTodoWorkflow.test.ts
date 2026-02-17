@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db, createNote, getNote, createTodo, getTodo } from '../../lib/db';
 import { search } from '../../lib/search';
 

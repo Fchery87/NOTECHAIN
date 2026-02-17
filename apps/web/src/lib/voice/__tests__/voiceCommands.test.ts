@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { interpretVoiceCommand, executeVoiceCommand, VoiceCommand } from '../voiceCommands';
 import type { Editor } from '@tiptap/react';
 

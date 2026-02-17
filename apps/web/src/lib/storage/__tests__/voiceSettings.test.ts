@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { getVoiceSettings, saveVoiceSettings } from '../voiceSettings';
 
 describe('voiceSettings', () => {

@@ -153,8 +153,36 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 
   const authenticate = useCallback(async () => {
     if (!token) {
-      log('No token provided, skipping authentication');
-      setConnectionState('connected');
+      log('No token provided, sending dev auth');
+      // Still send AUTH message so the server can authenticate the connection
+      // The server's authValidator handles dev-mode by returning 'dev-user'
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(
+          JSON.stringify({
+            type: 'AUTH',
+            token: 'dev-anonymous',
+            timestamp: Date.now(),
+          })
+        );
+
+        // Set auth timeout for dev auth too
+        clearAuthTimeout();
+        authTimeoutRef.current = setTimeout(() => {
+          log('Dev auth timeout');
+          setError(new Error('Authentication timeout'));
+          setConnectionState('disconnected');
+          if (socketRef.current) {
+            socketRef.current.onopen = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.onerror = null;
+            socketRef.current.onclose = null;
+            if (socketRef.current.readyState === WebSocket.OPEN) {
+              socketRef.current.close(1000, 'Auth timeout');
+            }
+            socketRef.current = null;
+          }
+        }, authTimeout);
+      }
       return;
     }
 
@@ -180,15 +208,25 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         authTimeoutRef.current = setTimeout(() => {
           log('Authentication timeout');
           setError(new Error('Authentication timeout'));
-          disconnect();
+          setConnectionState('disconnected');
+          if (socketRef.current) {
+            socketRef.current.onopen = null;
+            socketRef.current.onmessage = null;
+            socketRef.current.onerror = null;
+            socketRef.current.onclose = null;
+            if (socketRef.current.readyState === WebSocket.OPEN) {
+              socketRef.current.close(1000, 'Auth timeout');
+            }
+            socketRef.current = null;
+          }
         }, authTimeout);
       }
     } catch (err) {
       log('Authentication error:', err);
       setError(err instanceof Error ? err : new Error('Authentication failed'));
-      disconnect();
+      setConnectionState('disconnected');
     }
-  }, [token, log, authTimeout, clearAuthTimeout]);
+  }, [token, log, authTimeout, clearAuthTimeout, startHeartbeat, processMessageQueue]);
 
   const connect = useCallback(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -233,7 +271,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
             return;
           }
 
-          if (message.type === 'AUTH_FAILED') {
+          if (message.type === 'AUTH_ERROR') {
             clearAuthTimeout();
             const reason = (message as { reason?: string }).reason || 'Authentication failed';
             log('Authentication failed:', reason);
@@ -328,7 +366,17 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     clearAuthTimeout();
 
     if (socketRef.current) {
-      socketRef.current.close(1000, 'User disconnect');
+      const socket = socketRef.current;
+      // Detach handlers to prevent stale callbacks
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
+        socket.close(1000, 'User disconnect');
+      }
+      // If CONNECTING, just drop the reference — the detached handlers prevent side effects
       socketRef.current = null;
     }
 
@@ -377,13 +425,22 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     []
   );
 
-  // Auto-connect on mount
+  // Auto-connect on mount — resilient to React Strict Mode double-invoke
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (autoConnect) {
-      connect();
+      // Small delay allows Strict Mode's immediate unmount/remount to settle
+      connectTimeoutRef.current = setTimeout(() => {
+        connect();
+      }, 50);
     }
 
     return () => {
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
       disconnect();
     };
   }, [autoConnect, connect, disconnect]);

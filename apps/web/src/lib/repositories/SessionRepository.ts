@@ -12,14 +12,14 @@ export class SessionRepository extends BaseRepository<Session> {
     const query = `SELECT * FROM ${this.tableName} WHERE user_id = $1 AND is_active = true ORDER BY last_accessed_at DESC`;
     const result = await sql(query, [userId]);
 
-    return result as Session[];
+    return result as unknown as Session[];
   }
 
   async findBySessionId(sessionId: string): Promise<Session | null> {
     const query = `SELECT * FROM ${this.tableName} WHERE session_id = $1 AND is_active = true`;
     const result = await sql(query, [sessionId]);
 
-    return result.length > 0 ? (result[0] as Session) : null;
+    return result.length > 0 ? (result[0] as unknown as Session) : null;
   }
 
   async createSession(
@@ -45,7 +45,7 @@ export class SessionRepository extends BaseRepository<Session> {
       userAgent,
     ]);
 
-    return result[0] as Session;
+    return result[0] as unknown as Session;
   }
 
   async updateLastAccessed(sessionId: string): Promise<Session | null> {
@@ -57,7 +57,7 @@ export class SessionRepository extends BaseRepository<Session> {
     `;
     const result = await sql(query, [sessionId]);
 
-    return result.length > 0 ? (result[0] as Session) : null;
+    return result.length > 0 ? (result[0] as unknown as Session) : null;
   }
 
   async deactivateSession(sessionId: string): Promise<boolean> {

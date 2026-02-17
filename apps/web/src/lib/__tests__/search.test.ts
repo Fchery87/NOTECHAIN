@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { search } from '../search';
 
 // Mock setup

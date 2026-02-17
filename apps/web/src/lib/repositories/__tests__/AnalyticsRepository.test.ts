@@ -1,5 +1,5 @@
 // apps/web/src/lib/repositories/__tests__/AnalyticsRepository.test.ts
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { AnalyticsRepository, createAnalyticsRepository } from '../AnalyticsRepository';
 
 // Mock encryption functions

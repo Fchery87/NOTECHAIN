@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useVoiceInput } from '../useVoiceInput';
 

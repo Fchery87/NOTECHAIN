@@ -1,0 +1,16 @@
+# Bun configuration for NoteChain web app
+
+[test]
+# Load test setup before running tests
+preload = ["./test-setup.ts"]
+
+# Test timeout (in milliseconds)
+timeout = 10000
+
+# Run tests in parallel
+parallel = true
+
+# Module resolution for vitest compatibility
+[test.modules]
+# Redirect vitest imports to our compatibility shim
+vitest = "./vitest.ts"
