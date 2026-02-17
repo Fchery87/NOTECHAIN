@@ -62,8 +62,6 @@ export function useTodosSync() {
         const mockCiphertext = `${payload}:nonce:authTag`;
 
         await syncService.enqueueOperation({
-          userId: '',
-          sessionId: '',
           operationType: 'create',
           entityType: 'todo',
           entityId: todoId,
@@ -100,8 +98,6 @@ export function useTodosSync() {
         const mockCiphertext = `${payload}:nonce:authTag`;
 
         await syncService.enqueueOperation({
-          userId: '',
-          sessionId: '',
           operationType: 'update',
           entityType: 'todo',
           entityId: todo.id,
@@ -132,8 +128,6 @@ export function useTodosSync() {
         const mockCiphertext = `${payload}:nonce:authTag`;
 
         await syncService.enqueueOperation({
-          userId: '',
-          sessionId: '',
           operationType: 'update',
           entityType: 'todo',
           entityId: todoId,
@@ -154,8 +148,6 @@ export function useTodosSync() {
         const version = getNextVersion(todoId);
 
         await syncService.enqueueOperation({
-          userId: '',
-          sessionId: '',
           operationType: 'delete',
           entityType: 'todo',
           entityId: todoId,

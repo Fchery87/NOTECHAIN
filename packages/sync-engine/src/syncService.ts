@@ -74,10 +74,14 @@ export class SyncService extends EventEmitter {
   /**
    * Adds an operation to the sync queue
    */
-  async enqueueOperation(operation: Omit<SyncOperation, 'id' | 'timestamp'>): Promise<void> {
+  async enqueueOperation(
+    operation: Omit<SyncOperation, 'id' | 'timestamp' | 'userId' | 'sessionId'>
+  ): Promise<void> {
     const syncOp: SyncOperation = {
       ...operation,
       id: uuidv4(),
+      userId: this.userId,
+      sessionId: this.sessionId,
       timestamp: Date.now(),
       version: operation.version || 1,
     };

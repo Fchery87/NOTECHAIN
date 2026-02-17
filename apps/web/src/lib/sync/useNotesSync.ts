@@ -2,8 +2,10 @@
 
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { useSync } from './SyncProvider';
+import { useUser } from '@/lib/supabase/UserProvider';
 import { encryptedSyncService } from './encryptedSyncService';
 import { offlineQueue } from './offlineQueue';
+import { SupabaseSyncAdapter } from '@/lib/supabase/syncAdapter';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface Note {
@@ -27,8 +29,20 @@ interface SyncNoteOperation {
  */
 export function useNotesSync() {
   const { syncService, isInitialized } = useSync();
+  const { user } = useUser();
   const [isEncryptionReady, setIsEncryptionReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const versionRef = useRef<Record<string, number>>({});
+  const adapterRef = useRef<SupabaseSyncAdapter | null>(null);
+
+  // Lazily create adapter
+  const getAdapter = useCallback(() => {
+    if (!adapterRef.current) {
+      adapterRef.current = new SupabaseSyncAdapter();
+    }
+    return adapterRef.current;
+  }, []);
 
   // Initialize encryption on mount
   useEffect(() => {
@@ -44,6 +58,62 @@ export function useNotesSync() {
   }, []);
 
   /**
+   * Load all notes from Supabase, decrypt, and return
+   */
+  const loadNotes = useCallback(async (): Promise<Note[]> => {
+    if (!user?.id) {
+      console.warn('[useNotesSync] No user ID available for loading notes');
+      return [];
+    }
+
+    if (!isEncryptionReady) {
+      console.warn('[useNotesSync] Encryption not ready, cannot decrypt notes');
+      return [];
+    }
+
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const adapter = getAdapter();
+      const rawNotes = await adapter.fetchUserNotes(user.id);
+
+      if (rawNotes.length === 0) {
+        return [];
+      }
+
+      const notes: Note[] = [];
+      for (const raw of rawNotes) {
+        try {
+          const decrypted = (await encryptedSyncService.decrypt(
+            raw.encryptedPayload
+          )) as SyncNoteOperation;
+          notes.push({
+            id: decrypted.id || raw.entityId,
+            title: decrypted.title || 'Untitled',
+            content: decrypted.content || '',
+            updatedAt: decrypted.updatedAt ? new Date(decrypted.updatedAt) : new Date(),
+            version: raw.version,
+          });
+          // Track version for subsequent updates
+          versionRef.current[raw.entityId] = raw.version;
+        } catch (decryptErr) {
+          console.error(`[useNotesSync] Failed to decrypt note ${raw.entityId}:`, decryptErr);
+        }
+      }
+
+      return notes;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load notes';
+      setLoadError(message);
+      console.error('[useNotesSync] Error loading notes:', err);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, isEncryptionReady, getAdapter]);
+
+  /**
    * Encrypt and sync a note operation
    */
   const syncNoteOperation = useCallback(
@@ -54,7 +124,6 @@ export function useNotesSync() {
     ): Promise<void> => {
       if (!syncService || !isInitialized) {
         console.warn('Sync service not available, queuing for later');
-        // Queue for later when online
         if (noteData) {
           await offlineQueue.enqueue({
             id: uuidv4(),
@@ -81,7 +150,7 @@ export function useNotesSync() {
             operationType,
             entityType: 'note',
             entityId: noteId,
-            encryptedPayload: JSON.stringify(noteData), // Temporarily unencrypted
+            encryptedPayload: JSON.stringify(noteData),
             timestamp: Date.now(),
             version: noteData.version,
           });
@@ -91,15 +160,11 @@ export function useNotesSync() {
 
       try {
         const version = noteData?.version || 1;
-
-        // Encrypt the note data
         const encryptedPayload = noteData
           ? await encryptedSyncService.encrypt(noteData)
           : 'deleted:nonce:authTag';
 
         await syncService.enqueueOperation({
-          userId: '', // Set by sync service
-          sessionId: '', // Set by sync service
           operationType,
           entityType: 'note',
           entityId: noteId,
@@ -108,7 +173,6 @@ export function useNotesSync() {
         });
       } catch (_error) {
         console.error('Failed to sync note:', _error);
-        // Queue for retry
         if (noteData) {
           await offlineQueue.enqueue({
             id: uuidv4(),
@@ -191,7 +255,7 @@ export function useNotesSync() {
 
     for (const queued of pending) {
       try {
-        await syncService.enqueueOperation(queued.operation);
+        await syncService.enqueueOperation(queued.operation as any);
         await offlineQueue.remove(queued.id);
       } catch (error) {
         await offlineQueue.markFailed(
@@ -203,11 +267,14 @@ export function useNotesSync() {
   }, [syncService, isInitialized, isEncryptionReady]);
 
   return {
+    loadNotes,
     syncCreateNote,
     syncUpdateNote,
     syncDeleteNote,
     processOfflineQueue,
     isSyncEnabled: isInitialized && !!syncService,
     isEncryptionReady,
+    isLoading,
+    loadError,
   };
 }

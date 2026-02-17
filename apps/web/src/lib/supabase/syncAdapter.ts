@@ -90,14 +90,23 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
           p_operation_type: op.operationType,
           p_version: op.version,
           p_session_id: op.sessionId,
-          p_ciphertext: Array.from(ciphertext),
-          p_nonce: Array.from(nonce),
-          p_auth_tag: Array.from(authTag),
+          p_ciphertext: `\\x${Buffer.from(ciphertext).toString('hex')}`,
+          p_nonce: `\\x${Buffer.from(nonce).toString('hex')}`,
+          p_auth_tag: `\\x${Buffer.from(authTag).toString('hex')}`,
           p_key_id: '00000000-0000-0000-0000-000000000000', // Placeholder - should come from op
-          p_metadata_hash: Array.from(new Uint8Array(32)), // Placeholder - should be computed
+          p_metadata_hash: `\\x${Buffer.from(new Uint8Array(32)).toString('hex')}`, // Placeholder - should be computed
         });
 
         if (error) {
+          console.error('[SupabaseSyncAdapter] RPC error:', JSON.stringify(error, null, 2));
+          console.error('[SupabaseSyncAdapter] Operation context:', {
+            userId: op.userId,
+            entityId: op.entityId,
+            entityType: op.entityType,
+            operationType: op.operationType,
+            version: op.version,
+            sessionId: op.sessionId,
+          });
           results.push({ operationId: op.id, success: false, error: error.message });
         } else {
           results.push({ operationId: op.id, success: true });
@@ -150,6 +159,43 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       encryptedPayload: row.encrypted_payload,
       timestamp: new Date(row.timestamp).getTime(),
       version: row.version,
+    }));
+  }
+
+  /**
+   * Fetch all note-type blobs for a user (for loading notes on mount)
+   */
+  async fetchUserNotes(userId: string): Promise<
+    Array<{
+      entityId: string;
+      encryptedPayload: string;
+      version: number;
+      operationType: string;
+    }>
+  > {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot fetch notes - client not initialized');
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from('sync_operations')
+      .select('entity_id, encrypted_payload, version, operation_type, is_deleted')
+      .eq('user_id', userId)
+      .eq('entity_type', 'note')
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .order('version', { ascending: false });
+
+    if (error) {
+      console.error('[SupabaseSyncAdapter] Error fetching notes:', JSON.stringify(error));
+      return [];
+    }
+
+    return (data || []).map(row => ({
+      entityId: row.entity_id,
+      encryptedPayload: row.encrypted_payload,
+      version: row.version,
+      operationType: row.operation_type,
     }));
   }
 

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import AppLayout from '@/components/AppLayout';
 import { NoteEditor } from '@/components/NoteEditor';
 
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
+import { useUser } from '@/lib/supabase/UserProvider';
 
 interface Note {
   id: string;
@@ -17,62 +19,59 @@ interface Note {
   collaborators: NoteCollaborator[];
 }
 
-const CURRENT_USER = {
-  id: 'user-1',
-  displayName: 'John Doe',
-  avatarUrl: undefined,
-};
-
-const mockNotes: Note[] = [
-  {
-    id: '1',
-    title: 'Project Ideas',
-    content:
-      '<h2>AI Features</h2><p>Implement local LLM for note summarization and context-aware suggestions.</p><h2>Encryption</h2><p>Ensure all data is encrypted client-side before storage.</p>',
-    updatedAt: new Date(Date.now() - 86400000),
-    ownerId: 'user-1',
-    ownerName: 'John Doe',
-    collaborators: [
-      { id: 'user-2', displayName: 'Alice Smith', permissionLevel: 'edit' },
-      { id: 'user-3', displayName: 'Bob Wilson', permissionLevel: 'view' },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Meeting Notes - Team Sync',
-    content:
-      '<p><strong>Attendees:</strong> Sarah, Mike, Alex</p><p><strong>Agenda:</strong></p><ul><li>Review Q1 goals</li><li>Discuss new features</li><li>Timeline planning</li></ul>',
-    updatedAt: new Date(Date.now() - 172800000),
-    ownerId: 'user-1',
-    ownerName: 'John Doe',
-    collaborators: [],
-  },
-  {
-    id: '3',
-    title: 'Research: End-to-End Encryption',
-    content:
-      '<p>Key points about XSalsa20-Poly1305:</p><ul><li>256-bit keys</li><li>Authenticated encryption</li><li>Fast performance</li></ul>',
-    updatedAt: new Date(),
-    ownerId: 'user-2',
-    ownerName: 'Alice Smith',
-    collaborators: [{ id: 'user-1', displayName: 'John Doe', permissionLevel: 'edit' }],
-  },
-];
-
 export default function NotesPage() {
-  const [notes, setNotes] = useState<Note[]>(mockNotes);
-  const [selectedNoteId, setSelectedNoteId] = useState<string>(mockNotes[0].id);
+  const { user } = useUser();
+  const {
+    loadNotes,
+    syncCreateNote,
+    syncUpdateNote,
+    syncDeleteNote,
+    isSyncEnabled,
+    isEncryptionReady,
+    isLoading,
+    loadError,
+  } = useNotesSync();
+
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [_showShareDialog, setShowShareDialog] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const { syncCreateNote, syncUpdateNote, isSyncEnabled } = useNotesSync();
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
-  const selectedNote = notes.find(n => n.id === selectedNoteId);
+  const currentUser = {
+    id: user?.id || 'user-1',
+    displayName: user?.email?.split('@')[0] || 'You',
+    avatarUrl: undefined,
+  };
 
-  const userPermission =
-    selectedNote?.collaborators.find(c => c.id === CURRENT_USER.id)?.permissionLevel ||
-    (selectedNote?.ownerId === CURRENT_USER.id ? 'admin' : 'view');
+  // Load notes from Supabase on mount when encryption is ready
+  useEffect(() => {
+    if (!isEncryptionReady || !user?.id || hasLoaded) return;
 
-  const canEdit = userPermission === 'edit' || userPermission === 'admin';
+    const load = async () => {
+      const loaded = await loadNotes();
+      const mapped: Note[] = loaded.map(n => ({
+        ...n,
+        ownerId: user?.id || '',
+        ownerName: currentUser.displayName,
+        collaborators: [],
+      }));
+      setNotes(mapped);
+      if (mapped.length > 0) {
+        setSelectedNoteId(mapped[0].id);
+      }
+      setHasLoaded(true);
+    };
+
+    load();
+  }, [isEncryptionReady, hasLoaded, loadNotes, user?.id, currentUser.displayName]);
+
+  const selectedNote = notes.find(n => n.id === selectedNoteId) || null;
+
+  // ── Handlers ──
 
   const handleNoteSelect = useCallback((noteId: string) => {
     setSelectedNoteId(noteId);
@@ -80,7 +79,7 @@ export default function NotesPage() {
 
   const handleContentChange = useCallback(
     async (content: string) => {
-      if (!selectedNote || !canEdit) return;
+      if (!selectedNote) return;
 
       const updatedNote = { ...selectedNote, content, updatedAt: new Date() };
       setNotes(prev => prev.map(note => (note.id === selectedNote.id ? updatedNote : note)));
@@ -89,12 +88,12 @@ export default function NotesPage() {
         await syncUpdateNote(updatedNote);
       }
     },
-    [selectedNote, syncUpdateNote, isSyncEnabled, canEdit]
+    [selectedNote, syncUpdateNote, isSyncEnabled]
   );
 
   const handleTitleChange = useCallback(
     async (title: string) => {
-      if (!selectedNote || !canEdit) return;
+      if (!selectedNote) return;
 
       const updatedNote = { ...selectedNote, title, updatedAt: new Date() };
       setNotes(prev => prev.map(note => (note.id === selectedNote.id ? updatedNote : note)));
@@ -103,17 +102,18 @@ export default function NotesPage() {
         await syncUpdateNote(updatedNote);
       }
     },
-    [selectedNote, syncUpdateNote, isSyncEnabled, canEdit]
+    [selectedNote, syncUpdateNote, isSyncEnabled]
   );
 
   const handleCreateNote = useCallback(async () => {
+    const noteId = uuidv4();
     const newNote: Note = {
-      id: `note-${Date.now()}`,
+      id: noteId,
       title: 'New Note',
       content: '',
       updatedAt: new Date(),
-      ownerId: CURRENT_USER.id,
-      ownerName: CURRENT_USER.displayName,
+      ownerId: currentUser.id,
+      ownerName: currentUser.displayName,
       collaborators: [],
     };
 
@@ -126,7 +126,89 @@ export default function NotesPage() {
         content: newNote.content,
       });
     }
-  }, [syncCreateNote, isSyncEnabled]);
+  }, [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName]);
+
+  // Single-note delete (from card action or editor header)
+  const handleDeleteNote = useCallback(
+    async (noteId: string) => {
+      const note = notes.find(n => n.id === noteId);
+      const confirmed = window.confirm(`Delete "${note?.title || 'Untitled'}"?`);
+      if (!confirmed) return;
+
+      setNotes(prev => {
+        const remaining = prev.filter(n => n.id !== noteId);
+        if (selectedNoteId === noteId) {
+          setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+        }
+        return remaining;
+      });
+
+      if (isSyncEnabled) {
+        await syncDeleteNote(noteId);
+      }
+    },
+    [notes, selectedNoteId, syncDeleteNote, isSyncEnabled]
+  );
+
+  // Edit from card — just select it
+  const handleEditNote = useCallback((noteId: string) => {
+    setSelectedNoteId(noteId);
+  }, []);
+
+  // Multi-select toggle
+  const handleToggleSelect = useCallback((noteId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(noteId)) {
+        next.delete(noteId);
+      } else {
+        next.add(noteId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Select all / deselect all
+  const handleSelectAll = useCallback(() => {
+    if (selectedIds.size === notes.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(notes.map(n => n.id)));
+    }
+  }, [selectedIds.size, notes]);
+
+  // Bulk delete
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const confirmed = window.confirm(
+      `Delete ${selectedIds.size} note${selectedIds.size > 1 ? 's' : ''}?`
+    );
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(selectedIds);
+
+    setNotes(prev => {
+      const remaining = prev.filter(n => !selectedIds.has(n.id));
+      if (selectedNoteId && selectedIds.has(selectedNoteId)) {
+        setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      return remaining;
+    });
+    setSelectedIds(new Set());
+    setIsMultiSelectMode(false);
+
+    if (isSyncEnabled) {
+      for (const id of idsToDelete) {
+        await syncDeleteNote(id);
+      }
+    }
+  }, [selectedIds, selectedNoteId, syncDeleteNote, isSyncEnabled]);
+
+  // Cancel multi-select
+  const handleCancelSelect = useCallback(() => {
+    setSelectedIds(new Set());
+    setIsMultiSelectMode(false);
+  }, []);
 
   const handleShare = useCallback(() => {
     setShowShareDialog(true);
@@ -136,13 +218,36 @@ export default function NotesPage() {
     setShowShareDialog(false);
   }, []);
 
+  // ── Header actions ──
+
   const headerActions = (
-    <button
-      onClick={handleCreateNote}
-      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
-    >
-      + New Note
-    </button>
+    <div className="flex items-center gap-2">
+      {notes.length > 0 && (
+        <button
+          onClick={() => {
+            if (isMultiSelectMode) {
+              handleCancelSelect();
+            } else {
+              setIsMultiSelectMode(true);
+              setSelectedIds(new Set());
+            }
+          }}
+          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+            isMultiSelectMode
+              ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+          }`}
+        >
+          {isMultiSelectMode ? 'Cancel' : 'Select'}
+        </button>
+      )}
+      <button
+        onClick={handleCreateNote}
+        className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+      >
+        + New Note
+      </button>
+    </div>
   );
 
   return (
@@ -151,28 +256,72 @@ export default function NotesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+              {/* Search + multi-select toolbar */}
               <div className="p-4 border-b border-stone-200">
-                <input
-                  type="text"
-                  placeholder="Search notes..."
-                  className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                />
+                {isMultiSelectMode ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleSelectAll}
+                        className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        {selectedIds.size === notes.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                      <span className="text-sm text-stone-400">{selectedIds.size} selected</span>
+                    </div>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={selectedIds.size === 0}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Search notes..."
+                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                )}
               </div>
               <div className="max-h-[600px] overflow-y-auto">
-                {notes.map(note => (
-                  <NoteCard
-                    key={note.id}
-                    id={note.id}
-                    title={note.title}
-                    content={note.content}
-                    updatedAt={note.updatedAt}
-                    ownerName={note.ownerName}
-                    collaborators={note.collaborators}
-                    currentUserId={CURRENT_USER.id}
-                    onClick={handleNoteSelect}
-                    isSelected={selectedNoteId === note.id}
-                  />
-                ))}
+                {isLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="inline-block w-6 h-6 border-2 border-stone-300 border-t-amber-500 rounded-full animate-spin" />
+                    <p className="mt-3 text-sm text-stone-400">Decrypting notes…</p>
+                  </div>
+                ) : loadError ? (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-red-500">{loadError}</p>
+                  </div>
+                ) : notes.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <p className="text-sm text-stone-400">
+                      No notes yet. Create one to get started.
+                    </p>
+                  </div>
+                ) : (
+                  notes.map(note => (
+                    <NoteCard
+                      key={note.id}
+                      id={note.id}
+                      title={note.title}
+                      content={note.content}
+                      updatedAt={note.updatedAt}
+                      ownerName={note.ownerName}
+                      collaborators={note.collaborators}
+                      currentUserId={currentUser.id}
+                      onClick={handleNoteSelect}
+                      isSelected={selectedNoteId === note.id}
+                      onEdit={handleEditNote}
+                      onDelete={handleDeleteNote}
+                      isSelectable={isMultiSelectMode}
+                      isChecked={selectedIds.has(note.id)}
+                      onToggleSelect={handleToggleSelect}
+                    />
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -180,17 +329,36 @@ export default function NotesPage() {
           <div className="lg:col-span-2">
             {selectedNote ? (
               <div className="bg-white rounded-xl shadow-sm border border-stone-200 min-h-[600px]">
-                <div className="p-4 border-b border-stone-200">
+                <div className="p-4 border-b border-stone-200 flex items-center gap-3">
                   <input
                     type="text"
                     value={selectedNote.title}
                     onChange={e => handleTitleChange(e.target.value)}
                     placeholder="Note title..."
-                    disabled={!canEdit}
-                    className={`w-full text-xl font-medium bg-transparent border-none focus:outline-none placeholder:text-stone-400 ${
-                      !canEdit ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    className="flex-1 text-xl font-medium bg-transparent border-none focus:outline-none placeholder:text-stone-400"
                   />
+                  <button
+                    onClick={() => handleDeleteNote(selectedNote.id)}
+                    title="Delete note"
+                    className="shrink-0 p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="p-4">
                   <NoteEditor
@@ -199,16 +367,20 @@ export default function NotesPage() {
                     onChange={handleContentChange}
                     placeholder="Start writing your encrypted note..."
                     minHeight="500px"
-                    userId={CURRENT_USER.id}
-                    displayName={CURRENT_USER.displayName}
+                    userId={currentUser.id}
+                    displayName={currentUser.displayName}
                     collaborators={selectedNote.collaborators}
-                    onShare={canEdit ? handleShare : undefined}
+                    onShare={handleShare}
                   />
                 </div>
               </div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-stone-200 min-h-[600px] flex items-center justify-center">
-                <p className="text-stone-400">Select a note to start editing</p>
+                <p className="text-stone-400">
+                  {notes.length === 0
+                    ? 'Create your first note to get started'
+                    : 'Select a note to start editing'}
+                </p>
               </div>
             )}
           </div>

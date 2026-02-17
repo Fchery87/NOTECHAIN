@@ -111,8 +111,6 @@ class SyncQueue {
       try {
         // Use the sync service to process the operation
         await this.syncService.enqueueOperation({
-          userId: operation.userId,
-          sessionId: operation.sessionId,
           operationType: operation.operationType,
           entityType: operation.entityType,
           entityId: operation.entityId,
