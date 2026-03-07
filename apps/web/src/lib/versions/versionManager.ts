@@ -88,6 +88,9 @@ const DEFAULT_CONFIG: Required<VersionManagerConfig> = {
   onVersionDeleted: () => {},
 };
 
+// Maximum size for localStorage data (4MB - safe limit for most browsers)
+const MAX_SIZE = 4 * 1024 * 1024; // 4MB in bytes
+
 /**
  * Generate unique ID
  */
@@ -570,6 +573,50 @@ export class VersionManager {
   }
 
   /**
+   * Calculate approximate storage size in bytes (UTF-16 encoding: string.length * 2)
+   */
+  private getStorageSize(data: unknown): number {
+    const jsonString = JSON.stringify(data);
+    // UTF-16 uses 2 bytes per character
+    return jsonString.length * 2;
+  }
+
+  /**
+   * Prune oldest versions by a specified ratio
+   * @param ratio - Fraction of versions to remove (0.5 = remove 50%)
+   */
+  private pruneOldestVersions(ratio: number): void {
+    if (ratio <= 0 || ratio >= 1) {
+      console.warn('Invalid prune ratio:', ratio, '- must be between 0 and 1');
+      return;
+    }
+
+    if (this.versions.size === 0) {
+      return;
+    }
+
+    // Get all versions sorted by timestamp (oldest first)
+    const allVersions = Array.from(this.versions.values()).sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    // Calculate how many to remove
+    const toRemoveCount = Math.floor(allVersions.length * ratio);
+    if (toRemoveCount === 0) {
+      return;
+    }
+
+    const toRemove = allVersions.slice(0, toRemoveCount);
+
+    // Remove versions using deleteVersion for proper cleanup
+    toRemove.forEach(version => {
+      this.deleteVersion(version.id);
+    });
+
+    console.log(`Pruned ${toRemoveCount} oldest versions (${(ratio * 100).toFixed(0)}%)`);
+  }
+
+  /**
    * Load versions from localStorage
    */
   private loadFromStorage(): void {
@@ -604,22 +651,65 @@ export class VersionManager {
   }
 
   /**
-   * Save versions to localStorage
+   * Save versions to localStorage with size limits and error handling
    */
   private saveToStorage(): void {
     if (!this.config.persistLocal || typeof window === 'undefined') {
       return;
     }
 
-    try {
-      const data = {
-        versions: Array.from(this.versions.values()),
-        resourceVersions: Object.fromEntries(this.resourceVersions),
-      };
-      localStorage.setItem(this.config.storageKey, JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to save versions to storage:', error);
-    }
+    const attemptSave = (retryCount = 0): boolean => {
+      try {
+        // Sort versions by timestamp (newest first) and limit to maxInMemory
+        const allVersions = Array.from(this.versions.values()).sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        const versionsToPersist = allVersions.slice(0, this.config.maxInMemory);
+
+        const data = {
+          versions: versionsToPersist,
+          resourceVersions: Object.fromEntries(this.resourceVersions),
+          persistedAt: new Date().toISOString(),
+        };
+
+        const serialized = JSON.stringify(data);
+
+        // Check if serialized data exceeds 4MB limit
+        const dataSize = this.getStorageSize(data);
+        if (dataSize > MAX_SIZE) {
+          console.warn(
+            `Storage size (${(dataSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_SIZE / 1024 / 1024}MB limit. Pruning oldest versions...`
+          );
+          this.pruneOldestVersions(0.5);
+
+          // Retry after pruning (max 3 retries)
+          if (retryCount < 3) {
+            return attemptSave(retryCount + 1);
+          }
+          return false;
+        }
+
+        localStorage.setItem(this.config.storageKey, serialized);
+        return true;
+      } catch (error) {
+        // Handle QuotaExceededError
+        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+          console.warn('localStorage quota exceeded. Pruning oldest versions and retrying...');
+          this.pruneOldestVersions(0.5);
+
+          // Retry after pruning (max 3 retries)
+          if (retryCount < 3) {
+            return attemptSave(retryCount + 1);
+          }
+          return false;
+        }
+
+        console.error('Failed to save versions to storage:', error);
+        return false;
+      }
+    };
+
+    attemptSave();
   }
 }
 

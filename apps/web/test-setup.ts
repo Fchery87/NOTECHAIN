@@ -248,7 +248,7 @@ const MediaRecorderMock = createMediaRecorderMock();
 const navigatorMock = createNavigatorMock();
 
 // Apply to globalThis (indexedDB is already provided by fake-indexeddb)
-Object.assign(globalThis, {
+const mockAssign: Record<string, unknown> = {
   localStorage: localStorageMock,
   sessionStorage: sessionStorageMock,
   AudioContext: AudioContextMock,
@@ -257,7 +257,12 @@ Object.assign(globalThis, {
   navigator: navigatorMock,
   atob: (str: string) => Buffer.from(str, 'base64').toString('binary'),
   btoa: (str: string) => Buffer.from(str, 'binary').toString('base64'),
-  crypto: {
+};
+
+// Only include crypto if it's writable
+const cryptoDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+if (cryptoDescriptor?.writable) {
+  mockAssign.crypto = {
     subtle: {
       generateKey: () => Promise.resolve({}),
       encrypt: () => Promise.resolve(new ArrayBuffer(0)),
@@ -282,7 +287,13 @@ Object.assign(globalThis, {
         const v = c === 'x' ? r : (r & 0x3) | 0x8;
         return v.toString(16);
       }),
-  },
+  };
+}
+
+Object.assign(globalThis, mockAssign);
+
+// Add remaining mocks
+Object.assign(globalThis, {
   matchMedia: (query: string) => ({
     matches: false,
     media: query,
