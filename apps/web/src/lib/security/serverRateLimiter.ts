@@ -212,6 +212,23 @@ export function withRateLimit(
 }
 
 /**
+ * Higher-order function to wrap API route handlers with dynamic params and rate limiting
+ * For routes like /api/admin/users/[id]/role
+ */
+export function withRateLimitAndParams<T extends { params: Promise<Record<string, string>> }>(
+  handler: (req: NextRequest, context: T) => Promise<NextResponse>,
+  limiter: keyof typeof serverRateLimiters
+) {
+  return async (req: NextRequest, context: T): Promise<NextResponse> => {
+    const rateLimitResponse = await serverRateLimiters[limiter](req);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+    return handler(req, context);
+  };
+}
+
+/**
  * Cleanup function for graceful shutdown
  */
 export async function cleanupRateLimiter(): Promise<void> {
@@ -223,6 +240,7 @@ export default {
   serverRateLimiters,
   applyRateLimit,
   withRateLimit,
+  withRateLimitAndParams,
   getClientIdentifier,
   cleanupRateLimiter,
 };

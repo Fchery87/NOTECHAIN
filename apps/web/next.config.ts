@@ -20,10 +20,18 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Use webpack with custom configuration
-  turbopack: {},
-  // Bundle optimization
-  webpack: (config, { isServer, nextRuntime }) => {
+  // Turbopack configuration (Next.js 16 default)
+  // Note: Turbopack has different optimization options than webpack
+  // For now, using default Turbopack optimizations
+  turbopack: {
+    // Module resolution rules can be added here
+    rules: {
+      // Add any Turbopack-specific rules here
+    },
+  },
+
+  // Webpack fallback for custom optimizations
+  webpack: (config, { isServer }) => {
     // Optimize bundle size
     if (!isServer) {
       // Split chunks for better caching

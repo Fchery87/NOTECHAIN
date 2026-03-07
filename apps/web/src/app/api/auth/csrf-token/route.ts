@@ -7,8 +7,9 @@
 
 import { NextResponse } from 'next/server';
 import { generateCSRFToken, getCSRFCookieConfig } from '@/lib/security/csrf';
+import { withRateLimit } from '@/lib/security/serverRateLimiter';
 
-export async function GET() {
+async function handler() {
   const token = generateCSRFToken();
   const cookieConfig = getCSRFCookieConfig(token);
 
@@ -22,3 +23,5 @@ export async function GET() {
 
   return response;
 }
+
+export const GET = withRateLimit(handler, 'api');
