@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/api/errors';
+import { PAGINATION, VALIDATION } from '@/lib/constants';
 
 /**
  * Sanitize search input to prevent SQL injection
@@ -24,8 +25,8 @@ export function sanitizeSearchInput(input: string): string {
   sanitized = sanitized.replace(/'/g, "\\'"); // single quote
   sanitized = sanitized.replace(/"/g, '\\"'); // double quote
 
-  // Limit input length to 100 characters
-  return sanitized.slice(0, 100);
+  // Limit input length to prevent abuse
+  return sanitized.slice(0, VALIDATION.SEARCH_MAX_LENGTH);
 }
 
 /**
@@ -68,8 +69,17 @@ export async function GET(request: NextRequest) {
 
   // Parse query parameters
   const { searchParams } = new URL(request.url);
-  const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25')));
+  const page = Math.max(
+    PAGINATION.DEFAULT_PAGE,
+    parseInt(searchParams.get('page') || PAGINATION.DEFAULT_PAGE.toString())
+  );
+  const limit = Math.min(
+    PAGINATION.MAX_LIMIT,
+    Math.max(
+      PAGINATION.DEFAULT_PAGE,
+      parseInt(searchParams.get('limit') || PAGINATION.DEFAULT_LIMIT.toString())
+    )
+  );
   const sortBy = searchParams.get('sortBy') || 'created_at';
   const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
   const status = searchParams.get('status');
