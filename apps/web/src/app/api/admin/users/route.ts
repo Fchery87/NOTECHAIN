@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/api/errors';
 import { PAGINATION, VALIDATION } from '@/lib/constants';
+import { createTimeoutMiddleware } from '@/lib/api/withTimeout';
 
 /**
  * Sanitize search input to prevent SQL injection
@@ -43,7 +44,7 @@ export function sanitizeSearchInput(input: string): string {
  *   - search: string (optional search by email)
  * Requires admin role
  */
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   const supabase = await createClient();
 
   // Get current user
@@ -209,3 +210,9 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+
+// Create timeout middleware with 10s default
+const withTimeout = createTimeoutMiddleware(10000);
+
+// Export wrapped GET handler with 10s timeout
+export const GET = withTimeout(getHandler, 10000);
