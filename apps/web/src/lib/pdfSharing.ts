@@ -2,6 +2,29 @@ import { encryptData, decryptData } from '@notechain/core-crypto';
 import { KeyManager } from '@notechain/core-crypto';
 
 /**
+ * Browser-compatible Uint8Array to base64 string
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Browser-compatible base64 to Uint8Array
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
  * Share link configuration
  */
 export interface ShareLink {
@@ -66,7 +89,7 @@ export class PDFSharingService {
         throw new Error('Master key not found');
       }
 
-      const keyEncrypted = await encryptData(Buffer.from(shareKey).toString('base64'), masterKey);
+      const keyEncrypted = await encryptData(uint8ArrayToBase64(shareKey), masterKey);
 
       // Create share link
       const linkId = this.generateLinkId();
@@ -76,7 +99,7 @@ export class PDFSharingService {
         fileName,
         encryptedKey: keyEncrypted.ciphertext,
         iv: keyEncrypted.nonce,
-        salt: Buffer.from(salt).toString('base64'),
+        salt: uint8ArrayToBase64(salt),
         expiresAt: options?.expiresAt,
         createdAt: new Date(),
         viewCount: 0,
@@ -142,7 +165,7 @@ export class PDFSharingService {
         masterKey
       );
 
-      const shareKey = Uint8Array.from(Buffer.from(keyDecrypted, 'base64'));
+      const shareKey = base64ToUint8Array(keyDecrypted);
 
       // Decrypt PDF
       // In real implementation, fetch encrypted PDF from storage

@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 
   // Log storage error but don't fail the request
   if (storageError) {
-    console.error('[Admin Users] Error fetching storage:', storageError);
+    console.warn('[Admin Users] Error fetching storage:', storageError.message);
   }
 
   // Calculate storage per user
@@ -124,29 +124,43 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Get user emails from auth.users (requires admin access to auth schema)
-  // This is a workaround - in production, consider caching emails in profiles
-  const usersWithDetails = await Promise.all(
-    (profiles || []).map(async profile => {
-      // Get email from auth.users
-      const { data: userData, error: userError } = await supabase.rpc('get_user_email', {
-        user_id: profile.id,
-      });
+  // Get user emails from auth.users using admin API
+  // This is more efficient than N+1 RPC calls
+  const emailMap = new Map<string, string>();
 
-      return {
-        id: profile.id,
-        email: userError ? 'hidden@privacy.com' : userData || 'unknown',
-        role: profile.role,
-        plan: profile.plan,
-        status: profile.status,
-        created_at: profile.created_at,
-        last_active_at: profile.last_active_at,
-        storage_bytes: storageMap.get(profile.id) || 0,
-        suspended_at: profile.suspended_at,
-        suspended_reason: profile.suspended_reason,
-      };
-    })
-  );
+  if (userIds.length > 0) {
+    try {
+      // Use Supabase admin API to get users in bulk
+      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
+
+      if (!usersError && usersData?.users) {
+        // Filter to only the users we need and create email map
+        for (const authUser of usersData.users) {
+          if (userIds.includes(authUser.id)) {
+            emailMap.set(authUser.id, authUser.email || 'unknown');
+          }
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('[Admin Users] Error fetching user emails:', message);
+      // Continue without emails - we'll use fallback
+    }
+  }
+
+  // Build final user list with emails
+  const usersWithDetails = (profiles || []).map(profile => ({
+    id: profile.id,
+    email: emailMap.get(profile.id) || 'hidden@privacy.com',
+    role: profile.role,
+    plan: profile.plan,
+    status: profile.status,
+    created_at: profile.created_at,
+    last_active_at: profile.last_active_at,
+    storage_bytes: storageMap.get(profile.id) || 0,
+    suspended_at: profile.suspended_at,
+    suspended_reason: profile.suspended_reason,
+  }));
 
   return NextResponse.json({
     users: usersWithDetails,

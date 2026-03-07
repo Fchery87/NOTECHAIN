@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiErrors } from '@/lib/api/errors';
 
 /**
  * POST /api/admin/sessions/[id]/revoke
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ApiErrors.unauthorized();
     }
 
     // Check if user is admin
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .single();
 
     if (profileError || profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      return ApiErrors.adminRequired();
     }
 
     // Parse request body for reason
@@ -43,13 +44,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     if (revokeError) {
-      console.error('[Admin Revoke Session] Error:', revokeError);
-      return NextResponse.json({ error: revokeError.message }, { status: 500 });
+      return ApiErrors.databaseError(revokeError);
     }
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[Admin Revoke Session] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return ApiErrors.internalError(error);
   }
 }

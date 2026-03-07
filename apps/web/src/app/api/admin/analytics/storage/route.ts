@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { ApiErrors } from '@/lib/api/errors';
 
 /**
  * GET /api/admin/analytics/storage
@@ -17,7 +18,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ApiErrors.unauthorized();
     }
 
     // Check if user is admin
@@ -28,20 +29,18 @@ export async function GET() {
       .single();
 
     if (profileError || profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      return ApiErrors.adminRequired();
     }
 
     // Call the database function to get storage analytics
     const { data: analytics, error: analyticsError } = await supabase.rpc('get_storage_analytics');
 
     if (analyticsError) {
-      console.error('[Admin Storage Analytics] Error:', analyticsError);
-      return NextResponse.json({ error: 'Failed to fetch storage analytics' }, { status: 500 });
+      return ApiErrors.databaseError(analyticsError);
     }
 
     return NextResponse.json(analytics);
   } catch (error) {
-    console.error('[Admin Storage Analytics] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return ApiErrors.internalError(error);
   }
 }

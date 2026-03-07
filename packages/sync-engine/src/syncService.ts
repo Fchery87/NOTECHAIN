@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { EventEmitter } from 'eventemitter3';
 import { PlatformAdapter, defaultPlatform } from './platform';
 
+const SYNC_BATCH_SIZE = 10;
+
 export interface SyncOperation {
   id: string;
   userId: string;
@@ -123,8 +125,7 @@ export class SyncService extends EventEmitter {
 
       // Process local operations in batches
       if (this.syncQueue.length > 0) {
-        const batchSize = 10;
-        const operationsToSync = this.syncQueue.splice(0, batchSize);
+        const operationsToSync = this.syncQueue.splice(0, SYNC_BATCH_SIZE);
 
         // Send operations to server
         const results = await this.sendOperationsToServer(operationsToSync);

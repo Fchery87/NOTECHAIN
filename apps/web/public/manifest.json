@@ -11,16 +11,16 @@
   "lang": "en",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect x='16' y='16' width='160' height='160' rx='32' fill='%231c1917'/><rect x='48' y='48' width='42' height='42' rx='8' fill='%23f59e0b'/><rect x='102' y='48' width='42' height='42' rx='8' fill='%2357534e'/><rect x='48' y='102' width='42' height='42' rx='8' fill='%2357534e'/><rect x='102' y='102' width='42' height='42' rx='8' fill='%23f43f5e'/></svg>",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect x='48' y='48' width='416' height='416' rx='80' fill='%231c1917'/><rect x='128' y='128' width='112' height='112' rx='20' fill='%23f59e0b'/><rect x='272' y='128' width='112' height='112' rx='20' fill='%2357534e'/><rect x='128' y='272' width='112' height='112' rx='20' fill='%2357534e'/><rect x='272' y='272' width='112' height='112' rx='20' fill='%23f43f5e'/></svg>",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "categories": ["productivity", "utilities", "security"]

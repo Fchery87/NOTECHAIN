@@ -3,6 +3,10 @@
  * Prevents abuse and brute force attacks
  */
 
+export const RATE_LIMITER_CONFIG = {
+  CLEANUP_INTERVAL_MS: 60_000, // 1 minute
+} as const;
+
 export interface RateLimitConfig {
   maxRequests: number;
   windowMs: number;
@@ -40,7 +44,10 @@ export class RateLimiter {
     this.storage = new Map();
 
     // Cleanup expired entries every minute
-    this.cleanupIntervalId = setInterval(() => this.cleanup(), 60000);
+    this.cleanupIntervalId = setInterval(
+      () => this.cleanup(),
+      RATE_LIMITER_CONFIG.CLEANUP_INTERVAL_MS
+    );
   }
 
   /**
@@ -148,6 +155,8 @@ export class RateLimiter {
 
 /**
  * Pre-configured rate limiters for different use cases
+ * NOTE: These are global singletons. If you need per-request rate limiting,
+ * create new RateLimiter instances and call destroy() when done.
  */
 export const rateLimiters = {
   /**

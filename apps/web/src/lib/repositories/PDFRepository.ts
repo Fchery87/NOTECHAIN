@@ -2,24 +2,12 @@
 import { supabase, SupabaseClient } from '../supabaseClient';
 import { encryptData, decryptData } from '@notechain/core-crypto';
 import type { PDFDocument, PDFAnnotation, PDFSignature } from '@notechain/data-models';
+import { byteaToBase64, type EncryptedBlobRow } from './utils';
 
 /**
- * Database representation of an encrypted blob for PDFs
+ * PDF-specific blob row
  */
-interface PDFBlobRow {
-  id: string;
-  user_id: string;
-  blob_type: string;
-  ciphertext: string;
-  nonce: string;
-  auth_tag: string;
-  key_id: string;
-  metadata_hash: string;
-  version: number;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-}
+type PDFBlobRow = EncryptedBlobRow;
 
 /**
  * Repository for managing PDF documents with encryption
@@ -323,11 +311,12 @@ export class PDFRepository {
    */
   private async decryptPDF(row: PDFBlobRow): Promise<PDFDocument | null> {
     try {
+      // Convert BYTEA data (Uint8Array) to base64 strings
       const decrypted = await decryptData(
         {
-          ciphertext: row.ciphertext,
-          nonce: row.nonce,
-          authTag: row.auth_tag,
+          ciphertext: byteaToBase64(row.ciphertext),
+          nonce: byteaToBase64(row.nonce),
+          authTag: byteaToBase64(row.auth_tag),
         },
         this.encryptionKey
       );

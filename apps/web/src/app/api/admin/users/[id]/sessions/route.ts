@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { ApiErrors } from '@/lib/api/errors';
 
 /**
  * GET /api/admin/users/[id]/sessions
@@ -18,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ApiErrors.unauthorized();
     }
 
     // Check if user is admin
@@ -29,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .single();
 
     if (profileError || profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      return ApiErrors.adminRequired();
     }
 
     // Call the database function to get user sessions
@@ -38,13 +39,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
 
     if (sessionsError) {
-      console.error('[Admin User Sessions] Error:', sessionsError);
-      return NextResponse.json({ error: 'Failed to fetch user sessions' }, { status: 500 });
+      return ApiErrors.databaseError(sessionsError);
     }
 
     return NextResponse.json({ sessions: sessions || [] });
   } catch (error) {
-    console.error('[Admin User Sessions] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return ApiErrors.internalError(error);
   }
 }

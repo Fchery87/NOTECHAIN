@@ -8,19 +8,20 @@ import { SignJWT } from 'jose';
  * @throws Error if JWT_SECRET is not configured
  */
 function getJwtSecret(): Uint8Array {
-  const secret = process.env.NEXT_PUBLIC_JWT_SECRET;
+  const secret = process.env.JWT_SECRET;
 
   if (!secret) {
     throw new Error(
-      'NEXT_PUBLIC_JWT_SECRET environment variable is not configured. ' +
+      'JWT_SECRET environment variable is not configured. ' +
         'Please set a strong random secret (at least 32 characters) in your environment.'
     );
   }
 
   if (secret.length < 32) {
-    console.warn(
-      'Warning: JWT secret is shorter than recommended (32+ characters). ' +
-        'Consider using a longer secret for production.'
+    throw new Error(
+      'JWT_SECRET must be at least 32 characters for production. ' +
+        'Current length: ' +
+        secret.length
     );
   }
 

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { ApiErrors } from '@/lib/api/errors';
 
 /**
  * GET /api/admin/analytics/growth
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return ApiErrors.unauthorized();
     }
 
     // Check if user is admin
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (profileError || profile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      return ApiErrors.adminRequired();
     }
 
     // Parse query parameters
@@ -43,13 +44,11 @@ export async function GET(request: NextRequest) {
     });
 
     if (growthError) {
-      console.error('[Admin Growth Analytics] Error:', growthError);
-      return NextResponse.json({ error: 'Failed to fetch growth data' }, { status: 500 });
+      return ApiErrors.databaseError(growthError);
     }
 
     return NextResponse.json({ growth: growth || [] });
   } catch (error) {
-    console.error('[Admin Growth Analytics] Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return ApiErrors.internalError(error);
   }
 }

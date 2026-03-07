@@ -84,6 +84,12 @@ export function useNotesSync() {
 
       const notes: Note[] = [];
       for (const raw of rawNotes) {
+        // Skip deleted notes
+        if (raw.operationType === 'delete') {
+          console.log(`[useNotesSync] Skipping deleted note ${raw.entityId}`);
+          continue;
+        }
+
         try {
           const decrypted = (await encryptedSyncService.decrypt(
             raw.encryptedPayload
@@ -98,7 +104,29 @@ export function useNotesSync() {
           // Track version for subsequent updates
           versionRef.current[raw.entityId] = raw.version;
         } catch (decryptErr) {
-          console.error(`[useNotesSync] Failed to decrypt note ${raw.entityId}:`, decryptErr);
+          const errorMessage =
+            decryptErr instanceof Error ? decryptErr.message : String(decryptErr);
+
+          // Check if this is a key mismatch issue
+          if (errorMessage.includes('invalid key')) {
+            console.warn(
+              `[useNotesSync] Key mismatch for note ${raw.entityId}. ` +
+                `This note was encrypted with a different key. ` +
+                `Possible causes: cleared browser data, new device, or reinstalled app.`
+            );
+            // Add a "locked" note placeholder so user knows it exists but can't be read
+            notes.push({
+              id: raw.entityId,
+              title: '🔒 Encrypted Note (Key Mismatch)',
+              content:
+                'This note cannot be decrypted with the current encryption key. ' +
+                'It may have been created on a different device or before a key reset.',
+              updatedAt: new Date(),
+              version: raw.version,
+            });
+          } else {
+            console.error(`[useNotesSync] Failed to decrypt note ${raw.entityId}:`, decryptErr);
+          }
         }
       }
 
@@ -122,47 +150,58 @@ export function useNotesSync() {
       noteId: string,
       noteData?: SyncNoteOperation
     ): Promise<void> => {
-      if (!syncService || !isInitialized) {
-        console.warn('Sync service not available, queuing for later');
-        if (noteData) {
-          await offlineQueue.enqueue({
-            id: uuidv4(),
-            userId: '',
-            sessionId: '',
-            operationType,
-            entityType: 'note',
-            entityId: noteId,
-            encryptedPayload: await encryptedSyncService.encrypt(noteData),
-            timestamp: Date.now(),
-            version: noteData.version,
-          });
-        }
-        return;
-      }
+      const version = noteData?.version || 1;
 
-      if (!isEncryptionReady) {
-        console.warn('Encryption not ready, queuing for later');
-        if (noteData) {
-          await offlineQueue.enqueue({
-            id: uuidv4(),
-            userId: '',
-            sessionId: '',
-            operationType,
-            entityType: 'note',
-            entityId: noteId,
-            encryptedPayload: JSON.stringify(noteData),
-            timestamp: Date.now(),
-            version: noteData.version,
-          });
+      // Handle offline queue for all operations including deletions
+      if (!syncService || !isInitialized || !isEncryptionReady) {
+        console.warn(
+          `[useNotesSync] ${!syncService || !isInitialized ? 'Sync service not available' : 'Encryption not ready'}, queuing ${operationType} for later`
+        );
+
+        let encryptedPayload: string;
+        if (operationType === 'delete') {
+          // For deletions, use a special marker that won't be decrypted
+          encryptedPayload = 'DELETE_OPERATION';
+        } else if (noteData && isEncryptionReady) {
+          encryptedPayload = await encryptedSyncService.encrypt(noteData);
+        } else if (noteData) {
+          encryptedPayload = JSON.stringify(noteData);
+        } else {
+          console.error(`[useNotesSync] Cannot queue ${operationType} - no data available`);
+          return;
         }
+
+        await offlineQueue.enqueue({
+          id: uuidv4(),
+          userId: user?.id || '',
+          sessionId: '',
+          operationType,
+          entityType: 'note',
+          entityId: noteId,
+          encryptedPayload,
+          timestamp: Date.now(),
+          version,
+        });
         return;
       }
 
       try {
-        const version = noteData?.version || 1;
-        const encryptedPayload = noteData
-          ? await encryptedSyncService.encrypt(noteData)
-          : 'deleted:nonce:authTag';
+        let encryptedPayload: string;
+
+        if (operationType === 'delete') {
+          // For deletions, create a minimal encrypted payload
+          // We encrypt a deletion marker instead of using placeholder text
+          const deletionMarker = {
+            id: noteId,
+            deleted: true,
+            deletedAt: new Date().toISOString(),
+          };
+          encryptedPayload = await encryptedSyncService.encrypt(deletionMarker as any);
+        } else if (noteData) {
+          encryptedPayload = await encryptedSyncService.encrypt(noteData);
+        } else {
+          throw new Error(`Cannot sync ${operationType} - no data available`);
+        }
 
         await syncService.enqueueOperation({
           operationType,
@@ -172,23 +211,32 @@ export function useNotesSync() {
           version,
         });
       } catch (_error) {
-        console.error('Failed to sync note:', _error);
-        if (noteData) {
-          await offlineQueue.enqueue({
-            id: uuidv4(),
-            userId: '',
-            sessionId: '',
-            operationType,
-            entityType: 'note',
-            entityId: noteId,
-            encryptedPayload: await encryptedSyncService.encrypt(noteData),
-            timestamp: Date.now(),
-            version: noteData.version,
-          });
+        console.error(`[useNotesSync] Failed to sync ${operationType}:`, _error);
+
+        // Queue for retry on error
+        let encryptedPayload: string;
+        if (operationType === 'delete') {
+          encryptedPayload = 'DELETE_OPERATION';
+        } else if (noteData) {
+          encryptedPayload = await encryptedSyncService.encrypt(noteData);
+        } else {
+          return;
         }
+
+        await offlineQueue.enqueue({
+          id: uuidv4(),
+          userId: user?.id || '',
+          sessionId: '',
+          operationType,
+          entityType: 'note',
+          entityId: noteId,
+          encryptedPayload,
+          timestamp: Date.now(),
+          version,
+        });
       }
     },
-    [syncService, isInitialized, isEncryptionReady]
+    [syncService, isInitialized, isEncryptionReady, user?.id]
   );
 
   /**
@@ -266,12 +314,52 @@ export function useNotesSync() {
     }
   }, [syncService, isInitialized, isEncryptionReady]);
 
+  /**
+   * Permanently delete locked/undecryptable notes from Supabase
+   * @param noteIds Array of note IDs to delete
+   * @returns Success status and error message if failed
+   */
+  const deleteLockedNotes = useCallback(
+    async (noteIds: string[]): Promise<{ success: boolean; error?: string }> => {
+      if (!user?.id) {
+        console.warn('[useNotesSync] No user ID available for deleting locked notes');
+        return { success: false, error: 'No user ID' };
+      }
+
+      if (noteIds.length === 0) {
+        return { success: true };
+      }
+
+      const adapter = getAdapter();
+      if (!adapter.isReady()) {
+        console.warn('[useNotesSync] Adapter not ready for deleting locked notes');
+        return { success: false, error: 'Adapter not initialized' };
+      }
+
+      try {
+        const result = await adapter.deleteNotesByEntityIds(user.id, noteIds);
+        if (result.success) {
+          console.log(`[useNotesSync] Successfully deleted ${noteIds.length} locked notes`);
+        } else {
+          console.error('[useNotesSync] Failed to delete locked notes:', result.error);
+        }
+        return result;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('[useNotesSync] Exception deleting locked notes:', errorMessage);
+        return { success: false, error: errorMessage };
+      }
+    },
+    [user?.id, getAdapter]
+  );
+
   return {
     loadNotes,
     syncCreateNote,
     syncUpdateNote,
     syncDeleteNote,
     processOfflineQueue,
+    deleteLockedNotes,
     isSyncEnabled: isInitialized && !!syncService,
     isEncryptionReady,
     isLoading,

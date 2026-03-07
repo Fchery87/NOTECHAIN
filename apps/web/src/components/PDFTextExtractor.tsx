@@ -3,6 +3,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { OCRService } from '@/lib/ocr';
 
+// Button class constants for consistency
+const BUTTON_BASE =
+  'inline-flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-colors';
+const BUTTON_SECONDARY = `${BUTTON_BASE} bg-stone-100 text-stone-700 hover:bg-stone-200`;
+const BUTTON_PRIMARY = `${BUTTON_BASE} bg-stone-900 text-stone-50 hover:bg-stone-800`;
+
 export interface ExtractedPage {
   pageNumber: number;
   text: string;
@@ -466,15 +472,7 @@ export function PDFTextExtractor({
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleCopyText}
-                      className="
-                        inline-flex items-center gap-2 px-4 py-2
-                        bg-stone-100 text-stone-700 font-medium rounded-lg
-                        hover:bg-stone-200 transition-colors
-                      "
-                    >
+                    <button type="button" onClick={handleCopyText} className={BUTTON_SECONDARY}>
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -492,15 +490,7 @@ export function PDFTextExtractor({
                     </button>
 
                     {extractedPages.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={handleCopyAll}
-                        className="
-                          inline-flex items-center gap-2 px-4 py-2
-                          bg-stone-100 text-stone-700 font-medium rounded-lg
-                          hover:bg-stone-200 transition-colors
-                        "
-                      >
+                      <button type="button" onClick={handleCopyAll} className={BUTTON_SECONDARY}>
                         <svg
                           className="w-4 h-4"
                           fill="none"
@@ -519,15 +509,7 @@ export function PDFTextExtractor({
                     )}
 
                     {onTextExtracted && (
-                      <button
-                        type="button"
-                        onClick={handleSaveToNote}
-                        className="
-                          inline-flex items-center gap-2 px-4 py-2
-                          bg-stone-900 text-stone-50 font-medium rounded-lg
-                          hover:bg-stone-800 transition-colors
-                        "
-                      >
+                      <button type="button" onClick={handleSaveToNote} className={BUTTON_PRIMARY}>
                         <svg
                           className="w-4 h-4"
                           fill="none"

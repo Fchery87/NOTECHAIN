@@ -3,6 +3,38 @@ import { createClient, isSupabaseConfigured } from './client';
 import type { SyncRepositoryAdapter, SyncOperation } from '@notechain/sync-engine';
 
 /**
+ * Browser-compatible base64 to Uint8Array
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Browser-compatible Uint8Array to hex string
+ */
+function uint8ArrayToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Browser-compatible Uint8Array to base64 string
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
  * Parse encrypted payload from sync operation
  * Expected format: base64(ciphertext):base64(nonce):base64(authTag)
  */
@@ -17,9 +49,9 @@ function parseEncryptedPayload(payload: string): {
   }
 
   return {
-    ciphertext: Uint8Array.from(Buffer.from(parts[0], 'base64')),
-    nonce: Uint8Array.from(Buffer.from(parts[1], 'base64')),
-    authTag: Uint8Array.from(Buffer.from(parts[2], 'base64')),
+    ciphertext: base64ToUint8Array(parts[0]),
+    nonce: base64ToUint8Array(parts[1]),
+    authTag: base64ToUint8Array(parts[2]),
   };
 }
 
@@ -90,11 +122,11 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
           p_operation_type: op.operationType,
           p_version: op.version,
           p_session_id: op.sessionId,
-          p_ciphertext: `\\x${Buffer.from(ciphertext).toString('hex')}`,
-          p_nonce: `\\x${Buffer.from(nonce).toString('hex')}`,
-          p_auth_tag: `\\x${Buffer.from(authTag).toString('hex')}`,
+          p_ciphertext: `\\x${uint8ArrayToHex(ciphertext)}`,
+          p_nonce: `\\x${uint8ArrayToHex(nonce)}`,
+          p_auth_tag: `\\x${uint8ArrayToHex(authTag)}`,
           p_key_id: '00000000-0000-0000-0000-000000000000', // Placeholder - should come from op
-          p_metadata_hash: `\\x${Buffer.from(new Uint8Array(32)).toString('hex')}`, // Placeholder - should be computed
+          p_metadata_hash: `\\x${uint8ArrayToHex(new Uint8Array(32))}`, // Placeholder - should be computed
         });
 
         if (error) {
@@ -183,7 +215,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .select('entity_id, encrypted_payload, version, operation_type, is_deleted')
       .eq('user_id', userId)
       .eq('entity_type', 'note')
-      .or('is_deleted.is.null,is_deleted.eq.false')
+      .eq('is_deleted', false)
       .order('version', { ascending: false });
 
     if (error) {
@@ -246,6 +278,43 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
   }
 
   /**
+   * Permanently delete notes from Supabase by entity IDs
+   * This is for cleanup of undecryptable/locked notes
+   */
+  async deleteNotesByEntityIds(
+    userId: string,
+    entityIds: string[]
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot delete notes - client not initialized');
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    if (entityIds.length === 0) {
+      return { success: true };
+    }
+
+    try {
+      const { error } = await this.supabase
+        .from('sync_operations')
+        .delete()
+        .eq('user_id', userId)
+        .in('entity_id', entityIds);
+
+      if (error) {
+        console.error('[SupabaseSyncAdapter] Error deleting notes:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[SupabaseSyncAdapter] Exception deleting notes:', errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Subscribe to real-time changes
    */
   subscribeToChanges(userId: string, onChange: (operation: SyncOperation) => void): () => void {
@@ -274,7 +343,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
               operationType: row.operation_type,
               entityType: row.blob_type,
               entityId: row.blob_uuid,
-              encryptedPayload: `${Buffer.from(row.ciphertext).toString('base64')}:${Buffer.from(row.nonce).toString('base64')}:${Buffer.from(row.auth_tag).toString('base64')}`,
+              encryptedPayload: `${uint8ArrayToBase64(row.ciphertext)}:${uint8ArrayToBase64(row.nonce)}:${uint8ArrayToBase64(row.auth_tag)}`,
               timestamp: new Date(row.created_at).getTime(),
               version: row.version,
             });

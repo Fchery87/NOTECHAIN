@@ -26,6 +26,7 @@ export default function NotesPage() {
     syncCreateNote,
     syncUpdateNote,
     syncDeleteNote,
+    deleteLockedNotes,
     isSyncEnabled,
     isEncryptionReady,
     isLoading,
@@ -41,6 +42,10 @@ export default function NotesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
+  // Locked notes state
+  const [lockedNoteIds, setLockedNoteIds] = useState<Set<string>>(new Set());
+  const [showLockedNotes, setShowLockedNotes] = useState(false);
+
   const currentUser = {
     id: user?.id || 'user-1',
     displayName: user?.email?.split('@')[0] || 'You',
@@ -53,15 +58,39 @@ export default function NotesPage() {
 
     const load = async () => {
       const loaded = await loadNotes();
-      const mapped: Note[] = loaded.map(n => ({
-        ...n,
-        ownerId: user?.id || '',
-        ownerName: currentUser.displayName,
-        collaborators: [],
-      }));
-      setNotes(mapped);
-      if (mapped.length > 0) {
-        setSelectedNoteId(mapped[0].id);
+
+      // Identify locked notes (those with key mismatch placeholder)
+      const lockedIds = new Set<string>();
+      const normalNotes: Note[] = [];
+
+      for (const n of loaded) {
+        if (n.title === '🔒 Encrypted Note (Key Mismatch)') {
+          lockedIds.add(n.id);
+          normalNotes.push({
+            ...n,
+            ownerId: user?.id || '',
+            ownerName: currentUser.displayName,
+            collaborators: [],
+          });
+        } else {
+          normalNotes.push({
+            ...n,
+            ownerId: user?.id || '',
+            ownerName: currentUser.displayName,
+            collaborators: [],
+          });
+        }
+      }
+
+      setLockedNoteIds(lockedIds);
+      setNotes(normalNotes);
+
+      // Select first normal note, or first locked if all locked
+      const firstNormal = normalNotes.find(n => !lockedIds.has(n.id));
+      if (firstNormal) {
+        setSelectedNoteId(firstNormal.id);
+      } else if (normalNotes.length > 0) {
+        setSelectedNoteId(normalNotes[0].id);
       }
       setHasLoaded(true);
     };
@@ -210,6 +239,34 @@ export default function NotesPage() {
     setIsMultiSelectMode(false);
   }, []);
 
+  // Delete all locked/undecryptable notes
+  const handleDeleteLockedNotes = useCallback(async () => {
+    if (lockedNoteIds.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${lockedNoteIds.size} locked note${lockedNoteIds.size > 1 ? 's' : ''} from the database?\n\n` +
+        'These notes cannot be decrypted with your current encryption key. ' +
+        'They will be permanently removed.'
+    );
+    if (!confirmed) return;
+
+    const idsToDelete = Array.from(lockedNoteIds);
+    const result = await deleteLockedNotes(idsToDelete);
+
+    if (result.success) {
+      // Remove locked notes from local state
+      setNotes(prev => prev.filter(n => !lockedNoteIds.has(n.id)));
+      setLockedNoteIds(new Set());
+      setShowLockedNotes(false);
+      if (selectedNoteId && lockedNoteIds.has(selectedNoteId)) {
+        const remaining = notes.filter(n => !lockedNoteIds.has(n.id));
+        setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+      }
+    } else {
+      alert(`Failed to delete locked notes: ${result.error || 'Unknown error'}`);
+    }
+  }, [lockedNoteIds, deleteLockedNotes, selectedNoteId, notes]);
+
   const handleShare = useCallback(() => {
     setShowShareDialog(true);
   }, []);
@@ -222,6 +279,35 @@ export default function NotesPage() {
 
   const headerActions = (
     <div className="flex items-center gap-2">
+      {lockedNoteIds.size > 0 && (
+        <button
+          onClick={() => setShowLockedNotes(!showLockedNotes)}
+          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+            showLockedNotes
+              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+          }`}
+          title={`${lockedNoteIds.size} locked note${lockedNoteIds.size > 1 ? 's' : ''} found`}
+        >
+          <span className="flex items-center gap-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            {lockedNoteIds.size} Locked
+          </span>
+        </button>
+      )}
       {notes.length > 0 && (
         <button
           onClick={() => {
@@ -285,6 +371,44 @@ export default function NotesPage() {
                   />
                 )}
               </div>
+
+              {/* Locked Notes Management Section */}
+              {showLockedNotes && lockedNoteIds.size > 0 && (
+                <div className="p-4 border-b border-stone-200 bg-amber-50/50">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-amber-600"
+                      >
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
+                      <span className="text-sm font-medium text-stone-700">
+                        {lockedNoteIds.size} locked note{lockedNoteIds.size > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleDeleteLockedNotes}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      Delete All
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-stone-500">
+                    These notes were encrypted with a different key and cannot be decrypted.
+                  </p>
+                </div>
+              )}
+
               <div className="max-h-[600px] overflow-y-auto">
                 {isLoading ? (
                   <div className="p-8 text-center">

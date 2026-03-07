@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * Auth callback handler for PKCE flow
@@ -96,7 +97,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error('[Auth Callback] Error exchanging code:', error);
+      logger.error('Auth callback: Error exchanging code', { error });
       return new NextResponse(
         `<!DOCTYPE html>
         <html lang="en">
@@ -197,7 +198,9 @@ export async function GET(request: Request) {
             }
           );
         } catch (profileError) {
-          console.error('[Auth Callback] Error creating/updating user profile:', profileError);
+          logger.error('Auth callback: Error creating/updating user profile', {
+            error: profileError,
+          });
           // Don't fail the auth flow if profile creation fails
         }
       }
@@ -206,7 +209,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${redirect}`);
     }
   } catch (err) {
-    console.error('[Auth Callback] Unexpected error:', err);
+    logger.error('Auth callback: Unexpected error', { error: err });
     return new NextResponse(
       `<!DOCTYPE html>
       <html lang="en">

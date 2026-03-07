@@ -1,6 +1,18 @@
 import { PDFDocument } from 'pdf-lib';
 
 /**
+ * Browser-compatible base64 to Uint8Array
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
  * Signature configuration
  */
 export interface SignatureConfig {
@@ -174,7 +186,7 @@ export class SignatureStorageService {
   static canvasToImage(canvas: HTMLCanvasElement): Uint8Array {
     const dataUrl = canvas.toDataURL('image/png');
     const base64 = dataUrl.split(',')[1];
-    return Uint8Array.from(Buffer.from(base64, 'base64'));
+    return base64ToUint8Array(base64);
   }
 
   /**

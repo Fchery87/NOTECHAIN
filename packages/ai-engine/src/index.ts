@@ -8,6 +8,9 @@
 export { LocalLLM } from './llm/LocalLLM';
 export { EmbeddingService } from './embeddings/EmbeddingService';
 
+// Constants
+export { STOP_WORDS, NLP_CONFIG } from './constants';
+
 // RAG (Retrieval-Augmented Generation) exports
 export {
   // Core RAG classes

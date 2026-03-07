@@ -1,5 +1,5 @@
 // apps/web/src/lib/repositories/__tests__/AnalyticsRepository.test.ts
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AnalyticsRepository, createAnalyticsRepository } from '../AnalyticsRepository';
 
 // Mock encryption functions
@@ -9,14 +9,14 @@ const mockEncryptionKey = new Uint8Array(32);
 const createMockChain = () => {
   const chain: Record<string, any> = {};
 
-  chain.select = mock(() => chain);
-  chain.eq = mock(() => chain);
-  chain.in = mock(() => chain);
-  chain.gte = mock(() => chain);
-  chain.lte = mock(() => chain);
-  chain.order = mock(() => chain);
-  chain.single = mock(async () => ({ data: null, error: null }));
-  chain.maybeSingle = mock(async () => ({ data: null, error: null }));
+  chain.select = vi.fn(() => chain);
+  chain.eq = vi.fn(() => chain);
+  chain.in = vi.fn(() => chain);
+  chain.gte = vi.fn(() => chain);
+  chain.lte = vi.fn(() => chain);
+  chain.order = vi.fn(() => chain);
+  chain.single = vi.fn(async () => ({ data: null, error: null }));
+  chain.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
 
   // Final resolver - this should resolve the chain
   let resolver: (value: any) => void;
@@ -36,9 +36,23 @@ const createMockChain = () => {
   return chain;
 };
 
-// Mock decryptData to return the "encrypted" data (for testing purposes)
-mock.module('@notechain/core-crypto', () => ({
-  decryptData: mock(async (data: any) => data.ciphertext),
+// Mock decryptData to return valid test data with proper nonce/authTag
+const TEST_NONCE = 'AAAAAAAAAAAAAAAAAAAAAAAAAAA'; // 24 bytes base64 (16 zero bytes)
+const TEST_AUTH_TAG = 'BBBBBBBBBBBBBBBBBBBB'; // 16 bytes base64 (16 zero bytes)
+
+vi.mock('@notechain/core-crypto', () => ({
+  decryptData: vi.fn(async (data: any) => {
+    // Return the data structure decryptData expects with all fields
+    if (data.ciphertext && data.nonce && data.authTag) {
+      return data;
+    }
+    // Return mock test data for tests that don't provide all fields
+    return {
+      ciphertext: data.ciphertext || 'mock-ciphertext',
+      nonce: data.nonce || TEST_NONCE,
+      authTag: data.authTag || TEST_AUTH_TAG,
+    };
+  }),
 }));
 
 describe('AnalyticsRepository', () => {
@@ -48,7 +62,7 @@ describe('AnalyticsRepository', () => {
 
   beforeEach(() => {
     mockChain = createMockChain();
-    mockFrom = mock(() => mockChain);
+    mockFrom = vi.fn(() => mockChain);
 
     const mockSupabase = { from: mockFrom };
     repository = new AnalyticsRepository('test-user', mockEncryptionKey, mockSupabase as any);
