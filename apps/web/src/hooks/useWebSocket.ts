@@ -65,17 +65,20 @@ export interface UseWebSocketReturn {
 
 /**
  * Generate a short-lived one-time token for WebSocket authentication
- * In production, this would call an API endpoint to get a time-limited token
+ * Fetches a time-limited token from the API endpoint
  */
-async function getOneTimeToken(jwtToken: string): Promise<string> {
-  // In a real implementation, this would call an API endpoint like:
-  // const response = await fetch('/api/auth/ws-token', {
-  //   headers: { Authorization: `Bearer ${jwtToken}` }
-  // });
-  // return response.json().token;
+async function getOneTimeToken(): Promise<string> {
+  const response = await fetch('/api/auth/websocket-token', {
+    method: 'POST',
+    credentials: 'include',
+  });
 
-  // For now, we use the JWT directly but send it via message, not URL
-  return jwtToken;
+  if (!response.ok) {
+    throw new Error('Failed to get WebSocket token');
+  }
+
+  const { token } = await response.json();
+  return token;
 }
 
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
@@ -190,8 +193,8 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     log('Authenticating...');
 
     try {
-      // Get a one-time token for WebSocket authentication
-      const oneTimeToken = await getOneTimeToken(token);
+      // Get a one-time token for WebSocket authentication from the API endpoint
+      const oneTimeToken = await getOneTimeToken();
 
       // Send authentication message
       if (socketRef.current?.readyState === WebSocket.OPEN) {
