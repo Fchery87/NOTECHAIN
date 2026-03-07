@@ -37,6 +37,7 @@
     "cytoscape": "^3.33.1",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
+    "ioredis": "^5.10.0",
     "jose": "^6.0.10",
     "next": "^15.1.6",
     "pdf-lib": "^1.17.1",

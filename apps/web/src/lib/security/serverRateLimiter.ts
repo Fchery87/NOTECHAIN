@@ -2,12 +2,13 @@
  * Server-Side Rate Limiting Implementation
  *
  * This module provides rate limiting for server-side operations (middleware, API routes).
- * It uses an in-memory store by default, but can be extended to use Redis or database.
+ * It uses a hybrid store with Redis backing for production and automatic memory fallback.
  *
  * @see https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { HybridStore } from './RedisRateLimiter';
 
 /**
  * Rate limit configuration
@@ -28,7 +29,7 @@ export interface ServerRateLimitConfig {
 }
 
 /**
- * Rate limit state stored in memory
+ * Rate limit state stored in memory (legacy interface for backward compatibility)
  */
 interface RateLimitEntry {
   count: number;
@@ -36,72 +37,8 @@ interface RateLimitEntry {
   firstRequest: number;
 }
 
-/**
- * In-memory store for rate limit state
- * Note: In production with multiple instances, use Redis or database
- */
-class MemoryStore {
-  private store: Map<string, RateLimitEntry> = new Map();
-  private cleanupInterval: NodeJS.Timeout | null = null;
-
-  constructor() {
-    // Cleanup expired entries every minute
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
-  }
-
-  get(key: string): RateLimitEntry | undefined {
-    return this.store.get(key);
-  }
-
-  set(key: string, value: RateLimitEntry): void {
-    this.store.set(key, value);
-  }
-
-  delete(key: string): void {
-    this.store.delete(key);
-  }
-
-  increment(key: string, windowMs: number): { count: number; resetTime: number } {
-    const now = Date.now();
-    let entry = this.store.get(key);
-
-    if (!entry || now > entry.resetTime) {
-      entry = {
-        count: 1,
-        resetTime: now + windowMs,
-        firstRequest: now,
-      };
-      this.store.set(key, entry);
-      return { count: 1, resetTime: entry.resetTime };
-    }
-
-    entry.count++;
-    return { count: entry.count, resetTime: entry.resetTime };
-  }
-
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.store.entries()) {
-      if (now > entry.resetTime) {
-        this.store.delete(key);
-      }
-    }
-  }
-
-  /**
-   * Cleanup on shutdown
-   */
-  destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
-    this.store.clear();
-  }
-}
-
-// Global store instance
-const globalStore = new MemoryStore();
+// Global store instance with Redis backing and automatic memory fallback
+const globalStore = new HybridStore(process.env.REDIS_URL);
 
 /**
  * Extract client identifier from request
@@ -277,8 +214,8 @@ export function withRateLimit(
 /**
  * Cleanup function for graceful shutdown
  */
-export function cleanupRateLimiter(): void {
-  globalStore.destroy();
+export async function cleanupRateLimiter(): Promise<void> {
+  await globalStore.close();
 }
 
 export default {
