@@ -257,6 +257,15 @@ const mockAssign: Record<string, unknown> = {
   navigator: navigatorMock,
   atob: (str: string) => Buffer.from(str, 'base64').toString('binary'),
   btoa: (str: string) => Buffer.from(str, 'binary').toString('base64'),
+  // Ensure TextEncoder creates Uint8Arrays from the correct global scope
+  // This fixes jose library's instanceof Uint8Array checks in test environment
+  TextEncoder: class extends globalThis.TextEncoder {
+    encode(input?: string): Uint8Array {
+      const result = super.encode(input);
+      return new globalThis.Uint8Array(result);
+    }
+  },
+  TextDecoder: globalThis.TextDecoder,
 };
 
 // Only include crypto if it's writable

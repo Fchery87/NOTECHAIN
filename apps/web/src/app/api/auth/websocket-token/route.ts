@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const secretKey = Buffer.from(process.env.JWT_SECRET!);
+    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET!);
 
     const token = await new SignJWT({
       sub: user.id,
