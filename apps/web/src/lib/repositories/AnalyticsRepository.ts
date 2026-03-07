@@ -56,13 +56,11 @@ export class AnalyticsRepository {
 
     if (error) throw error;
 
-    const todos: Todo[] = [];
-    for (const row of data || []) {
-      const todo = await this.decryptTodo(row as BlobRow);
-      if (todo) todos.push(todo);
-    }
+    const decryptedTodos = await Promise.all(
+      (data || []).map(row => this.decryptTodo(row as BlobRow))
+    );
 
-    return todos;
+    return decryptedTodos.filter((t): t is Todo => t !== null);
   }
 
   /**
@@ -81,13 +79,11 @@ export class AnalyticsRepository {
 
     if (error) throw error;
 
-    const notes: Note[] = [];
-    for (const row of data || []) {
-      const note = await this.decryptNote(row as BlobRow);
-      if (note) notes.push(note);
-    }
+    const decryptedNotes = await Promise.all(
+      (data || []).map(row => this.decryptNote(row as BlobRow))
+    );
 
-    return notes;
+    return decryptedNotes.filter((n): n is Note => n !== null);
   }
 
   /**
