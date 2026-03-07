@@ -2,6 +2,15 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { generateNonce, getSecurityHeadersWithNonce } from './lib/security/csp';
 
+/**
+ * Next.js Middleware
+ *
+ * Note: The "middleware" convention is deprecated in Next.js 16.
+ * It will be replaced by "proxy" in a future update.
+ * For now, we continue using middleware as the proxy API is still experimental.
+ *
+ * @see https://nextjs.org/docs/messages/middleware-to-proxy
+ */
 export async function middleware(request: NextRequest) {
   // Generate nonce for this request
   const nonce = generateNonce();
