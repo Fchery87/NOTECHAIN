@@ -72,7 +72,6 @@ describe('VersionManager storage limits', () => {
       // Mock the localStorage.setItem that VersionManager actually uses
       const originalSetItem = (globalThis as any).localStorage.setItem;
       let callCount = 0;
-      const didPrune = false;
 
       (globalThis as any).localStorage.setItem = vi.fn((key: string, value: string) => {
         callCount++;

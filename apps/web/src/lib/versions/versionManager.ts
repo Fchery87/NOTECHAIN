@@ -205,6 +205,8 @@ export class VersionManager {
   private autoSaveTimers: Map<string, NodeJS.Timeout> = new Map();
   private pendingVersions: Map<string, { content: string; timestamp: number }> = new Map();
   private subscribers: Set<(version: Version) => void> = new Set();
+  private readonly PRUNE_RATIO = 0.5;
+  private readonly MAX_RETRIES = 3;
 
   constructor(config: VersionManagerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -680,10 +682,10 @@ export class VersionManager {
           console.warn(
             `Storage size (${(dataSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_SIZE / 1024 / 1024}MB limit. Pruning oldest versions...`
           );
-          this.pruneOldestVersions(0.5);
+          this.pruneOldestVersions(this.PRUNE_RATIO);
 
-          // Retry after pruning (max 3 retries)
-          if (retryCount < 3) {
+          // Retry after pruning (max MAX_RETRIES retries)
+          if (retryCount < this.MAX_RETRIES) {
             return attemptSave(retryCount + 1);
           }
           return false;
@@ -695,10 +697,10 @@ export class VersionManager {
         // Handle QuotaExceededError
         if (error instanceof DOMException && error.name === 'QuotaExceededError') {
           console.warn('localStorage quota exceeded. Pruning oldest versions and retrying...');
-          this.pruneOldestVersions(0.5);
+          this.pruneOldestVersions(this.PRUNE_RATIO);
 
-          // Retry after pruning (max 3 retries)
-          if (retryCount < 3) {
+          // Retry after pruning (max MAX_RETRIES retries)
+          if (retryCount < this.MAX_RETRIES) {
             return attemptSave(retryCount + 1);
           }
           return false;
