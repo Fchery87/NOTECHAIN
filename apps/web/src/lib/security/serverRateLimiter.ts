@@ -87,7 +87,7 @@ export function createRateLimiter(config: ServerRateLimitConfig) {
     const clientId = getClientIdentifier(req);
     const key = `${keyPrefix}${clientId}`;
 
-    const { count, resetTime } = globalStore.increment(key, windowMs);
+    const { count, resetTime } = await globalStore.increment(key, windowMs);
     const remaining = Math.max(0, maxRequests - count);
     const isLimited = count > maxRequests;
 
