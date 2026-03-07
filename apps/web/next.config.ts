@@ -22,9 +22,47 @@ const nextConfig: NextConfig = {
   },
   // Turbopack configuration (Next.js 16 default)
   turbopack: {
-    // Rules for module resolution
+    // Module resolution rules
     rules: {
       // Add any Turbopack-specific rules here
+    },
+    // Optimization configuration (replaces webpack splitChunks)
+    optimization: {
+      // Enable tree shaking
+      treeShaking: true,
+      // Module splitting configuration
+      splitChunks: {
+        // Vendor chunks for node_modules
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+            priority: 10,
+          },
+          // AI features chunk
+          ai: {
+            test: /[\\/](ai|intelligence)[\\/]/i,
+            name: 'ai-features',
+            chunks: 'async',
+            priority: 20,
+          },
+          // Editor chunk
+          editor: {
+            test: /[\\/](tiptap|editor)[\\/]/i,
+            name: 'editor',
+            chunks: 'async',
+            priority: 20,
+          },
+          // PDF chunk
+          pdf: {
+            test: /[\\/](pdf|pdf-lib)[\\/]/i,
+            name: 'pdf-features',
+            chunks: 'async',
+            priority: 20,
+          },
+        },
+      },
     },
   },
 
