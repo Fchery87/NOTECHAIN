@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { SignJWT } from 'jose';
 
 export async function POST(req: NextRequest) {
+  // Validate JWT_SECRET exists
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET environment variable is not set');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
     const supabase = await createClient();
 
