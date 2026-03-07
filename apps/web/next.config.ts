@@ -17,14 +17,21 @@ const nextConfig: NextConfig = {
     NEON_PRIVATE_KEY: process.env.NEON_PRIVATE_KEY,
   },
   transpilePackages: ['@notechain/ui-components'],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Bundle optimization
-  webpack: (config, { isServer, nextRuntime }) => {
+  // Turbopack configuration (Next.js 16 default)
+  // Note: Turbopack has different optimization options than webpack
+  // For now, using default Turbopack optimizations
+  turbopack: {
+    // Module resolution rules can be added here
+    rules: {
+      // Add any Turbopack-specific rules here
+    },
+  },
+
+  // Webpack fallback for custom optimizations
+  webpack: (config, { isServer }) => {
     // Optimize bundle size
     if (!isServer) {
       // Split chunks for better caching

@@ -1,46 +1,22 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { applyRateLimit } from './lib/security/serverRateLimiter';
 import { generateNonce, getSecurityHeadersWithNonce } from './lib/security/csp';
 
+/**
+ * Next.js Middleware
+ *
+ * Note: The "middleware" convention is deprecated in Next.js 16.
+ * It will be replaced by "proxy" in a future update.
+ * For now, we continue using middleware as the proxy API is still experimental.
+ *
+ * @see https://nextjs.org/docs/messages/middleware-to-proxy
+ */
 export async function middleware(request: NextRequest) {
   // Generate nonce for this request
   const nonce = generateNonce();
 
   // Determine environment
   const isDevelopment = process.env.NODE_ENV === 'development';
-
-  // Apply rate limiting for API routes
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Use stricter rate limiting for auth endpoints
-    if (request.nextUrl.pathname.includes('/auth/')) {
-      const rateLimitResponse = await applyRateLimit(request, 'auth');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Use password reset rate limiting for password reset endpoints
-    else if (request.nextUrl.pathname.includes('/reset-password')) {
-      const rateLimitResponse = await applyRateLimit(request, 'passwordReset');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Use search rate limiting for search endpoints
-    else if (request.nextUrl.pathname.includes('/search')) {
-      const rateLimitResponse = await applyRateLimit(request, 'search');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Standard API rate limiting for all other API routes
-    else {
-      const rateLimitResponse = await applyRateLimit(request, 'api');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-  }
 
   let response = NextResponse.next({
     request: {

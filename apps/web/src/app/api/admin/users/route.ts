@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/api/errors';
 import { PAGINATION, VALIDATION } from '@/lib/constants';
 import { createTimeoutMiddleware } from '@/lib/api/withTimeout';
+import { withRateLimit } from '@/lib/security/serverRateLimiter';
 
 /**
  * Sanitize search input to prevent SQL injection
@@ -14,7 +15,7 @@ import { createTimeoutMiddleware } from '@/lib/api/withTimeout';
  * @param input - Raw search input string
  * @returns Sanitized string safe for ILIKE queries
  */
-export function sanitizeSearchInput(input: string): string {
+function sanitizeSearchInput(input: string): string {
   // Remove null bytes
   let sanitized = input.split('\0').join('');
 
@@ -214,5 +215,6 @@ async function getHandler(request: NextRequest) {
 // Create timeout middleware with 10s default
 const withTimeout = createTimeoutMiddleware(10000);
 
-// Export wrapped GET handler with 10s timeout
-export const GET = withTimeout(getHandler, 10000);
+// Apply timeout and rate limiting
+const timedHandler = withTimeout(getHandler, 10000);
+export const GET = withRateLimit(timedHandler, 'api');
