@@ -8,6 +8,7 @@ import { withCSRFWithParams } from '@/lib/security/withCSRF';
  * Updates a user's role with audit logging
  * Body: { role: 'user' | 'moderator' | 'admin', reason?: string }
  * Requires admin role
+ * Note: Rate limiting should be added at the middleware level or using a different approach
  */
 export const POST = withCSRFWithParams(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {

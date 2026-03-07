@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { SignJWT } from 'jose';
+import { withRateLimit } from '@/lib/security/serverRateLimiter';
 
 /**
  * POST /api/auth/websocket-token
  * Generates a short-lived one-time token for WebSocket authentication
- * Rate limiting is applied at the middleware level
+ * Rate limiting: 5 requests per minute (auth limiter)
  */
-export async function POST(req: NextRequest) {
+async function handler(req: NextRequest) {
   // Validate JWT_SECRET exists
   if (!process.env.JWT_SECRET) {
     console.error('JWT_SECRET environment variable is not set');
@@ -45,3 +46,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to generate token' }, { status: 500 });
   }
 }
+
+export const POST = withRateLimit(handler, 'auth');
