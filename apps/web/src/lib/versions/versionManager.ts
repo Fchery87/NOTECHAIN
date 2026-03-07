@@ -5,6 +5,8 @@
  * and compare previous versions of their content.
  */
 
+import { diffLines } from 'diff';
+
 /**
  * Version interface representing a saved version
  */
@@ -116,50 +118,41 @@ function generateChangeSummary(oldContent: string, newContent: string): string {
 }
 
 /**
- * Compute diff between two strings
+ * Compute diff between two strings using Myers' diff algorithm
  */
 function computeDiff(oldContent: string, newContent: string): DiffResult {
-  const oldLines = oldContent.split('\n');
-  const newLines = newContent.split('\n');
-
   const added: string[] = [];
   const removed: string[] = [];
   const unchanged: string[] = [];
 
-  // Simple diff algorithm - track which lines exist in each version
-  const oldSet = new Set(oldLines);
-  const newSet = new Set(newLines);
+  // Use Myers' diff algorithm from the 'diff' library
+  const changes = diffLines(oldContent, newContent);
 
-  // Find added and unchanged
-  newLines.forEach(line => {
-    if (!oldSet.has(line)) {
-      added.push(line);
+  // Iterate through changes and categorize them
+  changes.forEach(change => {
+    if (change.added) {
+      added.push(change.value);
+    } else if (change.removed) {
+      removed.push(change.value);
     } else {
-      unchanged.push(line);
+      unchanged.push(change.value);
     }
   });
 
-  // Find removed
-  oldLines.forEach(line => {
-    if (!newSet.has(line)) {
-      removed.push(line);
-    }
-  });
+  // Calculate characters added/removed from change values
+  const charsAdded = added.reduce((sum, val) => sum + val.length, 0);
+  const charsRemoved = removed.reduce((sum, val) => sum + val.length, 0);
 
-  const charsAdded =
-    newContent.length > oldContent.length ? newContent.length - oldContent.length : 0;
-  const charsRemoved =
-    oldContent.length > newContent.length ? oldContent.length - newContent.length : 0;
-
+  // Generate summary based on lengths
   let summary: string;
-  if (added.length === 0 && removed.length === 0) {
+  if (charsAdded === 0 && charsRemoved === 0) {
     summary = 'No changes';
-  } else if (removed.length === 0) {
-    summary = `Added ${added.length} lines`;
-  } else if (added.length === 0) {
-    summary = `Removed ${removed.length} lines`;
+  } else if (charsRemoved === 0) {
+    summary = `Added ${charsAdded} characters`;
+  } else if (charsAdded === 0) {
+    summary = `Removed ${charsRemoved} characters`;
   } else {
-    summary = `Changed ${added.length + removed.length} lines`;
+    summary = `Changed ${charsAdded + charsRemoved} characters`;
   }
 
   return {
