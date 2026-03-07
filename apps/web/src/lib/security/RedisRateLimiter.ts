@@ -5,6 +5,7 @@
  * with automatic fallback to in-memory storage when Redis is unavailable.
  *
  * @see https://www.npmjs.com/package/ioredis
+ * @see https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html
  */
 
 import Redis from 'ioredis';
@@ -43,25 +44,46 @@ export interface RateLimitStore {
 }
 
 /**
+ * Check if we're running in Node.js environment
+ * (not Edge runtime - ioredis only works in Node.js)
+ */
+const isNodeEnvironment =
+  typeof process !== 'undefined' && process.versions && process.versions.node;
+
+/**
  * Redis-based rate limit store
  * Uses atomic operations with MULTI/EXEC to ensure consistency
  */
 export class RedisStore implements RateLimitStore {
-  private redis: Redis;
+  private redis: Redis | null = null;
 
   constructor(redisUrl: string) {
-    this.redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times: number) => {
-        if (times > 3) {
-          return null; // Don't retry after 3 attempts
-        }
-        return Math.min(times * 50, 200); // Exponential backoff
-      },
-    });
+    if (!isNodeEnvironment) {
+      console.warn('Redis is not supported in Edge runtime');
+      return;
+    }
+
+    try {
+      this.redis = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        retryStrategy: (times: number) => {
+          if (times > 3) {
+            return null; // Don't retry after 3 attempts
+          }
+          return Math.min(times * 50, 200); // Exponential backoff
+        },
+      });
+    } catch (error) {
+      console.error('Failed to initialize Redis client:', error);
+      this.redis = null;
+    }
   }
 
   async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
+    if (!this.redis) {
+      throw new Error('Redis not available');
+    }
+
     const result = await this.redis.multi().incr(key).pexpire(key, windowMs).exec();
 
     if (!result) {
@@ -87,6 +109,10 @@ export class RedisStore implements RateLimitStore {
   }
 
   async get(key: string): Promise<RateLimitEntry | undefined> {
+    if (!this.redis) {
+      return undefined;
+    }
+
     const [count, ttl] = await Promise.all([this.redis.get(key), this.redis.pttl(key)]);
 
     if (count === null) {
@@ -101,17 +127,19 @@ export class RedisStore implements RateLimitStore {
     const resetTime = ttl > 0 ? Date.now() + ttl : Date.now() + 60000; // Default to 1min if no TTL
 
     return {
-      count: parseInt(count, 10),
+      count: parseInt(count as string, 10),
       resetTime,
     };
   }
 
   async close(): Promise<void> {
-    try {
-      await this.redis.quit();
-    } catch (error) {
-      // Ignore errors if connection is already closed
-      // This is safe and expected during cleanup
+    if (this.redis) {
+      try {
+        await this.redis.quit();
+      } catch (error) {
+        // Ignore errors if connection is already closed
+        // This is safe and expected during cleanup
+      }
     }
   }
 }
@@ -121,7 +149,7 @@ export class RedisStore implements RateLimitStore {
  * Used when Redis is unavailable
  */
 class MemoryStore implements RateLimitStore {
-  private store: Map<string, RateLimitEntry> = new Map();
+  private store = new Map<string, RateLimitEntry>();
 
   async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
     const now = Date.now();
@@ -168,13 +196,12 @@ class MemoryStore implements RateLimitStore {
  */
 export class HybridStore implements RateLimitStore {
   private redisStore: RedisStore | null = null;
-  private memoryStore: MemoryStore;
-  private useRedis: boolean = false;
+  private memoryStore = new MemoryStore();
+  private useRedis = false;
 
   constructor(redisUrl?: string) {
-    this.memoryStore = new MemoryStore();
-
-    if (redisUrl) {
+    // Only try Redis if we're in Node.js environment
+    if (isNodeEnvironment && redisUrl) {
       try {
         this.redisStore = new RedisStore(redisUrl);
         this.useRedis = true;
