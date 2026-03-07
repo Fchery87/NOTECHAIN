@@ -62,6 +62,38 @@ export function withCSRF<T extends NextRequest>(
 }
 
 /**
+ * Higher-order function to wrap Next.js App Router handlers with CSRF protection
+ * Supports routes with params (e.g., /api/users/[id]/role)
+ *
+ * @param handler The API route handler to protect
+ * @returns A protected handler that validates CSRF before calling the original
+ *
+ * @example
+ * ```typescript
+ * export const POST = withCSRFWithParams(
+ *   async (request: NextRequest, { params }: { params: { id: string } }) => {
+ *     const body = await request.json();
+ *     // Process the request
+ *     return NextResponse.json({ success: true });
+ *   }
+ * );
+ * ```
+ */
+export function withCSRFWithParams<T extends NextRequest, P extends Record<string, string>>(
+  handler: (request: T, context: { params: Promise<P> }) => Promise<NextResponse> | NextResponse
+): (request: T, context: { params: Promise<P> }) => Promise<NextResponse> {
+  return async (request: T, context: { params: Promise<P> }) => {
+    const validation = validateCSRF(request);
+
+    if (!validation.valid) {
+      return csrfErrorResponse(validation.error || 'Unknown error');
+    }
+
+    return handler(request, context);
+  };
+}
+
+/**
  * Higher-order function that adds optional CSRF protection
  * Use this for routes that should have CSRF but need to maintain backward compatibility
  *
