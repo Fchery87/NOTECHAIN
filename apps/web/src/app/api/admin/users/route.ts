@@ -3,6 +3,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/api/errors';
 
 /**
+ * Sanitize search input to prevent SQL injection
+ *
+ * - Removes null bytes
+ * - Escapes special ILIKE pattern characters: %, _, ', ", \
+ * - Limits input length to 100 characters
+ *
+ * @param input - Raw search input string
+ * @returns Sanitized string safe for ILIKE queries
+ */
+export function sanitizeSearchInput(input: string): string {
+  // Remove null bytes
+  let sanitized = input.split('\0').join('');
+
+  // Escape special ILIKE pattern characters
+  // Order matters: backslash must be escaped first
+  sanitized = sanitized.replace(/\\/g, '\\\\'); // backslash
+  sanitized = sanitized.replace(/%/g, '\\%'); // percent
+  sanitized = sanitized.replace(/_/g, '\\_'); // underscore
+  sanitized = sanitized.replace(/'/g, "\\'"); // single quote
+  sanitized = sanitized.replace(/"/g, '\\"'); // double quote
+
+  // Limit input length to 100 characters
+  return sanitized.slice(0, 100);
+}
+
+/**
  * GET /api/admin/users
  * Returns paginated user list with sorting and filtering
  * Query params:
@@ -86,7 +112,8 @@ export async function GET(request: NextRequest) {
   if (search) {
     // Note: Full search by email requires joining with auth.users
     // This is a simplified implementation
-    query = query.or(`id.ilike.%${search}%`);
+    const sanitizedSearch = sanitizeSearchInput(search);
+    query = query.or(`id.ilike.%${sanitizedSearch}%`);
   }
 
   // Apply sorting and pagination
