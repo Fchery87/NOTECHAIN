@@ -47,11 +47,24 @@ vi.stubGlobal('WebSocket', MockWebSocket);
 describe('useWebSocket', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+
+    // Mock fetch to return a token for WebSocket authentication
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ token: 'mock-ws-token', expiresIn: 60 }),
+      } as Response)
+    ) as unknown as typeof fetch;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+
+    // Restore original fetch
+    if (typeof global.fetch !== 'undefined') {
+      global.fetch = window.fetch;
+    }
   });
 
   it('should initialize with disconnected state', () => {
@@ -80,6 +93,12 @@ describe('useWebSocket', () => {
       vi.runAllTimers();
     });
 
+    // Simulate receiving AUTH_SUCCESS message
+    const mockWs = new MockWebSocket('ws://localhost:3001');
+    act(() => {
+      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
+    });
+
     expect(result.current.connectionState).toBe('connected');
     expect(result.current.isConnected).toBe(true);
   });
@@ -94,6 +113,12 @@ describe('useWebSocket', () => {
 
     await act(async () => {
       vi.runAllTimers();
+    });
+
+    // Simulate receiving AUTH_SUCCESS message
+    const mockWs = new MockWebSocket('ws://localhost:3001');
+    act(() => {
+      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
     });
 
     const sendSpy = vi.spyOn(MockWebSocket.prototype, 'send');
@@ -176,6 +201,12 @@ describe('useWebSocket', () => {
 
     await act(async () => {
       vi.runAllTimers();
+    });
+
+    // Simulate receiving AUTH_SUCCESS message
+    const mockWs = new MockWebSocket('ws://localhost:3001');
+    act(() => {
+      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
     });
 
     expect(result.current.isConnected).toBe(true);
