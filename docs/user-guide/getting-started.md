@@ -2,12 +2,22 @@
 
 ## Getting Started
 
+### Accessing NoteChain
+
+NoteChain is a self-hosted application that you deploy yourself or use through your organization's hosting:
+
+- **Self-Hosted**: Deploy to Vercel, AWS, Railway, or your own infrastructure
+- **Organization**: Access through your organization's provided URL
+- **Local Development**: Run locally using `bun run dev`
+
+See [Deployment Guide](../deployment/DEPLOYMENT.md) for deployment instructions.
+
 ### Creating Your Account
 
-1. Visit [app.notechain.app](https://app.notechain.app)
-2. Click "Get Started"
+1. Open your NoteChain instance (your deployed URL or http://localhost:3000 for development)
+2. Click "Get Started" or "Sign Up"
 3. Enter your email and create a strong password
-4. **Important**: Save your recovery key securely. We cannot recover your account without it.
+4. **Important**: Save your recovery key securely. Due to zero-knowledge encryption, we cannot recover your account without it.
 
 ### Understanding Encryption
 

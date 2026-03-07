@@ -1,287 +1,432 @@
-# NoteChain API Documentation
+# NoteChain API Reference
 
-## Overview
+> **Note:** NoteChain is a client-side application that uses Supabase as its backend. There is no separate API server. This document describes the data model and Supabase integration for reference.
 
-The NoteChain API provides programmatic access to encrypted notes, AI features, and user management. All API endpoints are versioned and require authentication.
+## Architecture Overview
 
-**Base URL:** `https://api.notechain.app/v1`
+NoteChain uses **Supabase** as its backend, providing:
+
+- PostgreSQL database with Row Level Security (RLS)
+- Authentication via Supabase Auth
+- Real-time subscriptions via Supabase Realtime
+- File storage via Supabase Storage
+
+**Data Flow:**
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Client App  │────▶│  Supabase API  │────▶│  PostgreSQL    │
+│  (Next.js)   │     │  (PostgREST)    │     │  (Database)     │
+└─────────────┘     └──────────────────┘     └─────────────────┘
+        │                       │                       │
+        ▼                       ▼                       ▼
+   Browser Local          Real-time              Encrypted Data
+   (IndexedDB)          Subscriptions            (XSalsa20-Poly1305)
+```
 
 ## Authentication
 
-All API requests require a Bearer token in the Authorization header:
+### Supabase Auth Integration
 
+The application uses `@supabase/ssr` for server-side and client-side authentication:
+
+```typescript
+import { createBrowserClient } from '@supabase/ssr';
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 ```
-Authorization: Bearer <your_api_token>
+
+### Supported Methods
+
+- **Email/Password**: Standard authentication
+- **OAuth**: Google, Microsoft, GitHub, Apple
+- **Magic Links**: Email-based passwordless auth
+- **Session Management**: HTTP-only cookies
+
+## Database Schema
+
+### Core Tables
+
+#### `profiles`
+
+User profile data with RLS:
+
+```sql
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-## Endpoints
+#### `encrypted_blobs`
 
-### Notes
+Main storage for encrypted user data:
 
-#### GET /notes
+```sql
+CREATE TABLE encrypted_blobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL, -- 'note', 'todo', 'pdf', etc.
+  entity_id VARCHAR(255) NOT NULL,
+  encrypted_data BYTEA NOT NULL,
+  nonce BYTEA NOT NULL,
+  auth_tag BYTEA NOT NULL,
+  version INTEGER DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
 
-Retrieve a list of notes for the authenticated user.
+  CONSTRAINT unique_entity UNIQUE(user_id, entity_type, entity_id)
+);
+```
 
-**Query Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| page | integer | No | Page number (default: 1) |
-| limit | integer | No | Items per page (default: 20, max: 100) |
-| tag | string | No | Filter by tag |
-| search | string | No | Search query |
+#### `devices`
 
-**Response:**
+Device management for multi-device sync:
 
-```json
-{
-  "data": [
+```sql
+CREATE TABLE devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  device_name TEXT,
+  device_type TEXT,
+  last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### `sync_operations`
+
+Operations log for CRDT sync:
+
+```sql
+CREATE TABLE sync_operations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  operation_type VARCHAR(20) NOT NULL, -- 'create', 'update', 'delete'
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id VARCHAR(255) NOT NULL,
+  encrypted_data BYTEA,
+  device_id UUID REFERENCES devices(id),
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Row Level Security (RLS)
+
+All tables have RLS policies enforcing:
+
+- Users can only access their own data
+- `user_id` column must match authenticated user ID
+- Service role key bypasses RLS for background operations
+
+## Data Access Patterns
+
+### Querying Data
+
+#### Via Supabase Client (TypeScript)
+
+```typescript
+import { createBrowserClient } from '@supabase/ssr';
+
+const supabase = createBrowserClient(url, key);
+
+// Get notes
+const { data: notes, error } = await supabase
+  .from('encrypted_blobs')
+  .select('*')
+  .eq('user_id', userId)
+  .eq('entity_type', 'note')
+  .order('updated_at', { ascending: false });
+```
+
+#### Via Dexie (IndexedDB)
+
+```typescript
+import { useLiveQuery } from 'dexie-react-hooks';
+
+function NotesList() {
+  const notes = useLiveQuery(() => db.notes.toArray());
+  return <div>{notes.map(note => <Note key={note.id} />)}</div>;
+}
+```
+
+### Creating Data
+
+#### Encrypted Storage Flow
+
+```typescript
+import { encrypt } from '@notechain/core-crypto';
+
+// 1. Encrypt data locally
+const key = await getEncryptionKey();
+const { ciphertext, nonce, authTag } = encrypt(plaintext, key);
+
+// 2. Store in Supabase
+await supabase.from('encrypted_blobs').insert({
+  user_id: userId,
+  entity_type: 'note',
+  entity_id: noteId,
+  encrypted_data: ciphertext,
+  nonce: nonce,
+  auth_tag: authTag,
+});
+```
+
+### Real-time Updates
+
+#### Supabase Realtime Subscriptions
+
+```typescript
+// Subscribe to note changes
+const subscription = supabase
+  .channel('notes-channel')
+  .on(
+    'postgres_changes',
     {
-      "id": "note_123",
-      "title": "My Encrypted Note",
-      "encryptedContent": "base64encrypted...",
-      "tags": ["work", "ideas"],
-      "createdAt": "2024-01-15T10:30:00Z",
-      "updatedAt": "2024-01-15T14:20:00Z"
+      event: '*',
+      schema: 'public',
+      table: 'encrypted_blobs',
+      filter: `user_id=eq.${userId}`,
+    },
+    payload => {
+      handleRealtimeUpdate(payload);
     }
-  ],
-  "meta": {
-    "page": 1,
-    "limit": 20,
-    "total": 150
-  }
+  )
+  .subscribe();
+```
+
+### Sync Operations
+
+#### Enqueueing Changes
+
+```typescript
+async function syncChange(operation) {
+  const { ciphertext, nonce, authTag } = encrypt(data, key);
+
+  await supabase.from('sync_operations').insert({
+    user_id: userId,
+    operation_type: operation.type,
+    entity_type: operation.entity,
+    entity_id: operation.id,
+    encrypted_data: ciphertext,
+    nonce: nonce,
+    auth_tag: authTag,
+    device_id: deviceId,
+    timestamp: new Date().toISOString(),
+  });
 }
 ```
 
-#### POST /notes
+#### Fetching Changes
 
-Create a new note.
+```typescript
+async function fetchChanges(since) {
+  const { data: changes } = await supabase
+    .from('sync_operations')
+    .select('*')
+    .gt('timestamp', since)
+    .order('timestamp', { ascending: true });
 
-**Request Body:**
-
-```json
-{
-  "title": "Note Title",
-  "encryptedContent": "base64encrypted...",
-  "tags": ["tag1", "tag2"],
-  "encryptionVersion": "v1"
+  return changes;
 }
 ```
 
-**Response:**
+## Encryption Model
 
-```json
-{
-  "id": "note_456",
-  "title": "Note Title",
-  "encryptedContent": "base64encrypted...",
-  "tags": ["tag1", "tag2"],
-  "createdAt": "2024-01-15T10:30:00Z",
-  "updatedAt": "2024-01-15T10:30:00Z"
+### XSalsa20-Poly1305
+
+All data is encrypted before storage:
+
+```typescript
+interface EncryptedData {
+  ciphertext: Uint8Array; // Encrypted content
+  nonce: Uint8Array; // Random nonce (24 bytes)
+  authTag: Uint8Array; // Poly1305 authentication tag (16 bytes)
 }
 ```
 
-#### GET /notes/:id
+### Storage Format
 
-Retrieve a specific note.
+In PostgreSQL:
 
-**Response:**
-
-```json
-{
-  "id": "note_123",
-  "title": "My Encrypted Note",
-  "encryptedContent": "base64encrypted...",
-  "tags": ["work", "ideas"],
-  "createdAt": "2024-01-15T10:30:00Z",
-  "updatedAt": "2024-01-15T14:20:00Z",
-  "version": 5
-}
+```sql
+INSERT INTO encrypted_blobs (
+  encrypted_data,
+  nonce,
+  auth_tag
+) VALUES (
+  decode('\x' || ciphertext_hex, 'hex'),
+  decode('\x' || nonce_hex, 'hex'),
+  decode('\x' || auth_tag_hex, 'hex')
+);
 ```
 
-#### PUT /notes/:id
+## AI Integration
 
-Update a note.
+### Local Processing
 
-**Request Body:**
+All AI features run in the browser using **Transformers.js**:
 
-```json
-{
-  "title": "Updated Title",
-  "encryptedContent": "base64encrypted...",
-  "tags": ["work", "ideas", "updated"],
-  "expectedVersion": 5
-}
+```typescript
+import { pipeline } from '@xenova/transformers';
+
+// Load model (local)
+const generator = await pipeline('summarization', 'Xenova/distilbart');
+
+// Generate summary (100% local)
+const summary = await generator(text);
 ```
 
-#### DELETE /notes/:id
+### No API Calls
 
-Delete a note (soft delete).
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "message": "Note deleted successfully"
-}
-```
-
-### AI Assistant
-
-#### POST /ai/summarize
-
-Generate a summary of encrypted note content.
-
-**Request Body:**
-
-```json
-{
-  "encryptedContent": "base64encrypted...",
-  "decryptionKey": "keyForSecureEnclave",
-  "maxLength": 200
-}
-```
-
-**Response:**
-
-```json
-{
-  "summary": "Key points from the note...",
-  "confidence": 0.95
-}
-```
-
-#### POST /ai/suggest-tags
-
-Suggest tags for a note.
-
-**Request Body:**
-
-```json
-{
-  "encryptedContent": "base64encrypted...",
-  "decryptionKey": "keyForSecureEnclave"
-}
-```
-
-**Response:**
-
-```json
-{
-  "suggestions": ["work", "meeting", "action-items"],
-  "confidence": [0.92, 0.87, 0.75]
-}
-```
-
-### Sync
-
-#### GET /sync/changes
-
-Retrieve changes since a given timestamp.
-
-**Query Parameters:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| since | string | Yes | ISO 8601 timestamp |
-| deviceId | string | Yes | Device identifier |
-
-**Response:**
-
-```json
-{
-  "changes": [
-    {
-      "id": "note_123",
-      "operation": "update",
-      "timestamp": "2024-01-15T14:20:00Z",
-      "checksum": "sha256..."
-    }
-  ],
-  "serverTimestamp": "2024-01-15T14:25:00Z"
-}
-```
-
-#### POST /sync/bulk
-
-Upload bulk changes from client.
-
-**Request Body:**
-
-```json
-{
-  "changes": [
-    {
-      "id": "note_123",
-      "operation": "create",
-      "encryptedData": "base64encrypted...",
-      "timestamp": "2024-01-15T14:20:00Z"
-    }
-  ],
-  "deviceId": "device_abc123"
-}
-```
+- ✅ No data sent to OpenAI
+- ✅ No data sent to Anthropic
+- ✅ No data sent to cloud AI services
+- ✅ 100% browser-based processing
 
 ## Error Handling
 
-All errors follow this format:
+### Database Errors
 
-```json
-{
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": {
-      "field": "Additional error details"
-    },
-    "documentation": "https://docs.notechain.app/errors/ERROR_CODE"
+```typescript
+const { data, error } = await supabase.from('encrypted_blobs').insert(noteData);
+
+if (error) {
+  switch (error.code) {
+    case '23505': // Unique constraint violation
+      handleConflict();
+      break;
+    case '23503': // Foreign key violation
+      handleInvalidReference();
+      break;
+    default:
+      handleGenericError(error);
   }
 }
 ```
 
 ### Common Error Codes
 
-| Code               | HTTP Status | Description                          |
-| ------------------ | ----------- | ------------------------------------ |
-| `VALIDATION_ERROR` | 400         | Invalid request data                 |
-| `UNAUTHORIZED`     | 401         | Missing or invalid token             |
-| `FORBIDDEN`        | 403         | Insufficient permissions             |
-| `NOT_FOUND`        | 404         | Resource not found                   |
-| `CONFLICT`         | 409         | Resource conflict (version mismatch) |
-| `RATE_LIMITED`     | 429         | Too many requests                    |
-| `INTERNAL_ERROR`   | 500         | Server error                         |
+| Supabase Code | PostgreSQL Code       | Description             |
+| ------------- | --------------------- | ----------------------- |
+| PGRST116      | N/A                   | No rows found           |
+| 23505         | unique_violation      | Constraint violation    |
+| 23503         | foreign_key_violation | Invalid reference       |
+| 23514         | check_violation       | Check constraint failed |
 
-## Rate Limiting
+## Client-Side Storage
 
-- 100 requests/minute for free tier
-- 1000 requests/minute for Pro tier
-- Rate limit headers included in all responses:
-  - `X-RateLimit-Limit`: Maximum requests allowed
-  - `X-RateLimit-Remaining`: Remaining requests in window
-  - `X-RateLimit-Reset`: Unix timestamp when limit resets
+### IndexedDB via Dexie
 
-## Webhooks
+```typescript
+import Dexie from 'dexie';
 
-Subscribe to real-time events:
+const db = new Dexie('NoteChainDB');
 
-**Endpoint:** `POST /webhooks/subscribe`
+db.version(1).stores({
+  notes: 'id, title, tags, updated_at',
+  todos: 'id, title, priority, due_date, completed',
+  pdfs: 'id, title, metadata',
+  encrypted_blobs: 'id, entity_type, entity_id, updated_at',
+});
 
-**Request Body:**
-
-```json
-{
-  "url": "https://your-app.com/webhook",
-  "events": ["note.created", "note.updated", "note.deleted"],
-  "secret": "your_webhook_secret"
-}
+// CRUD operations
+await db.notes.add(note);
+await db.notes.update(id, changes);
+await db.notes.delete(id);
+const allNotes = await db.notes.toArray();
 ```
 
-## SDKs
+### Sync Flow
 
-- [JavaScript/TypeScript](https://github.com/notechain/sdk-js)
-- [Python](https://github.com/notechain/sdk-python)
+```
+┌─────────────┐
+│  UI Action  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│  Update     │
+│  IndexedDB  │ (Optimistic)
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│  Encrypt    │
+│  Data       │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│  Queue Sync │
+│  Operation  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│  Supabase   │
+│  API Call   │ (Background)
+└─────────────┘
+```
+
+## Environment Variables
+
+### Required
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx
+SUPABASE_SERVICE_ROLE_KEY=eyJxxx
+```
+
+### Optional
+
+```env
+NEXT_PUBLIC_NEON_DATABASE_URL=postgresql://xxx
+NEXT_PUBLIC_ENABLE_AI_FEATURES=true
+NEXT_PUBLIC_MAX_FREE_DEVICES=1
+```
+
+## Future API Plans
+
+### Potential Future Endpoints
+
+These are **not currently implemented** but may be added in future versions:
+
+- REST API wrapper around Supabase (for third-party integrations)
+- GraphQL endpoint (for flexible queries)
+- Webhook system (for event notifications)
+- OAuth2 authorization server (for third-party apps)
+
+**Note:** Current architecture uses Supabase directly. Future API endpoints would be additional layers on top of Supabase.
+
+## Resources
+
+### Supabase Documentation
+
+- [Supabase Auth](https://supabase.com/docs/guides/auth)
+- [Supabase Database](https://supabase.com/docs/guides/database)
+- [Supabase Realtime](https://supabase.com/docs/guides/realtime)
+- [Supabase Storage](https://supabase.com/docs/guides/storage)
+- [Supabase Client Libraries](https://supabase.com/docs/reference/javascript)
+
+### Client Libraries
+
+- [@supabase/ssr](https://github.com/supabase/supabase-js)
+- [@supabase/supabase-js](https://github.com/supabase/supabase-js)
+- [Dexie.js](https://dexie.org/)
+- [dexie-react-hooks](https://dexie.org/docs/dexie-react-hooks)
 
 ## Support
 
-- [API Status](https://status.notechain.app)
-- [Developer Portal](https://developers.notechain.app)
-- Email: api@notechain.app
+- [Supabase Status](https://status.supabase.com)
+- [Supabase Dashboard](https://app.supabase.com)
+- NoteChain Documentation: [docs/](../)
+- Email: support@notechain.tech

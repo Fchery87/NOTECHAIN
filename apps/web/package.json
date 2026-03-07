@@ -40,7 +40,7 @@
     "diff": "^8.0.3",
     "ioredis": "^5.10.0",
     "jose": "^6.0.10",
-    "next": "^15.1.6",
+    "next": "^16.1.6",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -51,7 +51,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^15.1.6",
+    "@next/bundle-analyzer": "^16.1.6",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/bun": "latest",
@@ -62,7 +62,7 @@
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9.27.0",
-    "eslint-config-next": "15.1.6",
+    "eslint-config-next": "16.1.6",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^28.1.0",
     "postcss": "^8.5.1",

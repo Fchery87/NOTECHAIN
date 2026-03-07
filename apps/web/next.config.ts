@@ -17,12 +17,11 @@ const nextConfig: NextConfig = {
     NEON_PRIVATE_KEY: process.env.NEON_PRIVATE_KEY,
   },
   transpilePackages: ['@notechain/ui-components'],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Use webpack with custom configuration
+  turbopack: {},
   // Bundle optimization
   webpack: (config, { isServer, nextRuntime }) => {
     // Optimize bundle size

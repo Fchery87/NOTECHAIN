@@ -1,5 +1,12 @@
 # NoteChain Implementation Plan
 
+> **⚠️ HISTORICAL DOCUMENT**  
+> This document represents the original implementation plan from February 2026.  
+> **All phases have been completed.** See [README.md](./README.md) for current status.  
+> See [docs/HISTORY.md](./docs/HISTORY.md) for development history.
+
+---
+
 ## From Architecture to Functional Application
 
 > **Goal:** Wire up all existing code into a fully functional, production-ready encrypted note-taking app.

@@ -1,5 +1,11 @@
 # NoteChain - LAUNCH READY 🚀
 
+> **⚠️ HISTORICAL DOCUMENT**  
+> This document represents launch readiness assessment from February 2026.  
+> **NoteChain v1.0 is production-ready.** See [README.md](./README.md) for current status.
+
+---
+
 **Project Status:** COMPLETE  
 **Health Score:** 95/100  
 **Build Status:** ✅ SUCCESS  
