@@ -338,10 +338,10 @@ export default function NotesPage() {
 
   return (
     <AppLayout pageTitle="Notes" actions={headerActions}>
-      <div className="py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+      <div className="py-6 max-w-[1600px] mx-auto h-[calc(100vh-64px)] flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+          <div className="lg:col-span-1 flex flex-col min-h-0">
+            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
               {/* Search + multi-select toolbar */}
               <div className="p-4 border-b border-stone-200">
                 {isMultiSelectMode ? (
@@ -409,7 +409,7 @@ export default function NotesPage() {
                 </div>
               )}
 
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {isLoading ? (
                   <div className="p-8 text-center">
                     <div className="inline-block w-6 h-6 border-2 border-stone-300 border-t-amber-500 rounded-full animate-spin" />
@@ -450,9 +450,9 @@ export default function NotesPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col min-h-0">
             {selectedNote ? (
-              <div className="bg-white rounded-xl shadow-sm border border-stone-200 min-h-[600px]">
+              <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100 flex-1 flex flex-col min-h-0 overflow-hidden">
                 <div className="p-4 border-b border-stone-200 flex items-center gap-3">
                   <input
                     type="text"
@@ -484,7 +484,7 @@ export default function NotesPage() {
                     </svg>
                   </button>
                 </div>
-                <div className="p-4">
+                <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
                   <NoteEditor
                     noteId={selectedNote.id}
                     content={selectedNote.content}
@@ -499,7 +499,7 @@ export default function NotesPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-stone-200 min-h-[600px] flex items-center justify-center">
+              <div className="bg-white rounded-2xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1 flex flex-col min-h-0 items-center justify-center">
                 <p className="text-stone-400">
                   {notes.length === 0
                     ? 'Create your first note to get started'

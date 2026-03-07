@@ -150,7 +150,9 @@ export function NoteCard({
   return (
     <div
       className={`group relative w-full text-left border-b border-stone-100 last:border-b-0 transition-all duration-200 ${
-        isSelected ? 'bg-amber-50 border-amber-200' : 'hover:bg-stone-50'
+        isSelected
+          ? 'bg-stone-50 border-l-4 border-l-stone-900 border-b-transparent'
+          : 'hover:bg-stone-50 border-l-4 border-l-transparent'
       }`}
     >
       {/* Multi-select checkbox */}
