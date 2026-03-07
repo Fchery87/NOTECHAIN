@@ -14,7 +14,7 @@ import { createTimeoutMiddleware } from '@/lib/api/withTimeout';
  * @param input - Raw search input string
  * @returns Sanitized string safe for ILIKE queries
  */
-export function sanitizeSearchInput(input: string): string {
+function sanitizeSearchInput(input: string): string {
   // Remove null bytes
   let sanitized = input.split('\0').join('');
 
