@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { applyRateLimit } from './lib/security/serverRateLimiter';
 import { generateNonce, getSecurityHeadersWithNonce } from './lib/security/csp';
 
 export async function middleware(request: NextRequest) {
@@ -9,38 +8,6 @@ export async function middleware(request: NextRequest) {
 
   // Determine environment
   const isDevelopment = process.env.NODE_ENV === 'development';
-
-  // Apply rate limiting for API routes
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Use stricter rate limiting for auth endpoints
-    if (request.nextUrl.pathname.includes('/auth/')) {
-      const rateLimitResponse = await applyRateLimit(request, 'auth');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Use password reset rate limiting for password reset endpoints
-    else if (request.nextUrl.pathname.includes('/reset-password')) {
-      const rateLimitResponse = await applyRateLimit(request, 'passwordReset');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Use search rate limiting for search endpoints
-    else if (request.nextUrl.pathname.includes('/search')) {
-      const rateLimitResponse = await applyRateLimit(request, 'search');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-    // Standard API rate limiting for all other API routes
-    else {
-      const rateLimitResponse = await applyRateLimit(request, 'api');
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
-  }
 
   let response = NextResponse.next({
     request: {

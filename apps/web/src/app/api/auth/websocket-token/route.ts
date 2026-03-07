@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { SignJWT } from 'jose';
 
+/**
+ * POST /api/auth/websocket-token
+ * Generates a short-lived one-time token for WebSocket authentication
+ * Rate limiting is applied at the middleware level
+ */
 export async function POST(req: NextRequest) {
   // Validate JWT_SECRET exists
   if (!process.env.JWT_SECRET) {
