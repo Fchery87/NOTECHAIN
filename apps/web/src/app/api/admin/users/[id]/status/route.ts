@@ -2,14 +2,16 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { ApiErrors } from '@/lib/api/errors';
 import { withCSRFWithParams } from '@/lib/security/withCSRF';
+import { withRateLimitAndParams } from '@/lib/security/serverRateLimiter';
 
 /**
  * POST /api/admin/users/[id]/status
  * Updates a user's status with audit logging
  * Body: { status: 'active' | 'suspended' | 'inactive', reason?: string }
  * Requires admin role
+ * Rate limiting: 100 requests per minute (api limiter)
  */
-export const POST = withCSRFWithParams(
+const handler = withCSRFWithParams(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const supabase = await createClient();
     const { id: userId } = await params;
@@ -72,3 +74,5 @@ export const POST = withCSRFWithParams(
     return NextResponse.json(result);
   }
 );
+
+export const POST = withRateLimitAndParams(handler, 'api');
