@@ -192,7 +192,7 @@ export function TodoList({
   }
 
   return (
-    <div className="space-y-2" role="list" aria-label="Todo list">
+    <div className="flex flex-col" role="list" aria-label="Todo list">
       {todos.map(todo => {
         const isCompleted = todo.status === 'completed';
         const overdue = todo.dueDate && isOverdue(todo.dueDate) && !isCompleted;
@@ -207,13 +207,13 @@ export function TodoList({
             onMouseEnter={() => setHoveredId(todo.id)}
             onMouseLeave={() => setHoveredId(null)}
             className={`
-              group relative flex items-start gap-3 p-4 rounded-xl
-              bg-white border border-stone-200
-              hover:border-stone-300 hover:shadow-sm
+              group relative flex items-start gap-3 p-5 rounded-2xl
+              bg-white border-b border-stone-100 last:border-b-0
+              hover:bg-stone-50/50 hover:shadow-sm
               transition-all duration-200 cursor-pointer
               focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500
-              ${isCompleted ? 'opacity-60' : ''}
-              ${overdue ? 'border-red-200 bg-red-50/30' : ''}
+              ${isCompleted ? 'opacity-50' : ''}
+              ${overdue ? 'bg-red-50/30' : ''}
             `}
           >
             {/* Checkbox */}

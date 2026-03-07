@@ -54,15 +54,15 @@ export default function CalendarPage() {
   const headerActions = (
     <button
       onClick={() => handleCreateEvent(new Date())}
-      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors shadow-sm"
     >
-      + New Event
+      New Event
     </button>
   );
 
   return (
     <AppLayout pageTitle="Calendar" actions={headerActions}>
-      <div className="py-6">
+      <div className="py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Calendar */}
           <div className="lg:col-span-3">
@@ -77,7 +77,7 @@ export default function CalendarPage() {
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Upcoming Events */}
-            <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
+            <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-medium text-stone-900 mb-4">Upcoming</h3>
               <div className="space-y-3">
                 {events.slice(0, 3).map(event => (
@@ -115,7 +115,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Connected Calendars */}
-            <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
+            <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
               <h3 className="font-medium text-stone-900 mb-4">Connected Calendars</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
@@ -147,7 +147,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Quick Tips */}
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-4">
+            <div className="bg-amber-50/50 rounded-3xl border border-amber-100 p-6">
               <div className="flex items-start gap-2">
                 <svg
                   className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"

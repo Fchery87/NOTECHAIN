@@ -45,10 +45,10 @@ export default function MeetingsPage() {
     <button
       type="button"
       onClick={handleNewMeeting}
-      className="flex items-center gap-2 px-5 py-2.5 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-all duration-300 hover:shadow-lg hover:shadow-stone-900/20"
+      className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors shadow-sm"
     >
       <svg
-        className="w-5 h-5"
+        className="w-4 h-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -62,7 +62,7 @@ export default function MeetingsPage() {
 
   return (
     <AppLayout pageTitle="Meetings" actions={headerActions}>
-      <div className="py-6">
+      <div className="py-8 max-w-5xl mx-auto">
         <div className="mb-6">
           <p className="text-stone-600">Record and manage your meeting transcriptions</p>
         </div>

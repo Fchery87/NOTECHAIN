@@ -93,7 +93,7 @@ export default function KnowledgeGraphPage() {
 
         {/* Error State */}
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl">
+          <div className="mb-6 p-6 bg-rose-50/50 border border-rose-100 rounded-3xl">
             <div className="flex items-start gap-3">
               <svg
                 className="w-5 h-5 text-rose-500 mt-0.5 flex-shrink-0"
@@ -117,7 +117,7 @@ export default function KnowledgeGraphPage() {
         )}
 
         {/* Graph View */}
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <KnowledgeGraphView
             graph={graph || { nodes: [], edges: [], clusters: [] }}
             isLoading={isLoading}
@@ -128,8 +128,10 @@ export default function KnowledgeGraphPage() {
         </div>
 
         {/* Tips Section */}
-        <div className="mt-8 bg-stone-100 rounded-xl p-6 border border-stone-200">
-          <h2 className="font-serif text-xl font-medium text-stone-900 mb-4">Tips</h2>
+        <div className="mt-8 bg-stone-50/50 rounded-3xl p-8 border border-stone-100">
+          <h2 className="font-serif text-xl font-medium text-stone-900 mb-4 tracking-tight">
+            Tips
+          </h2>
           <ul className="space-y-3 text-stone-600">
             <li className="flex items-start gap-3">
               <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-medium flex-shrink-0">

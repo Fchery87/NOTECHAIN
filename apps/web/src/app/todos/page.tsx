@@ -184,24 +184,22 @@ export default function TodosPage() {
   const headerActions = (
     <button
       onClick={openCreateForm}
-      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+      className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors shadow-sm"
     >
-      + New Task
+      New Task
     </button>
   );
 
   return (
     <AppLayout pageTitle="Tasks" actions={headerActions}>
-      <div className="py-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-stone-200">
-            <TodoList
-              todos={todos}
-              onToggle={handleToggle}
-              onPress={handlePress}
-              onDelete={handleDelete}
-            />
-          </div>
+      <div className="py-8 max-w-4xl mx-auto">
+        <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+          <TodoList
+            todos={todos}
+            onToggle={handleToggle}
+            onPress={handlePress}
+            onDelete={handleDelete}
+          />
         </div>
       </div>
 

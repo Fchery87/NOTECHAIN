@@ -158,7 +158,7 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Folders Sidebar */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-4">
+                <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6">
                   <h3 className="text-sm font-medium text-stone-500 uppercase tracking-wider mb-3">
                     Folders
                   </h3>
@@ -197,9 +197,9 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
 
               {/* Notes Grid */}
               <div className="lg:col-span-3">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-medium text-stone-900">All Notes</h2>
-                  <button className="px-4 py-2 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-colors">
+                  <button className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors shadow-sm">
                     New Note
                   </button>
                 </div>
@@ -210,9 +210,7 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
                       key={note.id}
                       href={`/notes/${note.id}`}
                       className="
-                        group bg-white rounded-xl shadow-sm border border-stone-200
-                        hover:border-amber-300 hover:shadow-md
-                        transition-all duration-200 p-5
+                        group bg-white rounded-3xl border border-stone-100 p-6 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300
                       "
                     >
                       <div className="flex items-start justify-between mb-2">

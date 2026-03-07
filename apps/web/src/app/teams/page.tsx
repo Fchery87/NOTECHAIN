@@ -67,19 +67,15 @@ export default function TeamsPage() {
   const headerActions = (
     <button
       onClick={() => setShowCreateModal(true)}
-      className="
-        px-5 py-2.5 bg-stone-900 text-stone-50 font-medium rounded-lg
-        hover:bg-stone-800 transition-all duration-300
-        hover:shadow-lg hover:shadow-stone-900/20
-      "
+      className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors shadow-sm"
     >
-      Create Team
+      New Team
     </button>
   );
 
   return (
     <AppLayout pageTitle="Teams" actions={headerActions}>
-      <div className="py-6">
+      <div className="py-8 max-w-5xl mx-auto">
         {/* Teams Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teams.map(team => (
@@ -87,9 +83,7 @@ export default function TeamsPage() {
               key={team.id}
               href={`/teams/${team.id}`}
               className="
-                group bg-white rounded-2xl shadow-sm border border-stone-200
-                hover:border-stone-300 hover:shadow-lg
-                transition-all duration-300 p-6
+                group bg-white rounded-3xl border border-stone-100 p-8 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300
               "
             >
               {/* Team Icon */}
@@ -147,9 +141,9 @@ export default function TeamsPage() {
             onClick={() => setShowCreateModal(true)}
             className="
               group flex flex-col items-center justify-center
-              bg-stone-50 border-2 border-dashed border-stone-300 rounded-2xl
-              hover:border-amber-400 hover:bg-amber-50/30
-              transition-all duration-300 p-6 min-h-[200px]
+              bg-stone-50/50 border border-dashed border-stone-200 rounded-3xl
+              hover:border-amber-400/50 hover:bg-amber-50/30
+              transition-all duration-300 p-8 min-h-[200px]
             "
           >
             <div className="w-12 h-12 border-2 border-stone-300 rounded-xl flex items-center justify-center group-hover:border-amber-400 transition-colors">
