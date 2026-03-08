@@ -1,4 +1,5 @@
-import { pipeline, Pipeline } from '@xenova/transformers';
+// Dynamic import type for @xenova/transformers to avoid SSR issues
+type Pipeline = import('@xenova/transformers').Pipeline;
 
 export class TranscriptionService {
   private pipeline: Pipeline | null = null;
@@ -24,6 +25,8 @@ export class TranscriptionService {
 
   private async loadModel(): Promise<void> {
     try {
+      // Dynamic import to avoid SSR issues with @xenova/transformers
+      const { pipeline } = await import('@xenova/transformers');
       this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
         revision: 'main',
       });
