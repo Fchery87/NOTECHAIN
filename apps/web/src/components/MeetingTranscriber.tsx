@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useAudioCapture } from '../hooks/useAudioCapture';
-import { transcriptionService } from '../lib/ai/transcription/transcriptionService';
+import { useWebSpeechTranscription } from '../hooks/useWebSpeechTranscription';
+import { WebSpeechTranscriptionService } from '../lib/ai/transcription/webSpeechTranscriptionService';
 import { extractActionItems, type ActionItem } from '../lib/ai/transcription/actionItemExtractor';
 import {
   createMeetingStorage,
@@ -31,6 +31,38 @@ function formatDuration(seconds: number): string {
 }
 
 /**
+ * Browser support warning component
+ */
+function BrowserSupportWarning() {
+  return (
+    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+      <div className="flex items-start gap-3">
+        <svg
+          className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <div>
+          <p className="text-sm font-medium text-amber-900">Browser Not Supported</p>
+          <p className="text-xs text-amber-800 mt-1">
+            Speech transcription requires Chrome, Edge, or Opera. Please switch to a supported
+            browser to use this feature.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * MeetingTranscriber Component
  *
  * Records audio, transcribes it using local Whisper model,
@@ -42,97 +74,100 @@ export function MeetingTranscriber({
   onSave,
   onCancel,
 }: MeetingTranscriberProps) {
+  // Check browser support for Web Speech API
+  const isBrowserSupported = WebSpeechTranscriptionService.isSupported();
+
   // State
   const [title, setTitle] = useState(initialTitle);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [transcript, setTranscript] = useState('');
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [duration, setDuration] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
 
   // Refs
   const meetingStorageRef = useRef(createMeetingStorage());
+  const recordingStartTimeRef = useRef<number | null>(null);
+  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Audio capture hook
+  // Web Speech API transcription hook
   const {
-    isRecording,
-    isSupported: isAudioSupported,
-    duration: recordingDuration,
-    error: audioError,
-    startRecording,
-    stopRecording,
-  } = useAudioCapture({
-    onError: err => setError(err),
+    isSupported: isSpeechSupported,
+    isListening,
+    transcript,
+    interimTranscript,
+    startListening,
+    stopListening,
+    resetTranscript,
+    supportMessage,
+  } = useWebSpeechTranscription({
+    language: 'en-US',
+    continuous: true,
+    interimResults: true,
+    onTranscript: (newTranscript, isFinal) => {
+      if (isFinal) {
+        // Extract action items from the final transcript
+        const items = extractActionItems(newTranscript);
+        setActionItems(items);
+      }
+    },
+    onError: err => {
+      setError(err);
+    },
   });
 
-  // Update duration when recording
+  // Update recording duration
   useEffect(() => {
-    setDuration(recordingDuration);
-  }, [recordingDuration]);
-
-  // Update error from audio capture
-  useEffect(() => {
-    if (audioError) {
-      setError(audioError);
+    if (isListening) {
+      recordingStartTimeRef.current = Date.now();
+      durationIntervalRef.current = setInterval(() => {
+        if (recordingStartTimeRef.current) {
+          const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+          setRecordingDuration(elapsed);
+        }
+      }, 1000);
+    } else {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
+      }
     }
-  }, [audioError]);
 
-  // Initialize transcription service on mount
-  useEffect(() => {
-    const init = async () => {
-      try {
-        await transcriptionService.initialize();
-      } catch {
-        setError('Failed to initialize transcription service');
+    return () => {
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current);
       }
     };
-    init();
-  }, []);
+  }, [isListening]);
 
   // Handle start recording
   const handleStartRecording = useCallback(async () => {
-    setError(null);
-    setTranscript('');
-    setActionItems([]);
-    setProgress(0);
-    setAudioBlob(null);
-    await startRecording();
-  }, [startRecording]);
-
-  // Handle stop recording and transcription
-  const handleStopRecording = useCallback(async () => {
-    try {
-      const blob = await stopRecording();
-      if (blob) {
-        setAudioBlob(blob);
-        setIsTranscribing(true);
-        setProgress(0);
-
-        // Transcribe audio
-        const transcribedText = await transcriptionService.transcribeAudio(blob, prog => {
-          setProgress(Math.round(prog * 100));
-        });
-
-        setTranscript(transcribedText);
-
-        // Extract action items
-        const items = extractActionItems(transcribedText);
-        setActionItems(items);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transcription failed');
-    } finally {
-      setIsTranscribing(false);
-      setProgress(100);
+    if (!isSpeechSupported) {
+      setError(
+        'Speech recognition is not supported in this browser. Please use Chrome, Edge, or Opera.'
+      );
+      return;
     }
-  }, [stopRecording]);
+
+    setError(null);
+    setAudioBlob(null);
+    setRecordingDuration(0);
+    resetTranscript();
+    setActionItems([]);
+    startListening();
+  }, [isSpeechSupported, startListening, resetTranscript]);
+
+  // Handle stop recording
+  const handleStopRecording = useCallback(async () => {
+    stopListening();
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+    }
+  }, [stopListening]);
 
   // Handle transcript change
   const handleTranscriptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTranscript(e.target.value);
+    // Note: transcript is now managed by useWebSpeechTranscription hook
+    // This handler is kept for UI consistency but doesn't update state directly
   }, []);
 
   // Handle title change
@@ -161,6 +196,11 @@ export function MeetingTranscriber({
       return;
     }
 
+    if (!transcript.trim()) {
+      setError('No transcript available to save');
+      return;
+    }
+
     try {
       setIsSaving(true);
       setError(null);
@@ -172,7 +212,7 @@ export function MeetingTranscriber({
       const meetingInput: MeetingInput = {
         title: title.trim(),
         date: new Date(),
-        duration,
+        duration: recordingDuration,
         transcript,
         actionItems,
         calendarEventId,
@@ -188,18 +228,24 @@ export function MeetingTranscriber({
     } finally {
       setIsSaving(false);
     }
-  }, [title, duration, transcript, actionItems, calendarEventId, audioBlob, onSave]);
+  }, [title, recordingDuration, transcript, actionItems, calendarEventId, audioBlob, onSave]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {
-    if (isRecording) {
-      stopRecording();
+    if (isListening) {
+      stopListening();
+    }
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
     }
     onCancel?.();
-  }, [isRecording, stopRecording, onCancel]);
+  }, [isListening, stopListening, onCancel]);
 
   // Check if save is enabled
-  const canSave = title.trim() && transcript && !isTranscribing && !isSaving;
+  const canSave = title.trim() && transcript.trim() && !isListening && !isSaving;
+
+  // Combine final and interim transcripts for display
+  const displayTranscript = transcript + (interimTranscript ? ' ' + interimTranscript : '');
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-lg border border-stone-100 overflow-hidden">
@@ -221,13 +267,16 @@ export function MeetingTranscriber({
             onChange={handleTitleChange}
             placeholder="Enter meeting title..."
             className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all duration-200"
-            disabled={isRecording || isTranscribing}
+            disabled={isListening || isSaving}
           />
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-6 space-y-6">
+        {/* Browser Support Warning */}
+        {!isBrowserSupported && <BrowserSupportWarning />}
+
         {/* Error Display */}
         {error && (
           <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg">
@@ -237,11 +286,11 @@ export function MeetingTranscriber({
 
         {/* Recording Controls */}
         <div className="flex items-center justify-center gap-4">
-          {!isRecording ? (
+          {!isListening ? (
             <button
               type="button"
               onClick={handleStartRecording}
-              disabled={!isAudioSupported || isTranscribing}
+              disabled={!isBrowserSupported || isSaving}
               className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Start recording"
             >
@@ -284,47 +333,35 @@ export function MeetingTranscriber({
           )}
 
           {/* Duration Display */}
-          {isRecording && (
+          {isListening && (
             <div className="flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-lg">
               <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
               <span className="font-mono text-lg font-medium text-stone-700">
-                {formatDuration(duration)}
+                {formatDuration(recordingDuration)}
               </span>
             </div>
           )}
         </div>
 
-        {/* Transcription Progress */}
-        {isTranscribing && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-stone-600">Transcribing...</span>
-              <span className="text-stone-500">{progress}%</span>
-            </div>
-            <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
         {/* Transcript Display */}
-        {transcript && (
+        {(displayTranscript || isListening) && (
           <div className="space-y-2">
             <label htmlFor="transcript" className="block text-sm font-medium text-stone-600">
               Transcript
+              {isListening && <span className="ml-2 text-xs text-amber-600">● Recording...</span>}
             </label>
             <textarea
               id="transcript"
-              value={transcript}
+              value={displayTranscript}
               onChange={handleTranscriptChange}
               rows={8}
               className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all duration-200 resize-y"
-              placeholder="Transcript will appear here..."
-              disabled={isTranscribing}
+              placeholder={isListening ? 'Speak now...' : 'Transcript will appear here...'}
+              readOnly
             />
+            {interimTranscript && !transcript.includes(interimTranscript) && (
+              <p className="text-xs text-stone-500 italic">{interimTranscript}</p>
+            )}
           </div>
         )}
 

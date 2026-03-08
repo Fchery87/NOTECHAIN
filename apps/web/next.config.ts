@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
       'pdf-lib',
     ],
   },
+  // Externalize @xenova/transformers to avoid webpack bundling issues
+  // This prevents "Cannot convert undefined or null to object" errors
+  serverExternalPackages: ['@xenova/transformers'],
   env: {
     NEXT_PUBLIC_NEON_DATABASE_URL: process.env.NEXT_PUBLIC_NEON_DATABASE_URL,
     NEON_PRIVATE_KEY: process.env.NEON_PRIVATE_KEY,

@@ -25,13 +25,29 @@ export class TranscriptionService {
 
   private async loadModel(): Promise<void> {
     try {
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined') {
+        throw new Error('Transcription service can only run in browser environment');
+      }
+
       // Dynamic import to avoid SSR issues with @xenova/transformers
-      const { pipeline } = await import('@xenova/transformers');
+      console.log('[TranscriptionService] Loading @xenova/transformers...');
+      const transformers = await import('@xenova/transformers');
+
+      if (!transformers || !transformers.pipeline) {
+        throw new Error('Failed to import @xenova/transformers: module not properly loaded');
+      }
+
+      const { pipeline } = transformers;
+      console.log('[TranscriptionService] Pipeline function loaded, initializing model...');
+
       this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
         revision: 'main',
       });
       this.modelLoaded = true;
+      console.log('[TranscriptionService] Model loaded successfully');
     } catch (error) {
+      console.error('[TranscriptionService] Failed to load model:', error);
       this.modelLoaded = false;
       this.loadingPromise = null;
       throw new Error(
