@@ -149,9 +149,9 @@ export class WebSpeechTranscriptionService {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       this.recognition = new SpeechRecognition();
 
-      // Disable continuous mode to prevent rapid restart loops
-      // We'll handle restarts manually with error tracking
-      this.recognition.continuous = false;
+      // Enable continuous mode so it doesn't stop after a few seconds
+      // This keeps listening until manually stopped
+      this.recognition.continuous = true;
       this.recognition.interimResults = this.options.interimResults ?? true;
       this.recognition.lang = this.options.language ?? 'en-US';
       this.recognition.maxAlternatives = 1;
@@ -211,25 +211,28 @@ export class WebSpeechTranscriptionService {
         this.isListening = false;
         this.options.onEnd?.();
 
-        // Only auto-restart if:
-        // 1. Not manually stopped
-        // 2. Haven't exceeded max consecutive errors
-        // 3. Was previously listening (not an early termination)
+        // With continuous=true, onend usually only fires when:
+        // 1. Manually stopped (isManuallyStopped = true)
+        // 2. An error occurred (we track these with consecutiveErrors)
+        // 3. Browser's internal timeout (rare with continuous=true)
+        //
+        // We only auto-restart if it wasn't a manual stop AND we haven't hit error limits
         if (
           !this.isManuallyStopped &&
           this.consecutiveErrors < this.maxConsecutiveErrors &&
           wasListening
         ) {
-          // Add a small delay before restarting to prevent rapid loops
+          // Add a small delay before restarting to handle edge cases
           this.restartTimeout = setTimeout(() => {
-            if (!this.isManuallyStopped) {
+            if (!this.isManuallyStopped && this.consecutiveErrors < this.maxConsecutiveErrors) {
               try {
                 this.recognition?.start();
               } catch {
-                // Ignore restart errors
+                // If restart fails, don't keep trying
+                this.consecutiveErrors++;
               }
             }
-          }, 300); // 300ms delay
+          }, 200); // 200ms delay for seamless continuation
         }
       };
 
