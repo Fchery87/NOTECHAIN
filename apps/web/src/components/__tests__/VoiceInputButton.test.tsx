@@ -1,56 +1,70 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { VoiceInputButton, VoiceInputButtonProps } from '../VoiceInputButton';
 import type { Editor } from '@tiptap/react';
+import type { VoiceInputButtonProps } from '../VoiceInputButton';
 
-// Mock the useVoiceInput hook
-const mockStartListening = jest.fn();
-const mockStopListening = jest.fn();
-const mockResetTranscript = jest.fn();
-
-let mockIsListening = false;
-let mockIsSupported = true;
-let mockTranscript = '';
-let mockError: { error: string; message: string } | null = null;
-
-jest.mock('../../hooks/useVoiceInput', () => ({
-  useVoiceInput: jest.fn(_options => {
-    return {
-      isListening: mockIsListening,
-      isSupported: mockIsSupported,
-      transcript: mockTranscript,
-      startListening: mockStartListening,
-      stopListening: mockStopListening,
-      resetTranscript: mockResetTranscript,
-      error: mockError,
-    };
-  }),
+const voiceInputButtonMocks = vi.hoisted(() => ({
+  startListening: vi.fn(),
+  stopListening: vi.fn(),
+  resetTranscript: vi.fn(),
+  interpretVoiceCommand: vi.fn(),
+  executeVoiceCommand: vi.fn(),
+  useVoiceInput: vi.fn(),
+  state: {
+    isListening: false,
+    isSupported: true,
+    transcript: '',
+    error: null as { error: string; message: string } | null,
+  },
 }));
 
-// Mock the voice commands module
-const mockInterpretVoiceCommand = jest.fn();
-const mockExecuteVoiceCommand = jest.fn();
-
-jest.mock('../../lib/voice/voiceCommands', () => ({
-  interpretVoiceCommand: (...args: unknown[]) => mockInterpretVoiceCommand(...args),
-  executeVoiceCommand: (...args: unknown[]) => mockExecuteVoiceCommand(...args),
+vi.mock('../../hooks/useVoiceInput', () => ({
+  useVoiceInput: voiceInputButtonMocks.useVoiceInput,
 }));
+
+vi.mock('../../lib/voice/voiceCommands', () => ({
+  interpretVoiceCommand: voiceInputButtonMocks.interpretVoiceCommand,
+  executeVoiceCommand: voiceInputButtonMocks.executeVoiceCommand,
+}));
+
+import { VoiceInputButton } from '../VoiceInputButton';
+
+const mockStartListening = voiceInputButtonMocks.startListening;
+const mockStopListening = voiceInputButtonMocks.stopListening;
+const mockInterpretVoiceCommand = voiceInputButtonMocks.interpretVoiceCommand;
+const mockExecuteVoiceCommand = voiceInputButtonMocks.executeVoiceCommand;
+const useVoiceInputMock = voiceInputButtonMocks.useVoiceInput;
+const mockState = voiceInputButtonMocks.state;
+
+const resetVoiceState = () => {
+  mockState.isListening = false;
+  mockState.isSupported = true;
+  mockState.transcript = '';
+  mockState.error = null;
+  useVoiceInputMock.mockImplementation(() => ({
+    isListening: mockState.isListening,
+    isSupported: mockState.isSupported,
+    transcript: mockState.transcript,
+    startListening: mockStartListening,
+    stopListening: mockStopListening,
+    resetTranscript: voiceInputButtonMocks.resetTranscript,
+    error: mockState.error,
+  }));
+};
 
 describe('VoiceInputButton', () => {
+  const insertContent = vi.fn(() => ({ run: vi.fn() }));
+  const focus = vi.fn(() => ({ insertContent, run: vi.fn() }));
+
   const mockEditor = {
-    chain: jest.fn(() => ({
-      focus: jest.fn(() => ({
-        insertContent: jest.fn().run,
-        run: jest.fn(),
-      })),
-    })),
+    chain: vi.fn(() => ({ focus })),
     commands: {
-      focus: jest.fn(),
+      focus: vi.fn(),
     },
     view: {
-      focus: jest.fn(),
+      focus: vi.fn(),
     },
   } as unknown as Editor;
 
@@ -59,68 +73,56 @@ describe('VoiceInputButton', () => {
   };
 
   beforeEach(() => {
-    mockIsListening = false;
-    mockIsSupported = true;
-    mockTranscript = '';
-    mockError = null;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+    resetVoiceState();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('button renders with correct title', () => {
     render(<VoiceInputButton {...defaultProps} />);
 
-    const button = screen.getByRole('button');
-    expect(button).toHaveAttribute('title', 'Voice input');
+    expect(screen.getByRole('button')).toHaveAttribute('title', 'Voice input');
   });
 
   test('microphone icon is displayed', () => {
     render(<VoiceInputButton {...defaultProps} />);
 
-    // The button should contain an SVG (microphone icon)
-    const button = screen.getByRole('button');
-    const svg = button.querySelector('svg');
-    expect(svg).toBeInTheDocument();
+    expect(screen.getByRole('button').querySelector('svg')).toBeInTheDocument();
   });
 
   test('clicking starts listening when not currently listening', () => {
-    mockIsListening = false;
+    mockState.isListening = false;
     render(<VoiceInputButton {...defaultProps} />);
 
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
 
     expect(mockStartListening).toHaveBeenCalledTimes(1);
   });
 
   test('clicking stops listening when currently listening', () => {
-    mockIsListening = true;
+    mockState.isListening = true;
     render(<VoiceInputButton {...defaultProps} />);
 
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button'));
 
     expect(mockStopListening).toHaveBeenCalledTimes(1);
   });
 
   test('listening state shows animated indicator', () => {
-    mockIsListening = true;
+    mockState.isListening = true;
     render(<VoiceInputButton {...defaultProps} />);
 
     const button = screen.getByRole('button');
     expect(button).toHaveClass('bg-amber-100');
     expect(button).toHaveClass('text-amber-600');
-
-    // Should have animated ping indicator
-    const pulseIndicator = button.querySelector('.animate-ping');
-    expect(pulseIndicator).toBeInTheDocument();
+    expect(button.querySelector('.animate-ping')).toBeInTheDocument();
   });
 
   test('not supported state shows disabled button', () => {
-    mockIsSupported = false;
+    mockState.isSupported = false;
     render(<VoiceInputButton {...defaultProps} />);
 
     const button = screen.getByRole('button');
@@ -129,19 +131,15 @@ describe('VoiceInputButton', () => {
   });
 
   test('default state uses stone colors', () => {
-    mockIsListening = false;
     render(<VoiceInputButton {...defaultProps} />);
 
-    const button = screen.getByRole('button');
-    expect(button).toHaveClass('text-stone-500');
+    expect(screen.getByRole('button')).toHaveClass('text-stone-500');
   });
 
   test('onTranscript callback is passed to useVoiceInput hook', () => {
     render(<VoiceInputButton {...defaultProps} />);
 
-    // Verify the hook was called with onTranscript callback
-    const { useVoiceInput } = require('../../hooks/useVoiceInput');
-    expect(useVoiceInput).toHaveBeenCalledWith(
+    expect(useVoiceInputMock).toHaveBeenCalledWith(
       expect.objectContaining({
         onTranscript: expect.any(Function),
         continuous: false,
@@ -150,17 +148,29 @@ describe('VoiceInputButton', () => {
     );
   });
 
-  test('error state is handled gracefully', () => {
-    mockError = { error: 'not-allowed', message: 'Permission denied' };
+  test('onTranscript executes recognized voice commands', () => {
+    mockInterpretVoiceCommand.mockReturnValue({ type: 'format', action: 'bold' });
     render(<VoiceInputButton {...defaultProps} />);
 
-    const button = screen.getByRole('button');
-    // Button should still be rendered even with error
-    expect(button).toBeInTheDocument();
+    const options = useVoiceInputMock.mock.calls[0][0];
+    options.onTranscript('make this bold');
+
+    expect(mockInterpretVoiceCommand).toHaveBeenCalledWith('make this bold');
+    expect(mockExecuteVoiceCommand).toHaveBeenCalledWith(
+      { type: 'format', action: 'bold' },
+      mockEditor
+    );
+  });
+
+  test('error state is handled gracefully', () => {
+    mockState.error = { error: 'not-allowed', message: 'Permission denied' };
+    render(<VoiceInputButton {...defaultProps} />);
+
+    expect(screen.getByRole('button')).toBeInTheDocument();
   });
 
   test('error message is displayed when error occurs', () => {
-    mockError = { error: 'not-allowed', message: 'Permission denied' };
+    mockState.error = { error: 'not-allowed', message: 'Permission denied' };
     render(<VoiceInputButton {...defaultProps} />);
 
     expect(screen.getByText('Permission denied')).toBeInTheDocument();
@@ -168,21 +178,19 @@ describe('VoiceInputButton', () => {
   });
 
   test('no error message when no error', () => {
-    mockError = null;
     render(<VoiceInputButton {...defaultProps} />);
 
     expect(screen.queryByText('Permission denied')).not.toBeInTheDocument();
   });
 
   test('button has correct aria-label and aria-pressed attributes', () => {
-    mockIsListening = false;
     const { rerender } = render(<VoiceInputButton {...defaultProps} />);
 
     let button = screen.getByRole('button');
     expect(button).toHaveAttribute('aria-label', 'Start voice input');
     expect(button).toHaveAttribute('aria-pressed', 'false');
 
-    mockIsListening = true;
+    mockState.isListening = true;
     rerender(<VoiceInputButton {...defaultProps} />);
 
     button = screen.getByRole('button');
@@ -191,11 +199,6 @@ describe('VoiceInputButton', () => {
   });
 
   test('editor is optional - works with null editor', () => {
-    const propsWithoutEditor: VoiceInputButtonProps = {
-      editor: null,
-    };
-
-    // Should not throw when rendering without editor
-    expect(() => render(<VoiceInputButton {...propsWithoutEditor} />)).not.toThrow();
+    expect(() => render(<VoiceInputButton editor={null} />)).not.toThrow();
   });
 });

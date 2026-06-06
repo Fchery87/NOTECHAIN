@@ -231,9 +231,18 @@ export class SyncService extends EventEmitter {
    * Applies a remote operation locally
    */
   private async applyRemoteOperation(operation: SyncOperation): Promise<void> {
-    // In a real implementation, this would decrypt the payload,
-    // apply the operation to local storage, and handle conflicts
+    // Ignore operations echoed from this browser session. They were already
+    // queued locally and acknowledged through operationSynced.
+    if (operation.sessionId === this.sessionId) {
+      return;
+    }
+
+    // The sync engine is storage-agnostic, so the application layer remains
+    // responsible for decrypting and applying the payload to IndexedDB/UI state.
+    // Keep the sync cursor current and emit a durable event for app-level handlers.
+    this.status.lastSyncVersion = Math.max(this.status.lastSyncVersion, operation.version);
     this.emit('remoteOperationApplied', operation);
+    this.updateStatus();
   }
 
   /**

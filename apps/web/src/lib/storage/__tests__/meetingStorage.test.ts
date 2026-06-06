@@ -48,13 +48,13 @@ describe('MeetingStorage', () => {
     actionItems: sampleActionItems,
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clear all mocks
     vi.clearAllMocks();
 
-    // Create a fresh storage instance
+    // Create a fresh storage instance and clear persisted test data
     storage = new MeetingStorage();
-    storage.clear();
+    await storage.clear();
 
     // Mock encryption key (32 bytes for XSalsa20-Poly1305)
     mockKey = new Uint8Array(32).fill(1);

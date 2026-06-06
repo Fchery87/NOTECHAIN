@@ -1,5 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db, createNote, getNote, createTodo, getTodo } from '../../lib/db';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('@notechain/core-crypto', () => ({
+  KeyManager: {
+    getMasterKey: vi.fn(async () => new Uint8Array(32).fill(1)),
+    deriveDeviceKey: vi.fn(async () => new Uint8Array(32).fill(2)),
+  },
+  encryptData: vi.fn(async (plaintext: string) => ({
+    ciphertext: Buffer.from(plaintext, 'utf8').toString('base64'),
+    nonce: 'mock-nonce',
+    authTag: 'mock-auth-tag',
+  })),
+  decryptData: vi.fn(async (encrypted: { ciphertext: string }) =>
+    Buffer.from(encrypted.ciphertext, 'base64').toString('utf8')
+  ),
+}));
+
+import { db, createNote, getNote, createTodo, getTodo, updateTodo, deleteTodo } from '../../lib/db';
 import { search } from '../../lib/search';
 
 /**
@@ -106,7 +122,7 @@ describe('Note → Todo Integration Workflow', () => {
       });
 
       // Step 2: Update todo status
-      await db.updateTodo(todoId, {
+      await updateTodo(todoId, {
         status: 'completed',
       });
 
@@ -174,7 +190,7 @@ describe('Note → Todo Integration Workflow', () => {
       });
 
       // Step 2: Delete todo
-      await db.deleteTodo(todoId);
+      await deleteTodo(todoId);
 
       // Step 3: Verify note still exists
       const note = await getNote(noteId);

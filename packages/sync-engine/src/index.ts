@@ -44,6 +44,18 @@ export { CRDTOperationType } from './crdt/types';
 // Server exports
 export { WebSocketServer } from './server/WebSocketServer';
 export { ConnectionManager } from './server/ConnectionManager';
+export {
+  allowAllDocumentAccess,
+  assertDocumentAccess,
+  InMemoryCollaborationOperationHistoryStore,
+} from './server/CollaborationGuards';
+export type {
+  CollaborationOperationHistoryStore,
+  DocumentAccessAction,
+  DocumentAccessContext,
+  DocumentAccessValidator,
+  StoredCollaborationOperation,
+} from './server/CollaborationGuards';
 export type {
   UserConnection,
   DocumentRoom,

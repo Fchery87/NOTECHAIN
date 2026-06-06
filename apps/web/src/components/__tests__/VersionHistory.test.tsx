@@ -173,13 +173,11 @@ describe('VersionHistory', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     mockSubscribers = [];
     mockVersionManager = createMockLogger();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     mockSubscribers = [];
   });
 
@@ -407,7 +405,9 @@ describe('VersionHistory', () => {
       });
 
       // Clean up by resolving
-      resolveRestore!(createMockVersion('ver-1', 'note-123'));
+      await act(async () => {
+        resolveRestore!(createMockVersion('ver-1', 'note-123'));
+      });
     });
   });
 
@@ -770,11 +770,14 @@ describe('VersionHistory', () => {
       render(<VersionHistory {...defaultProps} versionManager={mockVersionManager} limit={3} />);
 
       await waitFor(() => {
-        expect(screen.getByText('User 0')).toBeInTheDocument();
+        expect(screen.getByText('User 4')).toBeInTheDocument();
       });
 
-      // Should only show 3 versions
+      // Should only show the 3 newest versions
       expect(screen.getByText('3 versions saved')).toBeInTheDocument();
+      expect(screen.getByText('User 3')).toBeInTheDocument();
+      expect(screen.getByText('User 2')).toBeInTheDocument();
+      expect(screen.queryByText('User 0')).not.toBeInTheDocument();
     });
   });
 

@@ -9,6 +9,15 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
+  "share_target": {
+    "action": "/quick-capture",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect x='16' y='16' width='160' height='160' rx='32' fill='%231c1917'/><rect x='48' y='48' width='42' height='42' rx='8' fill='%23f59e0b'/><rect x='102' y='48' width='42' height='42' rx='8' fill='%2357534e'/><rect x='48' y='102' width='42' height='42' rx='8' fill='%2357534e'/><rect x='102' y='102' width='42' height='42' rx='8' fill='%23f43f5e'/></svg>",

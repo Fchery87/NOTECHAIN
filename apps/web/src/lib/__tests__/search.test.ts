@@ -1,19 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
-import { search } from '../search';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 
-// Mock setup
-let listNotesMock: ReturnType<typeof jest.fn>;
-let listTodosMock: ReturnType<typeof jest.fn>;
+const dbMocks = vi.hoisted(() => ({
+  listNotes: vi.fn(),
+  listTodos: vi.fn(),
+}));
+
+vi.mock('../db', () => ({
+  listNotes: dbMocks.listNotes,
+  listTodos: dbMocks.listTodos,
+}));
+
+import { search } from '../search';
 
 describe('Search Service', () => {
   beforeEach(() => {
-    listNotesMock = jest.fn();
-    listTodosMock = jest.fn();
+    vi.clearAllMocks();
+    dbMocks.listNotes.mockResolvedValue([]);
+    dbMocks.listTodos.mockResolvedValue([]);
   });
 
   describe('Basic Search', () => {
     test('should find notes by title match', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Meeting Notes',
@@ -32,7 +40,7 @@ describe('Search Service', () => {
     });
 
     test('should find todos by title match', async () => {
-      listTodosMock.mockResolvedValue([
+      dbMocks.listTodos.mockResolvedValue([
         {
           id: 'todo-1',
           title: 'Buy groceries',
@@ -51,7 +59,7 @@ describe('Search Service', () => {
     });
 
     test('should search both notes and todos', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Meeting Notes',
@@ -60,7 +68,7 @@ describe('Search Service', () => {
           updatedAt: new Date(),
         },
       ]);
-      listTodosMock.mockResolvedValue([
+      dbMocks.listTodos.mockResolvedValue([
         {
           id: 'todo-1',
           title: 'Meeting Action Items',
@@ -79,7 +87,7 @@ describe('Search Service', () => {
 
   describe('Fuzzy Search', () => {
     test('should find partial matches', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Quarterly Review',
@@ -96,7 +104,7 @@ describe('Search Service', () => {
     });
 
     test('should find case-insensitive matches', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'PROJECT PLAN',
@@ -114,7 +122,7 @@ describe('Search Service', () => {
 
   describe('Search Scoring', () => {
     test('should rank exact title matches higher', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Project Planning',
@@ -137,7 +145,7 @@ describe('Search Service', () => {
     });
 
     test('should sort results by score', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Meeting Notes',
@@ -162,7 +170,7 @@ describe('Search Service', () => {
 
   describe('Search Limits', () => {
     test('should limit results to specified count', async () => {
-      listNotesMock.mockResolvedValue(
+      dbMocks.listNotes.mockResolvedValue(
         Array.from({ length: 100 }, (_, i) => ({
           id: `note-${i}`,
           title: `Note ${i}`,
@@ -178,7 +186,7 @@ describe('Search Service', () => {
     });
 
     test('should use default limit of 50', async () => {
-      listNotesMock.mockResolvedValue(
+      dbMocks.listNotes.mockResolvedValue(
         Array.from({ length: 100 }, (_, i) => ({
           id: `note-${i}`,
           title: `Note ${i}`,
@@ -196,7 +204,7 @@ describe('Search Service', () => {
 
   describe('Type Filtering', () => {
     test('should only search notes when types includes note', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Search Test',
@@ -205,7 +213,7 @@ describe('Search Service', () => {
           updatedAt: new Date(),
         },
       ]);
-      listTodosMock.mockResolvedValue([
+      dbMocks.listTodos.mockResolvedValue([
         {
           id: 'todo-1',
           title: 'Search Test Todo',
@@ -226,7 +234,7 @@ describe('Search Service', () => {
     });
 
     test('should only search todos when types includes todo', async () => {
-      listNotesMock.mockResolvedValue([
+      dbMocks.listNotes.mockResolvedValue([
         {
           id: 'note-1',
           title: 'Search Test',
@@ -235,7 +243,7 @@ describe('Search Service', () => {
           updatedAt: new Date(),
         },
       ]);
-      listTodosMock.mockResolvedValue([
+      dbMocks.listTodos.mockResolvedValue([
         {
           id: 'todo-1',
           title: 'Search Test Todo',

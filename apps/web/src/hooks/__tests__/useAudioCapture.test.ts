@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAudioCapture } from '../useAudioCapture';
 
@@ -36,6 +36,12 @@ class MockMediaStreamTrack {
 
 // Mock MediaRecorder
 class MockMediaRecorder {
+  static isTypeSupported = vi.fn((mimeType: string) =>
+    ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg'].includes(
+      mimeType
+    )
+  );
+
   stream: MockMediaStream;
   mimeType: string;
   state: 'inactive' | 'recording' | 'paused' = 'inactive';
@@ -169,7 +175,13 @@ describe('useAudioCapture', () => {
       await result.current.startRecording();
     });
 
-    expect(mockGetUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(mockGetUserMedia).toHaveBeenCalledWith({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 16000,
+      },
+    });
     expect(result.current.isRecording).toBe(true);
   });
 

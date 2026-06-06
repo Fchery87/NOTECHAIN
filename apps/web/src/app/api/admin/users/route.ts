@@ -15,7 +15,7 @@ import { withRateLimit } from '@/lib/security/serverRateLimiter';
  * @param input - Raw search input string
  * @returns Sanitized string safe for ILIKE queries
  */
-function sanitizeSearchInput(input: string): string {
+export function sanitizeSearchInput(input: string): string {
   // Remove null bytes
   let sanitized = input.split('\0').join('');
 

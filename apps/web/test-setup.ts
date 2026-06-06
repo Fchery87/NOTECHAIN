@@ -4,6 +4,7 @@
  */
 
 import { vi, beforeEach, afterEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
 
 // ============================================================================
@@ -300,6 +301,11 @@ if (cryptoDescriptor?.writable) {
 }
 
 Object.assign(globalThis, mockAssign);
+
+// Compatibility for legacy tests that were originally authored for Jest.
+Object.assign(globalThis, {
+  jest: vi,
+});
 
 // Add remaining mocks
 Object.assign(globalThis, {

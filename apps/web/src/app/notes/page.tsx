@@ -7,6 +7,11 @@ import { NoteEditor } from '@/components/NoteEditor';
 
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
+import {
+  applyRemoteNoteDelete,
+  applyRemoteNoteUpsert,
+  removeIdFromSet,
+} from '@/lib/sync/remoteNoteApply';
 import { useUser } from '@/lib/supabase/UserProvider';
 
 interface Note {
@@ -17,16 +22,19 @@ interface Note {
   ownerId: string;
   ownerName: string;
   collaborators: NoteCollaborator[];
+  version?: number;
 }
 
 export default function NotesPage() {
   const { user } = useUser();
   const {
+    loadCachedNotes,
     loadNotes,
     syncCreateNote,
     syncUpdateNote,
     syncDeleteNote,
     deleteLockedNotes,
+    subscribeToRemoteNoteChanges,
     isSyncEnabled,
     isEncryptionReady,
     isLoading,
@@ -52,12 +60,16 @@ export default function NotesPage() {
     avatarUrl: undefined,
   };
 
-  // Load notes from Supabase on mount when encryption is ready
+  // Load cached notes first, then refresh from Supabase when encryption is ready.
   useEffect(() => {
     if (!isEncryptionReady || !user?.id || hasLoaded) return;
 
-    const load = async () => {
-      const loaded = await loadNotes();
+    let cancelled = false;
+
+    const applyLoadedNotes = (
+      loaded: Array<Omit<Note, 'ownerId' | 'ownerName' | 'collaborators'>>
+    ) => {
+      if (cancelled) return;
 
       // Identify locked notes (those with key mismatch placeholder)
       const lockedIds = new Set<string>();
@@ -66,37 +78,90 @@ export default function NotesPage() {
       for (const n of loaded) {
         if (n.title === '🔒 Encrypted Note (Key Mismatch)') {
           lockedIds.add(n.id);
-          normalNotes.push({
-            ...n,
-            ownerId: user?.id || '',
-            ownerName: currentUser.displayName,
-            collaborators: [],
-          });
-        } else {
-          normalNotes.push({
-            ...n,
-            ownerId: user?.id || '',
-            ownerName: currentUser.displayName,
-            collaborators: [],
-          });
         }
+
+        normalNotes.push({
+          ...n,
+          ownerId: user?.id || '',
+          ownerName: currentUser.displayName,
+          collaborators: [],
+        });
       }
 
       setLockedNoteIds(lockedIds);
       setNotes(normalNotes);
 
-      // Select first normal note, or first locked if all locked
-      const firstNormal = normalNotes.find(n => !lockedIds.has(n.id));
-      if (firstNormal) {
-        setSelectedNoteId(firstNormal.id);
-      } else if (normalNotes.length > 0) {
-        setSelectedNoteId(normalNotes[0].id);
+      setSelectedNoteId(current => {
+        if (current && normalNotes.some(note => note.id === current)) {
+          return current;
+        }
+
+        const firstNormal = normalNotes.find(n => !lockedIds.has(n.id));
+        return firstNormal?.id ?? normalNotes[0]?.id ?? null;
+      });
+    };
+
+    const load = async () => {
+      const cached = await loadCachedNotes();
+      if (cached.length > 0) {
+        applyLoadedNotes(cached);
       }
+
       setHasLoaded(true);
+
+      const refreshed = await loadNotes();
+      applyLoadedNotes(refreshed);
     };
 
     load();
-  }, [isEncryptionReady, hasLoaded, loadNotes, user?.id, currentUser.displayName]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEncryptionReady, hasLoaded, loadCachedNotes, loadNotes, user?.id, currentUser.displayName]);
+
+  // Apply note changes that arrive from another browser session/device.
+  useEffect(() => {
+    if (!isSyncEnabled || !isEncryptionReady) return;
+
+    return subscribeToRemoteNoteChanges(change => {
+      if (change.operationType === 'delete') {
+        setNotes(prev => {
+          const remaining = applyRemoteNoteDelete(prev, change.noteId);
+          setSelectedNoteId(current =>
+            current === change.noteId ? (remaining[0]?.id ?? null) : current
+          );
+          return remaining;
+        });
+        setLockedNoteIds(prev => removeIdFromSet(prev, change.noteId));
+        setSelectedIds(prev => removeIdFromSet(prev, change.noteId));
+        return;
+      }
+
+      if (!change.note) return;
+
+      const remoteNote: Note = {
+        ...change.note,
+        ownerId: user?.id || '',
+        ownerName: currentUser.displayName,
+        collaborators: [],
+      };
+
+      setLockedNoteIds(prev => {
+        const next = new Set(prev);
+        next.delete(remoteNote.id);
+        return next;
+      });
+
+      setNotes(prev => applyRemoteNoteUpsert(prev, remoteNote, change.version));
+    });
+  }, [
+    isSyncEnabled,
+    isEncryptionReady,
+    subscribeToRemoteNoteChanges,
+    user?.id,
+    currentUser.displayName,
+  ]);
 
   const selectedNote = notes.find(n => n.id === selectedNoteId) || null;
 
@@ -150,10 +215,13 @@ export default function NotesPage() {
     setSelectedNoteId(newNote.id);
 
     if (isSyncEnabled) {
-      await syncCreateNote({
-        title: newNote.title,
-        content: newNote.content,
-      });
+      await syncCreateNote(
+        {
+          title: newNote.title,
+          content: newNote.content,
+        },
+        noteId
+      );
     }
   }, [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName]);
 

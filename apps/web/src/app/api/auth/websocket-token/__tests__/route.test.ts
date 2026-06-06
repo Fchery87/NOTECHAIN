@@ -72,19 +72,28 @@ describe('WebSocket Token Endpoint - Security', () => {
 
     it('should return 500 on error', async () => {
       const { createClient } = await import('@/lib/supabase/server');
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Mock createClient to throw an error
-      vi.mocked(createClient).mockRejectedValue(new Error('Database connection failed'));
+      try {
+        // Mock createClient to throw an error
+        vi.mocked(createClient).mockRejectedValue(new Error('Database connection failed'));
 
-      const request = new Request('http://localhost:3000/api/auth/websocket-token', {
-        method: 'POST',
-      });
+        const request = new Request('http://localhost:3000/api/auth/websocket-token', {
+          method: 'POST',
+        });
 
-      const response = await POST(request);
-      const data = await response.json();
+        const response = await POST(request);
+        const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data).toHaveProperty('error');
+        expect(response.status).toBe(500);
+        expect(data).toHaveProperty('error');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'WebSocket token generation error:',
+          expect.any(Error)
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
   });
 });

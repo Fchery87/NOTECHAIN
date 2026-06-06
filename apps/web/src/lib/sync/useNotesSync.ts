@@ -1,28 +1,35 @@
 'use client';
 
 import { useCallback, useRef, useEffect, useState } from 'react';
+import type { SyncOperation } from '@notechain/sync-engine';
 import { useSync } from './SyncProvider';
 import { useUser } from '@/lib/supabase/UserProvider';
 import { encryptedSyncService } from './encryptedSyncService';
 import { offlineQueue } from './offlineQueue';
 import { SupabaseSyncAdapter } from '@/lib/supabase/syncAdapter';
+import {
+  listLocalNoteOperations,
+  setLocalSyncCursor,
+  upsertLocalNoteOperation,
+} from './noteSyncLocalStore';
+import {
+  getRecoveryBackupState,
+  isRecoveryBackupSatisfied,
+  markRecoveryBackupBypassed,
+  markRecoveryBackupVerified,
+  RECOVERY_BACKUP_STATE_CHANGED,
+  type RecoveryBackupState,
+} from './recoveryBackupState';
+import {
+  createDeleteMarker,
+  decryptCachedNoteRecords,
+  syncOperationToRemoteNoteChange,
+  toSyncOperationDraft,
+  type SyncNoteOperation,
+  type SyncOperationDraft,
+} from './noteSyncOperations';
+import type { Note, RemoteNoteChange } from './noteSyncTypes';
 import { v4 as uuidv4 } from 'uuid';
-
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  updatedAt: Date;
-  version?: number;
-}
-
-interface SyncNoteOperation {
-  id: string;
-  title: string;
-  content: string;
-  updatedAt: string;
-  version: number;
-}
 
 /**
  * Hook to sync note operations with E2E encryption and offline support
@@ -33,6 +40,8 @@ export function useNotesSync() {
   const [isEncryptionReady, setIsEncryptionReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [encryptionError, setEncryptionError] = useState<string | null>(null);
+  const [recoveryBackupState, setRecoveryBackupState] = useState<RecoveryBackupState>({});
   const versionRef = useRef<Record<string, number>>({});
   const adapterRef = useRef<SupabaseSyncAdapter | null>(null);
 
@@ -46,10 +55,39 @@ export function useNotesSync() {
 
   // Initialize encryption on mount
   useEffect(() => {
-    encryptedSyncService.initialize().then(() => {
-      setIsEncryptionReady(true);
-    });
+    encryptedSyncService
+      .initialize()
+      .then(() => {
+        setEncryptionError(null);
+        setIsEncryptionReady(true);
+      })
+      .catch(error => {
+        const message = error instanceof Error ? error.message : 'Encryption recovery required';
+        setEncryptionError(message);
+        setLoadError(message);
+        setIsEncryptionReady(false);
+      });
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setRecoveryBackupState({});
+      return;
+    }
+
+    const refreshRecoveryBackupState = () => {
+      setRecoveryBackupState(getRecoveryBackupState(user.id));
+    };
+
+    refreshRecoveryBackupState();
+    window.addEventListener(RECOVERY_BACKUP_STATE_CHANGED, refreshRecoveryBackupState);
+    window.addEventListener('storage', refreshRecoveryBackupState);
+
+    return () => {
+      window.removeEventListener(RECOVERY_BACKUP_STATE_CHANGED, refreshRecoveryBackupState);
+      window.removeEventListener('storage', refreshRecoveryBackupState);
+    };
+  }, [user?.id]);
 
   const getNextVersion = useCallback((noteId: string): number => {
     const currentVersion = versionRef.current[noteId] || 0;
@@ -57,8 +95,30 @@ export function useNotesSync() {
     return versionRef.current[noteId];
   }, []);
 
+  const trackRemoteVersion = useCallback((noteId: string, version: number): void => {
+    versionRef.current[noteId] = Math.max(versionRef.current[noteId] || 0, version);
+  }, []);
+
+  const decryptLocalRecords = useCallback(
+    (records: Parameters<typeof decryptCachedNoteRecords>[0]): Promise<Note[]> =>
+      decryptCachedNoteRecords(records, trackRemoteVersion),
+    [trackRemoteVersion]
+  );
+
   /**
-   * Load all notes from Supabase, decrypt, and return
+   * Load encrypted notes from the local sync cache. This is the local-first
+   * fast path used before refreshing from Supabase.
+   */
+  const loadCachedNotes = useCallback(async (): Promise<Note[]> => {
+    if (!user?.id || !isEncryptionReady) return [];
+
+    const records = await listLocalNoteOperations(user.id);
+    return decryptLocalRecords(records);
+  }, [user?.id, isEncryptionReady, decryptLocalRecords]);
+
+  /**
+   * Load all notes from Supabase, update the encrypted local cache, decrypt,
+   * and return the local canonical view.
    */
   const loadNotes = useCallback(async (): Promise<Note[]> => {
     if (!user?.id) {
@@ -78,68 +138,35 @@ export function useNotesSync() {
       const adapter = getAdapter();
       const rawNotes = await adapter.fetchUserNotes(user.id);
 
-      if (rawNotes.length === 0) {
-        return [];
-      }
-
-      const notes: Note[] = [];
+      let maxRemoteVersion = 0;
       for (const raw of rawNotes) {
-        // Skip deleted notes
-        if (raw.operationType === 'delete') {
-          console.log(`[useNotesSync] Skipping deleted note ${raw.entityId}`);
-          continue;
-        }
-
-        try {
-          const decrypted = (await encryptedSyncService.decrypt(
-            raw.encryptedPayload
-          )) as SyncNoteOperation;
-          notes.push({
-            id: decrypted.id || raw.entityId,
-            title: decrypted.title || 'Untitled',
-            content: decrypted.content || '',
-            updatedAt: decrypted.updatedAt ? new Date(decrypted.updatedAt) : new Date(),
-            version: raw.version,
-          });
-          // Track version for subsequent updates
-          versionRef.current[raw.entityId] = raw.version;
-        } catch (decryptErr) {
-          const errorMessage =
-            decryptErr instanceof Error ? decryptErr.message : String(decryptErr);
-
-          // Check if this is a key mismatch issue
-          if (errorMessage.includes('invalid key')) {
-            console.warn(
-              `[useNotesSync] Key mismatch for note ${raw.entityId}. ` +
-                `This note was encrypted with a different key. ` +
-                `Possible causes: cleared browser data, new device, or reinstalled app.`
-            );
-            // Add a "locked" note placeholder so user knows it exists but can't be read
-            notes.push({
-              id: raw.entityId,
-              title: '🔒 Encrypted Note (Key Mismatch)',
-              content:
-                'This note cannot be decrypted with the current encryption key. ' +
-                'It may have been created on a different device or before a key reset.',
-              updatedAt: new Date(),
-              version: raw.version,
-            });
-          } else {
-            console.error(`[useNotesSync] Failed to decrypt note ${raw.entityId}:`, decryptErr);
-          }
-        }
+        maxRemoteVersion = Math.max(maxRemoteVersion, raw.version);
+        await upsertLocalNoteOperation({
+          userId: user.id,
+          noteId: raw.entityId,
+          encryptedPayload: raw.encryptedPayload,
+          operationType: raw.operationType === 'delete' || raw.isDeleted ? 'delete' : 'update',
+          version: raw.version,
+        });
       }
 
-      return notes;
+      if (maxRemoteVersion > 0) {
+        await setLocalSyncCursor(user.id, maxRemoteVersion);
+      }
+
+      const cachedRecords = await listLocalNoteOperations(user.id);
+      return decryptLocalRecords(cachedRecords);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load notes';
       setLoadError(message);
       console.error('[useNotesSync] Error loading notes:', err);
-      return [];
+
+      const cachedRecords = await listLocalNoteOperations(user.id);
+      return decryptLocalRecords(cachedRecords);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, isEncryptionReady, getAdapter]);
+  }, [user?.id, isEncryptionReady, getAdapter, decryptLocalRecords]);
 
   /**
    * Encrypt and sync a note operation
@@ -148,92 +175,116 @@ export function useNotesSync() {
     async (
       operationType: 'create' | 'update' | 'delete',
       noteId: string,
-      noteData?: SyncNoteOperation
+      noteData?: SyncNoteOperation,
+      versionOverride?: number
     ): Promise<void> => {
-      const version = noteData?.version || 1;
+      const version = versionOverride ?? noteData?.version ?? 1;
 
-      // Handle offline queue for all operations including deletions
-      if (!syncService || !isInitialized || !isEncryptionReady) {
-        console.warn(
-          `[useNotesSync] ${!syncService || !isInitialized ? 'Sync service not available' : 'Encryption not ready'}, queuing ${operationType} for later`
-        );
-
-        let encryptedPayload: string;
-        if (operationType === 'delete') {
-          // For deletions, use a special marker that won't be decrypted
-          encryptedPayload = 'DELETE_OPERATION';
-        } else if (noteData && isEncryptionReady) {
-          encryptedPayload = await encryptedSyncService.encrypt(noteData);
-        } else if (noteData) {
-          encryptedPayload = JSON.stringify(noteData);
-        } else {
-          console.error(`[useNotesSync] Cannot queue ${operationType} - no data available`);
-          return;
+      const buildEncryptedPayload = async (): Promise<string> => {
+        if (!isEncryptionReady) {
+          throw new Error('Encryption not ready; cannot create a sync payload');
         }
 
+        if (operationType === 'delete') {
+          return encryptedSyncService.encrypt(createDeleteMarker(noteId, version));
+        }
+
+        if (!noteData) {
+          throw new Error(`Cannot sync ${operationType} - no data available`);
+        }
+
+        return encryptedSyncService.encrypt(noteData);
+      };
+
+      const persistLocalPayload = async (encryptedPayload: string): Promise<void> => {
+        if (!user?.id) return;
+
+        await upsertLocalNoteOperation({
+          userId: user.id,
+          noteId,
+          encryptedPayload,
+          operationType,
+          version,
+        });
+      };
+
+      const buildOperationDraft = (encryptedPayload: string): SyncOperationDraft => ({
+        operationType,
+        entityType: 'note',
+        entityId: noteId,
+        encryptedPayload,
+        version,
+      });
+
+      const queueEncryptedOperation = async (encryptedPayload: string): Promise<void> => {
         await offlineQueue.enqueue({
           id: uuidv4(),
           userId: user?.id || '',
           sessionId: '',
-          operationType,
-          entityType: 'note',
-          entityId: noteId,
-          encryptedPayload,
           timestamp: Date.now(),
+          ...buildOperationDraft(encryptedPayload),
+        });
+      };
+
+      if (user?.id && !isRecoveryBackupSatisfied(user.id)) {
+        try {
+          const encryptedPayload = await buildEncryptedPayload();
+          await persistLocalPayload(encryptedPayload);
+          setLoadError(
+            'Recovery key backup required before cloud sync. Verify your recovery key to enable encrypted sync.'
+          );
+        } catch (localPersistError) {
+          console.error(
+            `[useNotesSync] Failed to save ${operationType} locally:`,
+            localPersistError
+          );
+        }
+
+        console.warn('[useNotesSync] Cloud sync blocked until recovery key backup is verified', {
+          operationType,
+          noteId,
           version,
         });
         return;
       }
 
-      try {
-        let encryptedPayload: string;
-
-        if (operationType === 'delete') {
-          // For deletions, create a minimal encrypted payload
-          // We encrypt a deletion marker instead of using placeholder text
-          const deletionMarker = {
-            id: noteId,
-            deleted: true,
-            deletedAt: new Date().toISOString(),
-          };
-          encryptedPayload = await encryptedSyncService.encrypt(deletionMarker as any);
-        } else if (noteData) {
-          encryptedPayload = await encryptedSyncService.encrypt(noteData);
-        } else {
-          throw new Error(`Cannot sync ${operationType} - no data available`);
-        }
-
-        await syncService.enqueueOperation({
+      // Handle offline queue for all operations, including encrypted deletions.
+      if (!syncService || !isInitialized) {
+        console.warn('[useNotesSync] Sync service not available, queuing operation for later', {
           operationType,
-          entityType: 'note',
-          entityId: noteId,
-          encryptedPayload,
+          noteId,
           version,
         });
+
+        try {
+          const encryptedPayload = await buildEncryptedPayload();
+          await persistLocalPayload(encryptedPayload);
+
+          await queueEncryptedOperation(encryptedPayload);
+        } catch (queueError) {
+          console.error(`[useNotesSync] Cannot queue ${operationType}:`, queueError);
+        }
+        return;
+      }
+
+      try {
+        const encryptedPayload = await buildEncryptedPayload();
+        await persistLocalPayload(encryptedPayload);
+
+        await syncService.enqueueOperation(buildOperationDraft(encryptedPayload));
       } catch (_error) {
         console.error(`[useNotesSync] Failed to sync ${operationType}:`, _error);
 
-        // Queue for retry on error
-        let encryptedPayload: string;
-        if (operationType === 'delete') {
-          encryptedPayload = 'DELETE_OPERATION';
-        } else if (noteData) {
-          encryptedPayload = await encryptedSyncService.encrypt(noteData);
-        } else {
-          return;
-        }
+        // Queue for retry on transient sync errors. Do not queue plaintext or marker
+        // placeholders; the Supabase adapter expects encrypted payloads only.
+        try {
+          const encryptedPayload = await buildEncryptedPayload();
+          await persistLocalPayload(encryptedPayload);
 
-        await offlineQueue.enqueue({
-          id: uuidv4(),
-          userId: user?.id || '',
-          sessionId: '',
-          operationType,
-          entityType: 'note',
-          entityId: noteId,
-          encryptedPayload,
-          timestamp: Date.now(),
-          version,
-        });
+          await queueEncryptedOperation(encryptedPayload);
+        } catch (queueError) {
+          console.error(`[useNotesSync] Failed to queue ${operationType}:`, queueError);
+        }
       }
     },
     [syncService, isInitialized, isEncryptionReady, user?.id]
@@ -243,8 +294,8 @@ export function useNotesSync() {
    * Sync a note creation
    */
   const syncCreateNote = useCallback(
-    async (note: Omit<Note, 'id' | 'updatedAt'>): Promise<string> => {
-      const noteId = uuidv4();
+    async (note: Omit<Note, 'id' | 'updatedAt'>, existingNoteId?: string): Promise<string> => {
+      const noteId = existingNoteId ?? uuidv4();
       const version = 1;
       versionRef.current[noteId] = version;
 
@@ -287,8 +338,8 @@ export function useNotesSync() {
    */
   const syncDeleteNote = useCallback(
     async (noteId: string): Promise<void> => {
-      const _version = getNextVersion(noteId);
-      await syncNoteOperation('delete', noteId);
+      const version = getNextVersion(noteId);
+      await syncNoteOperation('delete', noteId, undefined, version);
     },
     [syncNoteOperation, getNextVersion]
   );
@@ -303,7 +354,7 @@ export function useNotesSync() {
 
     for (const queued of pending) {
       try {
-        await syncService.enqueueOperation(queued.operation as any);
+        await syncService.enqueueOperation(toSyncOperationDraft(queued.operation));
         await offlineQueue.remove(queued.id);
       } catch (error) {
         await offlineQueue.markFailed(
@@ -353,15 +404,106 @@ export function useNotesSync() {
     [user?.id, getAdapter]
   );
 
+  /**
+   * Subscribe to decrypted note changes that arrive from another session/device.
+   * The sync engine is intentionally storage-agnostic, so UI/local-store code
+   * decides how to apply these changes.
+   */
+  const subscribeToRemoteNoteChanges = useCallback(
+    (onChange: (change: RemoteNoteChange) => void): (() => void) => {
+      if (!syncService || !isInitialized || !isEncryptionReady) {
+        return () => {};
+      }
+
+      const handleRemoteOperation = (operation: SyncOperation) => {
+        if (operation.entityType !== 'note') return;
+
+        void (async () => {
+          try {
+            trackRemoteVersion(operation.entityId, operation.version);
+
+            await upsertLocalNoteOperation({
+              userId: operation.userId,
+              noteId: operation.entityId,
+              encryptedPayload: operation.encryptedPayload,
+              operationType: operation.operationType,
+              version: operation.version,
+              updatedAt: operation.timestamp,
+            });
+            await setLocalSyncCursor(operation.userId, operation.version);
+
+            onChange(await syncOperationToRemoteNoteChange(operation));
+          } catch (error) {
+            console.error('[useNotesSync] Failed to apply remote note operation:', error);
+          }
+        })();
+      };
+
+      syncService.on('remoteOperationApplied', handleRemoteOperation);
+
+      return () => {
+        syncService.off('remoteOperationApplied', handleRemoteOperation);
+      };
+    },
+    [syncService, isInitialized, isEncryptionReady, trackRemoteVersion]
+  );
+
+  const recoveryBackupVerified = Boolean(recoveryBackupState.verifiedAt);
+  const recoveryBackupBypassed = Boolean(recoveryBackupState.bypassedAt);
+  const requiresRecoveryBackup = Boolean(
+    user?.id && isEncryptionReady && !recoveryBackupVerified && !recoveryBackupBypassed
+  );
+
   return {
+    loadCachedNotes,
     loadNotes,
     syncCreateNote,
     syncUpdateNote,
     syncDeleteNote,
     processOfflineQueue,
     deleteLockedNotes,
+    subscribeToRemoteNoteChanges,
+    exportRecoveryKey: () => encryptedSyncService.exportRecoveryKey(),
+    importRecoveryKey: async (recoveryKey: string) => {
+      await encryptedSyncService.importRecoveryKey(recoveryKey);
+      if (user?.id) {
+        setRecoveryBackupState(markRecoveryBackupVerified(user.id));
+      }
+      setEncryptionError(null);
+      setLoadError(null);
+      setIsEncryptionReady(true);
+    },
+    verifyRecoveryKeyBackup: async (recoveryKey: string): Promise<boolean> => {
+      if (!user?.id) {
+        throw new Error('No signed-in user available for recovery-key verification');
+      }
+
+      const matchesCurrentKey = encryptedSyncService.verifyRecoveryKey(recoveryKey);
+      if (!matchesCurrentKey) {
+        return false;
+      }
+
+      const state = markRecoveryBackupVerified(user.id);
+      setRecoveryBackupState(state);
+      setLoadError(null);
+      return true;
+    },
+    bypassRecoveryKeyBackup: (): void => {
+      if (!user?.id) {
+        throw new Error('No signed-in user available for recovery-key bypass');
+      }
+
+      const state = markRecoveryBackupBypassed(user.id);
+      setRecoveryBackupState(state);
+    },
+    recoveryBackupState,
+    recoveryBackupVerified,
+    recoveryBackupBypassed,
+    requiresRecoveryBackup,
     isSyncEnabled: isInitialized && !!syncService,
+    isCloudSyncBlockedByRecoveryBackup: requiresRecoveryBackup,
     isEncryptionReady,
+    encryptionError,
     isLoading,
     loadError,
   };

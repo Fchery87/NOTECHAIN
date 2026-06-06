@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -7,15 +7,18 @@ import type { Meeting } from '../../lib/storage/meetingStorage';
 import type { ActionItem } from '../../lib/ai/transcription/actionItemExtractor';
 
 // Mock functions
-const mockOnSave = mock();
-const mockOnCancel = mock();
-const mockGetMeetingsByCalendarEvent = mock();
-const mockCreateMeetingStorage = mock(() => ({
-  getMeetingsByCalendarEvent: mockGetMeetingsByCalendarEvent,
+const transcriptMocks = vi.hoisted(() => ({
+  onSave: vi.fn(),
+  onCancel: vi.fn(),
+  getMeetingsByCalendarEvent: vi.fn(),
+  createMeetingStorage: vi.fn(),
+}));
+transcriptMocks.createMeetingStorage.mockImplementation(() => ({
+  getMeetingsByCalendarEvent: transcriptMocks.getMeetingsByCalendarEvent,
 }));
 
 // Mock MeetingTranscriber modal
-mock.module('../MeetingTranscriber', () => ({
+vi.mock('../MeetingTranscriber', () => ({
   MeetingTranscriber: ({
     onSave,
     onCancel,
@@ -31,8 +34,8 @@ mock.module('../MeetingTranscriber', () => ({
 }));
 
 // Mock meeting storage
-mock.module('../../lib/storage/meetingStorage', () => ({
-  createMeetingStorage: mockCreateMeetingStorage,
+vi.mock('../../lib/storage/meetingStorage', () => ({
+  createMeetingStorage: transcriptMocks.createMeetingStorage,
 }));
 
 describe('CalendarEventTranscript', () => {
@@ -40,8 +43,8 @@ describe('CalendarEventTranscript', () => {
     eventId: 'calendar-event-456',
     eventTitle: 'Team Sync Meeting',
     eventDate: new Date('2024-01-15T10:00:00'),
-    onTranscribe: mock(),
-    onViewMeeting: mock(),
+    onTranscribe: vi.fn(),
+    onViewMeeting: vi.fn(),
   };
 
   const mockActionItems: ActionItem[] = [
@@ -68,27 +71,31 @@ describe('CalendarEventTranscript', () => {
   };
 
   beforeEach(() => {
-    mockOnSave.mockClear();
-    mockOnCancel.mockClear();
-    mockGetMeetingsByCalendarEvent.mockClear();
-    mockCreateMeetingStorage.mockClear();
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
+    transcriptMocks.onSave.mockClear();
+    transcriptMocks.onCancel.mockClear();
+    transcriptMocks.getMeetingsByCalendarEvent.mockClear();
+    transcriptMocks.createMeetingStorage.mockClear();
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
   });
 
   afterEach(() => {
-    mockOnSave.mockClear();
-    mockOnCancel.mockClear();
-    mockGetMeetingsByCalendarEvent.mockClear();
-    mockCreateMeetingStorage.mockClear();
+    transcriptMocks.onSave.mockClear();
+    transcriptMocks.onCancel.mockClear();
+    transcriptMocks.getMeetingsByCalendarEvent.mockClear();
+    transcriptMocks.createMeetingStorage.mockClear();
   });
 
-  test('shows loading state initially', () => {
+  test('shows loading state initially', async () => {
     render(<CalendarEventTranscript {...defaultProps} />);
     expect(screen.getByText(/loading/i)).toBeDefined();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
+    });
   });
 
   test('shows "Transcribe" button if no meeting exists for event', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -100,7 +107,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('shows transcript summary if meeting exists', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -113,8 +120,8 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('clicking "Transcribe" opens transcriber modal', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
-    const mockOnTranscribe = mock();
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
+    const mockOnTranscribe = vi.fn();
 
     render(<CalendarEventTranscript {...defaultProps} onTranscribe={mockOnTranscribe} />);
 
@@ -131,7 +138,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('shows action item count if meeting has action items', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -141,7 +148,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('shows completed vs pending action item count', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -151,8 +158,8 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('shows link to view full meeting', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
-    const mockOnViewMeeting = mock();
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
+    const mockOnViewMeeting = vi.fn();
 
     render(<CalendarEventTranscript {...defaultProps} onViewMeeting={mockOnViewMeeting} />);
 
@@ -168,7 +175,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('closes modal and refreshes meeting data on save', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -194,11 +201,11 @@ describe('CalendarEventTranscript', () => {
     });
 
     // Should refresh meetings (called twice: initial + after save)
-    expect(mockGetMeetingsByCalendarEvent).toHaveBeenCalledTimes(2);
+    expect(transcriptMocks.getMeetingsByCalendarEvent).toHaveBeenCalledTimes(2);
   });
 
   test('closes modal on cancel', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -225,7 +232,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('passes calendarEventId to MeetingTranscriber', async () => {
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -241,7 +248,7 @@ describe('CalendarEventTranscript', () => {
   });
 
   test('handles error when fetching meetings', async () => {
-    mockGetMeetingsByCalendarEvent.mockRejectedValue(new Error('Database error'));
+    transcriptMocks.getMeetingsByCalendarEvent.mockRejectedValue(new Error('Database error'));
 
     render(<CalendarEventTranscript {...defaultProps} />);
 
@@ -253,7 +260,7 @@ describe('CalendarEventTranscript', () => {
   test('truncates transcript preview to 100 characters', async () => {
     const longTranscript = 'A'.repeat(200);
     const meetingWithLongTranscript = { ...mockMeeting, transcript: longTranscript };
-    mockGetMeetingsByCalendarEvent.mockResolvedValue([meetingWithLongTranscript]);
+    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([meetingWithLongTranscript]);
 
     render(<CalendarEventTranscript {...defaultProps} />);
 

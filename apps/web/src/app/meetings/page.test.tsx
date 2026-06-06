@@ -1,61 +1,72 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import MeetingsPage from './page';
 
-// Mock next/navigation
-const mockPush = mock(() => {});
-const mockRefresh = mock(() => {});
-mock.module('next/navigation', () => ({
+const meetingMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: mockPush,
-    refresh: mockRefresh,
+    push: meetingMocks.push,
+    refresh: meetingMocks.refresh,
   }),
 }));
 
-// Mock MeetingList component
-const MockMeetingList = ({
-  onMeetingSelect: _onMeetingSelect,
-}: {
-  onMeetingSelect?: (id: string) => void;
-}) => <div data-testid="meeting-list">Meeting List Component</div>;
-
-mock.module('@/components/MeetingList', () => ({
-  MeetingList: MockMeetingList,
+vi.mock('@/components/AppLayout', () => ({
+  default: ({
+    children,
+    pageTitle,
+    actions,
+  }: {
+    children: React.ReactNode;
+    pageTitle: string;
+    actions?: React.ReactNode;
+  }) => (
+    <main data-testid="meetings-page">
+      <header data-testid="meetings-header">
+        <h1>{pageTitle}</h1>
+        {actions}
+      </header>
+      {children}
+    </main>
+  ),
 }));
 
-// Mock MeetingTranscriber component
-const MockMeetingTranscriber = ({
-  onSave,
-  onCancel,
-}: {
-  onSave?: () => void;
-  onCancel?: () => void;
-}) => (
-  <div data-testid="meeting-transcriber">
-    <button data-testid="mock-save-button" onClick={onSave}>
-      Mock Save
-    </button>
-    <button data-testid="mock-cancel-button" onClick={onCancel}>
-      Mock Cancel
-    </button>
-  </div>
-);
-
-mock.module('@/components/MeetingTranscriber', () => ({
-  MeetingTranscriber: MockMeetingTranscriber,
+vi.mock('@/components/MeetingList', () => ({
+  MeetingList: ({
+    onMeetingSelect: _onMeetingSelect,
+  }: {
+    onMeetingSelect?: (id: string) => void;
+  }) => <div data-testid="meeting-list">Meeting List Component</div>,
 }));
+
+vi.mock('@/components/MeetingTranscriber', () => ({
+  MeetingTranscriber: ({ onSave, onCancel }: { onSave?: () => void; onCancel?: () => void }) => (
+    <div data-testid="meeting-transcriber">
+      <button data-testid="mock-save-button" onClick={onSave}>
+        Mock Save
+      </button>
+      <button data-testid="mock-cancel-button" onClick={onCancel}>
+        Mock Cancel
+      </button>
+    </div>
+  ),
+}));
+
+import MeetingsPage from './page';
 
 describe('MeetingsPage', () => {
   beforeEach(() => {
-    mockPush.mockClear();
-    mockRefresh.mockClear();
+    meetingMocks.push.mockClear();
+    meetingMocks.refresh.mockClear();
   });
 
   afterEach(() => {
-    mockPush.mockClear();
-    mockRefresh.mockClear();
+    meetingMocks.push.mockClear();
+    meetingMocks.refresh.mockClear();
   });
 
   test('renders with title "Meetings"', () => {

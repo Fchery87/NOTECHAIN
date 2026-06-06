@@ -1,9 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import OCRPage from './page';
 import type { OCRResult } from '@/lib/storage/ocrStorage';
+
+const ocrMocks = vi.hoisted(() => ({
+  getRecentOCRResults: vi.fn(),
+  deleteOCRResult: vi.fn(),
+  confirm: vi.fn(() => true),
+}));
 
 // Mock ImageOCRUploader component
 const MockImageOCRUploader = ({
@@ -25,27 +30,52 @@ const MockImageOCRUploader = ({
   </div>
 );
 
-mock.module('@/components/ImageOCRUploader', () => ({
-  ImageOCRUploader: MockImageOCRUploader,
+vi.mock('@/components/ImageOCRUploader', () => ({
+  ImageOCRUploader: ({
+    onTextExtracted,
+  }: {
+    onTextExtracted?: (text: string, image: File) => void;
+  }) => (
+    <div data-testid="image-ocr-uploader">
+      <span>Image OCR Uploader Component</span>
+      <button
+        data-testid="mock-extract-button"
+        onClick={() => {
+          const mockFile = new File(['mock'], 'test.png', { type: 'image/png' });
+          onTextExtracted?.('Extracted text content', mockFile);
+        }}
+      >
+        Mock Extract
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/AppLayout', () => ({
+  default: ({ children, pageTitle }: { children: React.ReactNode; pageTitle: string }) => (
+    <main data-testid="ocr-page">
+      <header data-testid="ocr-header">
+        <h1>{pageTitle}</h1>
+      </header>
+      {children}
+    </main>
+  ),
 }));
 
 // Mock OCRStorage
-const mockGetRecentOCRResults = mock(() => Promise.resolve<OCRResult[]>([]));
-const mockDeleteOCRResult = mock(() => Promise.resolve());
+vi.mock('@/lib/storage/ocrStorage', () => {
+  class MockOCRStorage {
+    getRecentOCRResults = ocrMocks.getRecentOCRResults;
+    deleteOCRResult = ocrMocks.deleteOCRResult;
+  }
 
-mock.module('@/lib/storage/ocrStorage', () => ({
-  OCRStorage: class MockOCRStorage {
-    getRecentOCRResults = mockGetRecentOCRResults;
-    deleteOCRResult = mockDeleteOCRResult;
-  },
-}));
-
-// Mock window.confirm
-const mockConfirm = mock(() => true);
-Object.defineProperty(window, 'confirm', {
-  writable: true,
-  value: mockConfirm,
+  return {
+    OCRStorage: MockOCRStorage,
+    createOCRStorage: () => new MockOCRStorage(),
+  };
 });
+
+import OCRPage from './page';
 
 describe('OCRPage', () => {
   const mockResults: OCRResult[] = [
@@ -77,16 +107,20 @@ describe('OCRPage', () => {
   ];
 
   beforeEach(() => {
-    mockGetRecentOCRResults.mockClear();
-    mockDeleteOCRResult.mockClear();
-    mockConfirm.mockClear();
-    mockGetRecentOCRResults.mockImplementation(() => Promise.resolve(mockResults));
+    Object.defineProperty(window, 'confirm', {
+      writable: true,
+      value: ocrMocks.confirm,
+    });
+    ocrMocks.getRecentOCRResults.mockClear();
+    ocrMocks.deleteOCRResult.mockClear();
+    ocrMocks.confirm.mockClear();
+    ocrMocks.getRecentOCRResults.mockImplementation(() => Promise.resolve(mockResults));
   });
 
   afterEach(() => {
-    mockGetRecentOCRResults.mockClear();
-    mockDeleteOCRResult.mockClear();
-    mockConfirm.mockClear();
+    ocrMocks.getRecentOCRResults.mockClear();
+    ocrMocks.deleteOCRResult.mockClear();
+    ocrMocks.confirm.mockClear();
   });
 
   test('renders with title "OCR & Document Intelligence"', async () => {
@@ -133,7 +167,7 @@ describe('OCRPage', () => {
   });
 
   test('handles empty state when no extractions', async () => {
-    mockGetRecentOCRResults.mockImplementation(() => Promise.resolve([]));
+    ocrMocks.getRecentOCRResults.mockImplementation(() => Promise.resolve([]));
 
     await act(async () => {
       render(<OCRPage />);
@@ -179,9 +213,9 @@ describe('OCRPage', () => {
       fireEvent.click(deleteButton);
     });
 
-    expect(mockConfirm).toHaveBeenCalled();
+    expect(ocrMocks.confirm).toHaveBeenCalled();
     await waitFor(() => {
-      expect(mockDeleteOCRResult).toHaveBeenCalled();
+      expect(ocrMocks.deleteOCRResult).toHaveBeenCalled();
     });
   });
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GoogleCalendarService } from '../googleCalendar';
 
 // Mock fetch globally
@@ -127,6 +127,7 @@ describe('Google Calendar Service', () => {
             Authorization: `Bearer ${mockAccessToken}`,
             'Content-Type': 'application/json',
           },
+          body: expect.stringContaining('Updated Todo'),
         }
       );
     });
@@ -134,22 +135,42 @@ describe('Google Calendar Service', () => {
 
   describe('Error Handling', () => {
     test('should throw error on invalid access token', async () => {
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-      });
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(
-        GoogleCalendarService.syncFromGoogle('invalid-token', mockCalendarId)
-      ).rejects.toThrow('Authentication failed');
+      try {
+        fetchMock.mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+        });
+
+        await expect(
+          GoogleCalendarService.syncFromGoogle('invalid-token', mockCalendarId)
+        ).rejects.toThrow('Authentication failed');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'Failed to sync from Google Calendar:',
+          expect.any(Error)
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
 
     test('should throw error on network failure', async () => {
-      fetchMock.mockRejectedValueOnce(new Error('Network error'));
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(
-        GoogleCalendarService.syncFromGoogle(mockAccessToken, mockCalendarId)
-      ).rejects.toThrow('Network error');
+      try {
+        fetchMock.mockRejectedValueOnce(new Error('Network error'));
+
+        await expect(
+          GoogleCalendarService.syncFromGoogle(mockAccessToken, mockCalendarId)
+        ).rejects.toThrow('Network error');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'Failed to sync from Google Calendar:',
+          expect.any(Error)
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
   });
 });

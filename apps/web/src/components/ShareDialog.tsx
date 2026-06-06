@@ -123,7 +123,7 @@ function UserSearchInput({
           onChange={e => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setShowResults(true)}
           placeholder={placeholder}
-          className="w-full px-4 py-2.5 pl-10 bg-white border border-stone-200 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+          className="w-full px-4 py-2.5 pl-10 bg-white border border-stone-200 rounded-lg text-stone-900 placeholder:text-stone-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-[border-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]"
         />
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400"
@@ -147,13 +147,13 @@ function UserSearchInput({
 
       {/* Search results dropdown */}
       {showResults && results.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-10 w-full mt-2 bg-white/95 backdrop-blur-sm border border-stone-200 rounded-xl shadow-xl shadow-stone-900/10 max-h-60 overflow-y-auto origin-top transition-[opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]">
           {results.map(user => (
             <button
               key={user.id}
               type="button"
               onClick={() => handleSelect(user)}
-              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-stone-50 active:scale-[0.99] transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]"
             >
               {user.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -194,7 +194,7 @@ function PermissionItem({
   const isOwner = permission.userId === currentUserId;
 
   return (
-    <div className="flex items-center justify-between gap-4 p-3 bg-white border border-stone-200 rounded-lg">
+    <div className="flex items-center justify-between gap-4 p-3 bg-white border border-stone-200 rounded-xl shadow-sm shadow-stone-900/[0.03]">
       <div className="flex items-center gap-3">
         {permission.user?.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -237,7 +237,7 @@ function PermissionItem({
             <button
               onClick={onRemove}
               disabled={isUpdating}
-              className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors disabled:opacity-50"
+              className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 rounded-lg transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] disabled:opacity-50 disabled:cursor-not-allowed"
               title="Remove access"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,22 +338,36 @@ export function ShareDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center px-3 py-4 sm:items-center sm:px-6">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-stone-900/45 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-dialog-title"
+        aria-describedby="share-dialog-resource"
+        className="relative w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-stone-950/20 ring-1 ring-stone-900/5 max-h-[90vh] overflow-hidden flex flex-col animate-fade-in"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-stone-200">
-          <div>
-            <h2 className="text-lg font-medium text-stone-900">Share {resourceType}</h2>
-            <p className="text-sm text-stone-500 truncate">{resourceName}</p>
+        <div className="flex items-start justify-between gap-4 p-5 border-b border-stone-200/80 bg-stone-50/60">
+          <div className="min-w-0">
+            <h2 id="share-dialog-title" className="text-xl font-medium text-stone-900">
+              Share {resourceType}
+            </h2>
+            <p id="share-dialog-resource" className="text-sm text-stone-500 truncate">
+              {resourceName}
+            </p>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            className="p-2 text-stone-400 hover:text-stone-700 hover:bg-white active:scale-95 rounded-lg transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -367,17 +381,18 @@ export function ShareDialog({
         </div>
 
         {/* Visibility toggle */}
-        <div className="p-4 border-b border-stone-200">
+        <div className="p-5 border-b border-stone-200/80">
           <label className="block text-sm font-medium text-stone-700 mb-2">Who can access</label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 rounded-xl bg-stone-100 p-1">
             {(['private', 'link', 'public'] as Visibility[]).map(v => (
               <button
                 key={v}
                 onClick={() => setVisibility(v)}
-                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                aria-pressed={visibility === v}
+                className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg active:scale-[0.98] transition-[background-color,color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${
                   visibility === v
-                    ? 'bg-stone-900 text-stone-50'
-                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    ? 'bg-white text-stone-900 shadow-sm shadow-stone-900/10'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-white/60'
                 }`}
               >
                 {v === 'private' && 'Private'}
@@ -389,22 +404,34 @@ export function ShareDialog({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-stone-200">
+        <div
+          className="flex border-b border-stone-200"
+          role="tablist"
+          aria-label="Sharing sections"
+        >
           <button
+            role="tab"
+            id="share-tab-people"
+            aria-selected={activeTab === 'people'}
+            aria-controls="share-panel-people"
             onClick={() => setActiveTab('people')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`relative flex-1 px-4 py-3 text-sm font-medium active:scale-[0.99] transition-[color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${
               activeTab === 'people'
-                ? 'text-stone-900 border-b-2 border-stone-900'
+                ? 'text-stone-900 after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:rounded-full after:bg-stone-900'
                 : 'text-stone-500 hover:text-stone-700'
             }`}
           >
             People ({permissions.length})
           </button>
           <button
+            role="tab"
+            id="share-tab-links"
+            aria-selected={activeTab === 'links'}
+            aria-controls="share-panel-links"
             onClick={() => setActiveTab('links')}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`relative flex-1 px-4 py-3 text-sm font-medium active:scale-[0.99] transition-[color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ${
               activeTab === 'links'
-                ? 'text-stone-900 border-b-2 border-stone-900'
+                ? 'text-stone-900 after:absolute after:inset-x-4 after:bottom-0 after:h-0.5 after:rounded-full after:bg-stone-900'
                 : 'text-stone-500 hover:text-stone-700'
             }`}
           >
@@ -413,12 +440,17 @@ export function ShareDialog({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-5">
           {activeTab === 'people' ? (
-            <div className="space-y-4">
+            <div
+              id="share-panel-people"
+              role="tabpanel"
+              aria-labelledby="share-tab-people"
+              className="space-y-4"
+            >
               {/* Add user */}
               {onSearchUsers && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <div className="flex-1">
                     <UserSearchInput onSearch={onSearchUsers} onSelect={handleAddUser} />
                   </div>
@@ -445,25 +477,27 @@ export function ShareDialog({
               </div>
 
               {permissions.length === 0 && (
-                <div className="text-center py-8 text-stone-500">
+                <div className="text-center py-10 text-stone-500">
                   <p>No one has access yet</p>
                   <p className="text-sm mt-1">Add people or create a share link</p>
                 </div>
               )}
             </div>
           ) : (
-            <ShareLinkManager
-              resourceId={resourceId}
-              links={shareLinks}
-              onCreateLink={onCreateShareLink}
-              onRevokeLink={onRevokeShareLink}
-              userId={currentUserId}
-            />
+            <div id="share-panel-links" role="tabpanel" aria-labelledby="share-tab-links">
+              <ShareLinkManager
+                resourceId={resourceId}
+                links={shareLinks}
+                onCreateLink={onCreateShareLink}
+                onRevokeLink={onRevokeShareLink}
+                userId={currentUserId}
+              />
+            </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-stone-200 bg-stone-50">
+        <div className="p-5 border-t border-stone-200/80 bg-stone-50/80">
           <div className="flex items-center justify-between text-sm text-stone-500">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -478,7 +512,7 @@ export function ShareDialog({
             </div>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-colors"
+              className="px-4 py-2 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 active:scale-[0.97] shadow-sm shadow-stone-900/15 transition-[background-color,box-shadow,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]"
             >
               Done
             </button>

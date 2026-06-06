@@ -1,5 +1,12 @@
 import type { Server, ServerWebSocket } from 'bun';
 import { ConnectionManager } from './ConnectionManager';
+import {
+  allowAllDocumentAccess,
+  assertDocumentAccess,
+  InMemoryCollaborationOperationHistoryStore,
+  type CollaborationOperationHistoryStore,
+  type DocumentAccessValidator,
+} from './CollaborationGuards';
 
 declare const Bun: {
   serve: <T>(options: {
@@ -30,6 +37,8 @@ import {
 interface WebSocketServerOptions {
   port: number;
   authValidator: (token: string) => Promise<string | null>;
+  documentAccessValidator?: DocumentAccessValidator;
+  operationHistoryStore?: CollaborationOperationHistoryStore;
 }
 
 interface AuthenticatedSocket {
@@ -45,12 +54,17 @@ interface AuthMessage {
 export class WebSocketServer {
   private port: number;
   private authValidator: (token: string) => Promise<string | null>;
+  private documentAccessValidator: DocumentAccessValidator;
+  private operationHistoryStore: CollaborationOperationHistoryStore;
   private server: Server<AuthenticatedSocket> | null;
   public connectionManager: ConnectionManager;
 
   constructor(options: WebSocketServerOptions) {
     this.port = options.port;
     this.authValidator = options.authValidator;
+    this.documentAccessValidator = options.documentAccessValidator ?? allowAllDocumentAccess;
+    this.operationHistoryStore =
+      options.operationHistoryStore ?? new InMemoryCollaborationOperationHistoryStore();
     this.server = null;
     this.connectionManager = new ConnectionManager();
   }
@@ -144,13 +158,13 @@ export class WebSocketServer {
 
       switch (data.type) {
         case MessageType.JOIN_DOCUMENT:
-          this.handleJoinDocument(ws, data as JoinDocumentMessage);
+          await this.handleJoinDocument(ws, data as JoinDocumentMessage);
           break;
         case MessageType.LEAVE_DOCUMENT:
           this.handleLeaveDocument(ws, data as LeaveDocumentMessage);
           break;
         case MessageType.OPERATION:
-          this.handleOperation(ws, data as OperationMessage);
+          await this.handleOperation(ws, data as OperationMessage);
           break;
         case MessageType.CURSOR_POSITION:
           this.handleCursorPosition(ws, data as CursorPositionMessage);
@@ -162,7 +176,7 @@ export class WebSocketServer {
           this.handlePresence(ws, data as PresenceMessage);
           break;
         case MessageType.SYNC_REQUEST:
-          this.handleSyncRequest(ws, data as SyncRequestMessage);
+          await this.handleSyncRequest(ws, data as SyncRequestMessage);
           break;
         default:
           ws.send(
@@ -219,11 +233,27 @@ export class WebSocketServer {
     }
   }
 
-  private handleJoinDocument(
+  private async handleJoinDocument(
     ws: ServerWebSocket<AuthenticatedSocket>,
     message: JoinDocumentMessage
-  ): void {
+  ): Promise<void> {
     if (!ws.data.userId) return;
+
+    try {
+      await assertDocumentAccess(this.documentAccessValidator, {
+        userId: ws.data.userId,
+        documentId: message.documentId,
+        action: 'join',
+      });
+    } catch (error) {
+      ws.send(
+        JSON.stringify({
+          type: 'AUTH_ERROR',
+          error: error instanceof Error ? error.message : 'Not authorized to join document',
+        })
+      );
+      return;
+    }
 
     this.connectionManager.joinDocument(ws, message.documentId);
 
@@ -257,17 +287,46 @@ export class WebSocketServer {
     this.connectionManager.leaveDocument(ws, message.documentId);
   }
 
-  private handleOperation(
+  private async handleOperation(
     ws: ServerWebSocket<AuthenticatedSocket>,
     message: OperationMessage
-  ): void {
+  ): Promise<void> {
     if (!ws.data.userId || !message.documentId) return;
 
+    try {
+      await assertDocumentAccess(this.documentAccessValidator, {
+        userId: ws.data.userId,
+        documentId: message.documentId,
+        action: 'write',
+      });
+    } catch (error) {
+      ws.send(
+        JSON.stringify({
+          type: 'AUTH_ERROR',
+          error: error instanceof Error ? error.message : 'Not authorized to write document',
+        })
+      );
+      return;
+    }
+
+    const timestamp = Date.now();
     const broadcastMsg: OperationMessage = {
       ...message,
       userId: ws.data.userId,
-      timestamp: Date.now(),
+      timestamp,
     };
+
+    await this.operationHistoryStore.append({
+      documentId: message.documentId,
+      operation: {
+        ...message.operation,
+        nodeId: message.operation.nodeId || ws.data.userId,
+        timestamp: message.operation.timestamp || timestamp,
+      },
+      vectorClock: message.vectorClock,
+      userId: ws.data.userId,
+      timestamp,
+    });
 
     this.connectionManager.broadcastToDocument(message.documentId, broadcastMsg, ws);
   }
@@ -318,18 +377,42 @@ export class WebSocketServer {
     }
   }
 
-  private handleSyncRequest(
+  private async handleSyncRequest(
     ws: ServerWebSocket<AuthenticatedSocket>,
     message: SyncRequestMessage
-  ): void {
+  ): Promise<void> {
     if (!ws.data.userId) return;
+
+    try {
+      await assertDocumentAccess(this.documentAccessValidator, {
+        userId: ws.data.userId,
+        documentId: message.documentId,
+        action: 'read',
+      });
+    } catch (error) {
+      ws.send(
+        JSON.stringify({
+          type: 'AUTH_ERROR',
+          error: error instanceof Error ? error.message : 'Not authorized to read document',
+        })
+      );
+      return;
+    }
+
+    const operationRecords = await this.operationHistoryStore.getOperations(
+      message.documentId,
+      message.sinceVectorClock
+    );
 
     ws.send(
       JSON.stringify({
         type: MessageType.SYNC_RESPONSE,
+        userId: ws.data.userId,
         documentId: message.documentId,
-        operations: [],
-        currentVectorClock: {},
+        operations: operationRecords.map(record => record.operation),
+        currentVectorClock: await this.operationHistoryStore.getCurrentVectorClock(
+          message.documentId
+        ),
         timestamp: Date.now(),
       })
     );

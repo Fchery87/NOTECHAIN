@@ -1,5 +1,4 @@
-// Dynamic import type for @xenova/transformers to avoid SSR issues
-type Pipeline = import('@xenova/transformers').Pipeline;
+import { pipeline, type Pipeline } from '@xenova/transformers';
 
 export class TranscriptionService {
   private pipeline: Pipeline | null = null;
@@ -30,16 +29,7 @@ export class TranscriptionService {
         throw new Error('Transcription service can only run in browser environment');
       }
 
-      // Dynamic import to avoid SSR issues with @xenova/transformers
-      console.log('[TranscriptionService] Loading @xenova/transformers...');
-      const transformers = await import('@xenova/transformers');
-
-      if (!transformers || !transformers.pipeline) {
-        throw new Error('Failed to import @xenova/transformers: module not properly loaded');
-      }
-
-      const { pipeline } = transformers;
-      console.log('[TranscriptionService] Pipeline function loaded, initializing model...');
+      console.log('[TranscriptionService] Initializing @xenova/transformers pipeline...');
 
       this.pipeline = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
         revision: 'main',

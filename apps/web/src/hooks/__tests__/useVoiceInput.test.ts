@@ -311,7 +311,8 @@ describe('useVoiceInput', () => {
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'not-allowed',
-          message: 'Permission denied',
+          message:
+            'Microphone access denied. Please allow microphone permissions in your browser settings.',
         })
       );
     });
@@ -339,7 +340,7 @@ describe('useVoiceInput', () => {
       expect(result.current.error).toEqual(
         expect.objectContaining({
           error: 'network',
-          message: 'Network error',
+          message: 'Network error. Speech recognition requires an internet connection.',
         })
       );
     });

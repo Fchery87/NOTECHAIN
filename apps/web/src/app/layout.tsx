@@ -5,6 +5,7 @@ import { AriaLiveRegion } from '../components/Accessibility/AriaLiveRegion';
 import { UserProvider } from '@/lib/supabase/UserProvider';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 export const metadata: Metadata = {
   title: 'NoteChain — Privacy-First Productivity',
@@ -54,6 +55,7 @@ export default async function RootLayout({
               {/* Accessibility: Live region for screen reader announcements */}
               <AriaLiveRegion />
 
+              <ServiceWorkerRegistrar />
               {children}
             </SyncProvider>
           </UserProvider>

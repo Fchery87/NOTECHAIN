@@ -1,27 +1,33 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MeetingList, MeetingListProps } from '../MeetingList';
 import type { Meeting } from '../../lib/storage/meetingStorage';
+import type { MeetingListProps } from '../MeetingList';
 
-// Mock meeting storage
-const mockGetAllMeetings = jest.fn();
-const mockDeleteMeeting = jest.fn();
+const meetingListMocks = vi.hoisted(() => ({
+  getAllMeetings: vi.fn(),
+  deleteMeeting: vi.fn(),
+}));
 
-jest.mock('../../lib/storage/meetingStorage', () => ({
-  MeetingStorage: jest.fn().mockImplementation(() => ({
-    getAllMeetings: mockGetAllMeetings,
-    deleteMeeting: mockDeleteMeeting,
+vi.mock('../../lib/storage/meetingStorage', () => ({
+  MeetingStorage: vi.fn().mockImplementation(() => ({
+    getAllMeetings: meetingListMocks.getAllMeetings,
+    deleteMeeting: meetingListMocks.deleteMeeting,
   })),
-  createMeetingStorage: jest.fn(() => ({
-    getAllMeetings: mockGetAllMeetings,
-    deleteMeeting: mockDeleteMeeting,
+  createMeetingStorage: vi.fn(() => ({
+    getAllMeetings: meetingListMocks.getAllMeetings,
+    deleteMeeting: meetingListMocks.deleteMeeting,
   })),
 }));
 
+import { MeetingList } from '../MeetingList';
+
+const mockGetAllMeetings = meetingListMocks.getAllMeetings;
+const mockDeleteMeeting = meetingListMocks.deleteMeeting;
+
 // Mock window.confirm
-const mockConfirm = jest.fn();
+const mockConfirm = vi.fn();
 Object.defineProperty(window, 'confirm', {
   writable: true,
   value: mockConfirm,

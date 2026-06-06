@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -12,8 +12,8 @@ describe('Pro Upgrade Prompt', () => {
       description: 'Digitally sign PDF documents',
       requiredTier: 'pro' as const,
     },
-    onUpgrade: jest.fn(),
-    onDismiss: jest.fn(),
+    onUpgrade: vi.fn(),
+    onDismiss: vi.fn(),
   };
 
   it('should render compact prompt', () => {
@@ -37,6 +37,7 @@ describe('Pro Upgrade Prompt', () => {
       <ProUpgradePrompt
         {...defaultProps}
         feature="templates"
+        requiredTier="premium"
         config={{
           name: 'Note Templates',
           description: 'Use pre-made note templates',
@@ -46,8 +47,8 @@ describe('Pro Upgrade Prompt', () => {
       />
     );
 
-    expect(screen.getByText('Premium Feature')).toBeInTheDocument();
-    expect(screen.getByText('Premium add-on feature')).toBeInTheDocument();
+    expect(screen.getByText('Unlock Note Templates')).toBeInTheDocument();
+    expect(screen.getByText('This is a Premium add-on feature')).toBeInTheDocument();
   });
 
   it('should call onUpgrade when upgrade button clicked', () => {
@@ -81,6 +82,7 @@ describe('Pro Upgrade Prompt', () => {
       <ProUpgradePrompt
         {...defaultProps}
         feature="templates"
+        requiredTier="premium"
         config={{
           name: 'Note Templates',
           description: 'Use pre-made note templates',
@@ -108,6 +110,7 @@ describe('Pro Upgrade Prompt', () => {
       <ProUpgradePrompt
         {...defaultProps}
         feature="templates"
+        requiredTier="premium"
         config={{
           name: 'Note Templates',
           description: 'Use pre-made note templates',

@@ -1,30 +1,37 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MeetingDetail, MeetingDetailProps } from '../MeetingDetail';
 import type { Meeting } from '../../lib/storage/meetingStorage';
+import type { MeetingDetailProps } from '../MeetingDetail';
 
-// Mock meeting storage
-const mockGetMeeting = jest.fn();
-const mockUpdateMeeting = jest.fn();
-const mockDeleteMeeting = jest.fn();
+const meetingDetailMocks = vi.hoisted(() => ({
+  getMeeting: vi.fn(),
+  updateMeeting: vi.fn(),
+  deleteMeeting: vi.fn(),
+}));
 
-jest.mock('../../lib/storage/meetingStorage', () => ({
-  MeetingStorage: jest.fn().mockImplementation(() => ({
-    getMeeting: mockGetMeeting,
-    updateMeeting: mockUpdateMeeting,
-    deleteMeeting: mockDeleteMeeting,
+vi.mock('../../lib/storage/meetingStorage', () => ({
+  MeetingStorage: vi.fn().mockImplementation(() => ({
+    getMeeting: meetingDetailMocks.getMeeting,
+    updateMeeting: meetingDetailMocks.updateMeeting,
+    deleteMeeting: meetingDetailMocks.deleteMeeting,
   })),
-  createMeetingStorage: jest.fn(() => ({
-    getMeeting: mockGetMeeting,
-    updateMeeting: mockUpdateMeeting,
-    deleteMeeting: mockDeleteMeeting,
+  createMeetingStorage: vi.fn(() => ({
+    getMeeting: meetingDetailMocks.getMeeting,
+    updateMeeting: meetingDetailMocks.updateMeeting,
+    deleteMeeting: meetingDetailMocks.deleteMeeting,
   })),
 }));
 
+import { MeetingDetail } from '../MeetingDetail';
+
+const mockGetMeeting = meetingDetailMocks.getMeeting;
+const mockUpdateMeeting = meetingDetailMocks.updateMeeting;
+const mockDeleteMeeting = meetingDetailMocks.deleteMeeting;
+
 // Mock window.confirm
-const mockConfirm = jest.fn();
+const mockConfirm = vi.fn();
 Object.defineProperty(window, 'confirm', {
   writable: true,
   value: mockConfirm,

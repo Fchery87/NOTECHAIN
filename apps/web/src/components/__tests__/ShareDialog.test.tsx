@@ -25,10 +25,8 @@ Object.defineProperty(global, 'navigator', {
 const mockLocation = {
   origin: 'https://notechain.app',
 };
-Object.defineProperty(global, 'window', {
-  value: {
-    location: mockLocation,
-  },
+Object.defineProperty(window, 'location', {
+  value: mockLocation,
   writable: true,
 });
 
@@ -136,7 +134,7 @@ describe('ShareDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     mockClipboard.writeText.mockResolvedValue(undefined);
     mockOnSearchUsers.mockResolvedValue(mockSearchResults);
   });
@@ -155,6 +153,14 @@ describe('ShareDialog', () => {
       render(<ShareDialog {...defaultProps} />);
       expect(screen.getByText('Share note')).toBeInTheDocument();
       expect(screen.getByText('My Test Note')).toBeInTheDocument();
+    });
+
+    it('should expose modal semantics for assistive technology', () => {
+      render(<ShareDialog {...defaultProps} />);
+      const dialog = screen.getByRole('dialog', { name: 'Share note' });
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-describedby', 'share-dialog-resource');
+      expect(screen.getByText('My Test Note')).toHaveAttribute('id', 'share-dialog-resource');
     });
 
     it('should call onClose when clicking backdrop', () => {
@@ -200,13 +206,23 @@ describe('ShareDialog', () => {
     it('should default to Private visibility', () => {
       render(<ShareDialog {...defaultProps} />);
       const privateButton = screen.getByRole('button', { name: 'Private' });
-      expect(privateButton).toHaveClass('bg-stone-900');
+      expect(privateButton).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('should expose pressed state on visibility options', () => {
+      render(<ShareDialog {...defaultProps} />);
+      const privateButton = screen.getByRole('button', { name: 'Private' });
+      expect(privateButton).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'Anyone with link' })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
     });
 
     it('should set visibility to link when active share link exists', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
       const linkButton = screen.getByRole('button', { name: 'Anyone with link' });
-      expect(linkButton).toHaveClass('bg-stone-900');
+      expect(linkButton).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('should set visibility to public when wildcard permission exists', () => {
@@ -219,14 +235,14 @@ describe('ShareDialog', () => {
       ];
       render(<ShareDialog {...defaultProps} permissions={publicPermissions} />);
       const publicButton = screen.getByRole('button', { name: 'Public' });
-      expect(publicButton).toHaveClass('bg-stone-900');
+      expect(publicButton).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('should update visibility state when clicking visibility buttons', () => {
       render(<ShareDialog {...defaultProps} />);
       const publicButton = screen.getByRole('button', { name: 'Public' });
       fireEvent.click(publicButton);
-      expect(publicButton).toHaveClass('bg-stone-900');
+      expect(publicButton).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -235,31 +251,42 @@ describe('ShareDialog', () => {
       render(
         <ShareDialog {...defaultProps} permissions={mockPermissions} shareLinks={mockShareLinks} />
       );
-      expect(screen.getByRole('button', { name: /People \(3\)/ })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Links \(1\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /People \(3\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Links \(1\)/ })).toBeInTheDocument();
+    });
+
+    it('should expose tab semantics and selected state', () => {
+      render(
+        <ShareDialog {...defaultProps} permissions={mockPermissions} shareLinks={mockShareLinks} />
+      );
+      const tabs = screen.getAllByRole('tab');
+      expect(screen.getByRole('tablist', { name: 'Sharing sections' })).toBeInTheDocument();
+      expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+      expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
     });
 
     it('should switch to Links tab when clicked', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
-      expect(linksTab).toHaveClass('border-b-2');
+      expect(linksTab).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByText('Share Links')).toBeInTheDocument();
+      expect(screen.getByRole('tabpanel', { name: /Links/ })).toBeInTheDocument();
     });
 
     it('should show correct count of active links', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links \(1\)/ });
+      const linksTab = screen.getByRole('tab', { name: /Links \(1\)/ });
       expect(linksTab).toBeInTheDocument();
     });
 
     it('should switch back to People tab when clicked', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
-      const peopleTab = screen.getByRole('button', { name: /People/ });
+      const peopleTab = screen.getByRole('tab', { name: /People/ });
       fireEvent.click(peopleTab);
-      expect(peopleTab).toHaveClass('border-b-2');
+      expect(peopleTab).toHaveAttribute('aria-selected', 'true');
     });
   });
 
@@ -347,7 +374,9 @@ describe('ShareDialog', () => {
       });
 
       // Fast-forward past debounce
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(mockOnSearchUsers).toHaveBeenCalledWith('alice');
@@ -362,7 +391,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'ali' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
@@ -379,7 +410,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'test' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         const spinner = document.querySelector('.animate-spin');
@@ -396,7 +429,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'ali' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
@@ -421,7 +456,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'ali' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
@@ -443,7 +480,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'a' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       expect(mockOnSearchUsers).not.toHaveBeenCalled();
     });
@@ -481,7 +520,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'ali' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
@@ -568,14 +609,14 @@ describe('ShareDialog', () => {
   describe('Share links management', () => {
     it('should render ShareLinkManager in links tab', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       expect(screen.getByText('Share Links')).toBeInTheDocument();
     });
 
     it('should show create link form when clicking Create Link', () => {
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       const createButton = screen.getByRole('button', { name: 'Create Link' });
       fireEvent.click(createButton);
@@ -584,7 +625,7 @@ describe('ShareDialog', () => {
 
     it('should render permission selector in create form', () => {
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       const createButton = screen.getByRole('button', { name: 'Create Link' });
       fireEvent.click(createButton);
@@ -593,7 +634,7 @@ describe('ShareDialog', () => {
 
     it('should render expiration options', () => {
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       const createButton = screen.getByRole('button', { name: 'Create Link' });
       fireEvent.click(createButton);
@@ -602,7 +643,7 @@ describe('ShareDialog', () => {
 
     it('should render max uses options', () => {
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       const createButton = screen.getByRole('button', { name: 'Create Link' });
       fireEvent.click(createButton);
@@ -622,7 +663,7 @@ describe('ShareDialog', () => {
       mockOnCreateShareLink.mockResolvedValue(newLink);
 
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       const createButton = screen.getByRole('button', { name: 'Create Link' });
       fireEvent.click(createButton);
@@ -639,28 +680,28 @@ describe('ShareDialog', () => {
 
     it('should display active share links', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       expect(screen.getByText(/https:\/\/notechain.app\/share\/link-1/)).toBeInTheDocument();
     });
 
     it('should show permission level badge for link', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       expect(screen.getAllByText('View')[0]).toBeInTheDocument();
     });
 
     it('should show link usage stats', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
       expect(screen.getByText('3/10 uses')).toBeInTheDocument();
     });
 
     it('should show expired status for inactive links', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Click "Show inactive links" to reveal inactive links
@@ -674,7 +715,7 @@ describe('ShareDialog', () => {
   describe('Copy to clipboard', () => {
     it('should copy link URL to clipboard when clicking copy button', async () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Use getAllByTitle since there may be multiple links
@@ -688,7 +729,7 @@ describe('ShareDialog', () => {
 
     it('should show success state after copying', async () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Use getAllByTitle since there may be multiple links
@@ -707,7 +748,7 @@ describe('ShareDialog', () => {
     it('should call onRevokeShareLink when clicking revoke button', async () => {
       mockOnRevokeShareLink.mockResolvedValue(undefined);
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Use getAllByTitle since there may be multiple links
@@ -724,7 +765,7 @@ describe('ShareDialog', () => {
     it('should disable revoke button while revoking', async () => {
       mockOnRevokeShareLink.mockImplementation(() => new Promise(() => {}));
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Use getAllByTitle since there may be multiple links
@@ -738,7 +779,7 @@ describe('ShareDialog', () => {
 
     it('should disable revoke button for inactive links', () => {
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       const showInactive = screen.getByText(/Show inactive links/);
@@ -783,7 +824,7 @@ describe('ShareDialog', () => {
       mockClipboard.writeText.mockRejectedValue(new Error('Copy failed'));
 
       render(<ShareDialog {...defaultProps} shareLinks={mockShareLinks} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       // Use getAllByTitle since there may be multiple links
@@ -832,7 +873,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         // Should not show any results
@@ -849,7 +892,9 @@ describe('ShareDialog', () => {
         fireEvent.change(searchInput, { target: { value: 'ali' } });
       });
 
-      vi.advanceTimersByTime(400);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Alice Cooper')).toBeInTheDocument();
@@ -863,7 +908,7 @@ describe('ShareDialog', () => {
 
     it('should cancel create link form when clicking Cancel', () => {
       render(<ShareDialog {...defaultProps} />);
-      const linksTab = screen.getByRole('button', { name: /Links/ });
+      const linksTab = screen.getByRole('tab', { name: /Links/ });
       fireEvent.click(linksTab);
 
       const createButton = screen.getByRole('button', { name: 'Create Link' });

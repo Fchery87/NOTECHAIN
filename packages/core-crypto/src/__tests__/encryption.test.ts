@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, beforeAll } from 'bun:test';
-import { EncryptionService } from '../encryption';
+import { EncryptionService, PBKDF2_CONFIG } from '../encryption';
 import { KeyManager } from '../keyManagement';
 import { MemoryStorageAdapter } from '../storage';
 
@@ -29,8 +29,8 @@ describe('EncryptionService', () => {
       const password = new TextEncoder().encode('test-password');
       const salt = new Uint8Array(32);
 
-      const key1 = await EncryptionService.deriveKey(password, salt, 3);
-      const key2 = await EncryptionService.deriveKey(password, salt, 3);
+      const key1 = await EncryptionService.deriveKey(password, salt, PBKDF2_CONFIG.MIN_ITERATIONS);
+      const key2 = await EncryptionService.deriveKey(password, salt, PBKDF2_CONFIG.MIN_ITERATIONS);
 
       expect(key1).toEqual(key2);
     });
@@ -41,10 +41,19 @@ describe('EncryptionService', () => {
       const salt2 = new Uint8Array(32);
       salt2[0] = 1; // Make different
 
-      const key1 = await EncryptionService.deriveKey(password, salt1, 3);
-      const key2 = await EncryptionService.deriveKey(password, salt2, 3);
+      const key1 = await EncryptionService.deriveKey(password, salt1, PBKDF2_CONFIG.MIN_ITERATIONS);
+      const key2 = await EncryptionService.deriveKey(password, salt2, PBKDF2_CONFIG.MIN_ITERATIONS);
 
       expect(key1).not.toEqual(key2);
+    });
+
+    test('should reject insecure iteration counts below the OWASP minimum', async () => {
+      const password = new TextEncoder().encode('test-password');
+      const salt = new Uint8Array(32);
+
+      expect(EncryptionService.deriveKey(password, salt, 3)).rejects.toThrow(
+        `Iterations must be at least ${PBKDF2_CONFIG.MIN_ITERATIONS}`
+      );
     });
   });
 
@@ -84,13 +93,17 @@ describe('EncryptionService', () => {
 const testStorage = new MemoryStorageAdapter();
 
 describe('KeyManager', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testStorage.clear();
     KeyManager.setStorageAdapter(testStorage);
+    KeyManager.setUseSecureStorage(false);
+    await KeyManager.clearMasterKey();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await KeyManager.clearMasterKey();
     testStorage.clear();
+    KeyManager.setUseSecureStorage(true);
   });
 
   describe('storeMasterKey', () => {

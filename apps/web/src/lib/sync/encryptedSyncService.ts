@@ -1,6 +1,16 @@
 'use client';
 
-import { EncryptionService, KeyManager } from '@notechain/core-crypto';
+import { decodeRecoveryKey, EncryptionService, KeyManager } from '@notechain/core-crypto';
+
+export class EncryptionRecoveryRequiredError extends Error {
+  cause?: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = 'EncryptionRecoveryRequiredError';
+    this.cause = cause;
+  }
+}
 
 /**
  * Service for encrypted sync operations
@@ -27,19 +37,29 @@ export class EncryptedSyncService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    // Try to get existing key
-    let masterKey = await KeyManager.getMasterKey();
+    try {
+      // Try to get existing key
+      let masterKey = await KeyManager.getMasterKey();
 
-    if (!masterKey) {
-      // Generate new master key for this device
-      masterKey = await EncryptionService.generateKey();
-      await KeyManager.storeMasterKey(masterKey);
-      console.log('Generated new encryption key');
+      if (!masterKey) {
+        // Generate new master key for this device
+        masterKey = await EncryptionService.generateKey();
+        await KeyManager.storeMasterKey(masterKey);
+        console.log('Generated new encryption key');
+      }
+
+      this.encryptionKey = masterKey;
+      this.isInitialized = true;
+      console.log('Encryption service initialized');
+    } catch (error) {
+      console.error('[EncryptedSyncService] Failed to initialize:', error);
+      this.encryptionKey = null;
+      this.isInitialized = false;
+      throw new EncryptionRecoveryRequiredError(
+        'Unable to load your encryption key. Enter your recovery key to restore access instead of generating a new incompatible key.',
+        error
+      );
     }
-
-    this.encryptionKey = masterKey;
-    this.isInitialized = true;
-    console.log('Encryption service initialized');
   }
 
   /**
@@ -163,6 +183,43 @@ export class EncryptedSyncService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Export the current master key as a user-held recovery key.
+   */
+  async exportRecoveryKey(): Promise<string> {
+    return KeyManager.exportRecoveryKey();
+  }
+
+  /**
+   * Restore the master key from a user-held recovery key and mark encryption ready.
+   */
+  async importRecoveryKey(recoveryKey: string): Promise<void> {
+    const masterKey = await KeyManager.importRecoveryKey(recoveryKey);
+    this.encryptionKey = masterKey;
+    this.isInitialized = true;
+  }
+
+  /**
+   * Verify a user-entered recovery key matches the currently loaded encryption key.
+   */
+  verifyRecoveryKey(recoveryKey: string): boolean {
+    if (!this.isReady() || !this.encryptionKey) {
+      throw new Error('Encryption service not initialized');
+    }
+
+    const decoded = decodeRecoveryKey(recoveryKey);
+    if (decoded.length !== this.encryptionKey.length) {
+      return false;
+    }
+
+    let difference = 0;
+    for (let i = 0; i < decoded.length; i++) {
+      difference |= decoded[i] ^ this.encryptionKey[i];
+    }
+
+    return difference === 0;
   }
 
   /**

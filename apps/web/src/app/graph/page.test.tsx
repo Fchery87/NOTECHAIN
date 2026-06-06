@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import KnowledgeGraphPage from './page';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 
 // Mock data defined first
@@ -45,34 +44,45 @@ const mockGraphData: KnowledgeGraph = {
   clusters: [],
 };
 
-// Mock next/navigation
-const mockPush = mock(() => {});
-mock.module('next/navigation', () => ({
+const graphMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  generateGraph: vi.fn(),
+  getAll: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: mockPush,
+    push: graphMocks.push,
   }),
 }));
 
-// Mock getKnowledgeGraphGenerator
-const mockGenerateGraph = mock(async (): Promise<KnowledgeGraph> => mockGraphData);
+vi.mock('@/lib/supabase/UserProvider', () => ({
+  useUser: () => ({ user: { id: 'user-1' }, isLoading: false }),
+}));
 
-mock.module('@/lib/ai/notes', () => ({
+vi.mock('@/components/AppLayout', () => ({
+  default: ({ children, pageTitle }: { children: React.ReactNode; pageTitle: string }) => (
+    <main>
+      <h1>{pageTitle}</h1>
+      {children}
+    </main>
+  ),
+}));
+
+vi.mock('@/lib/ai/notes', () => ({
   getKnowledgeGraphGenerator: () => ({
-    generateGraph: mockGenerateGraph,
+    generateGraph: graphMocks.generateGraph,
   }),
 }));
 
-// Mock createNoteRepository
-const mockGetAll = mock(async () => mockNotes);
-
-mock.module('@/lib/repositories', () => ({
+vi.mock('@/lib/repositories', () => ({
   createNoteRepository: () => ({
-    getAll: mockGetAll,
+    getAll: graphMocks.getAll,
   }),
 }));
 
 // Mock cytoscape to avoid initialization errors
-mock.module('cytoscape', () => ({
+vi.mock('cytoscape', () => ({
   __esModule: true,
   default: () => ({
     elements: () => ({ remove: () => {} }),
@@ -88,38 +98,49 @@ mock.module('cytoscape', () => ({
   }),
 }));
 
+import KnowledgeGraphPage from './page';
+
 describe('KnowledgeGraphPage', () => {
   beforeEach(() => {
-    mockPush.mockClear();
-    mockGenerateGraph.mockImplementation(async () => mockGraphData);
-    mockGetAll.mockImplementation(async () => mockNotes);
+    graphMocks.push.mockClear();
+    graphMocks.generateGraph.mockImplementation(async () => mockGraphData);
+    graphMocks.getAll.mockImplementation(async () => mockNotes);
   });
 
-  test('renders page title', () => {
+  test('renders page title', async () => {
     render(<KnowledgeGraphPage />);
 
     expect(screen.getByText('Knowledge Graph')).toBeDefined();
+    await waitFor(() => {
+      expect(graphMocks.generateGraph).toHaveBeenCalled();
+    });
   });
 
-  test('renders subtitle/description', () => {
+  test('renders subtitle/description', async () => {
     render(<KnowledgeGraphPage />);
 
     expect(screen.getByText(/Visualize connections between your notes/)).toBeDefined();
+    await waitFor(() => {
+      expect(graphMocks.generateGraph).toHaveBeenCalled();
+    });
   });
 
-  test('shows loading state initially', () => {
+  test('shows loading state initially', async () => {
     render(<KnowledgeGraphPage />);
 
     // The KnowledgeGraphView component shows loading state with data-testid="graph-loading-container"
     expect(screen.getByTestId('graph-loading-container')).toBeDefined();
     expect(screen.getByText(/loading.*graph/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.queryByTestId('graph-loading-container')).toBeNull();
+    });
   });
 
   test('loads notes on mount', async () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(mockGetAll).toHaveBeenCalled();
+      expect(graphMocks.getAll).toHaveBeenCalled();
     });
   });
 
@@ -127,7 +148,7 @@ describe('KnowledgeGraphPage', () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(mockGenerateGraph).toHaveBeenCalledWith(
+      expect(graphMocks.generateGraph).toHaveBeenCalledWith(
         mockNotes,
         expect.objectContaining({
           includeTags: true,
@@ -154,15 +175,18 @@ describe('KnowledgeGraphPage', () => {
     expect(screen.getByTestId('graph-toolbar')).toBeDefined();
   });
 
-  test('renders tips section', () => {
+  test('renders tips section', async () => {
     render(<KnowledgeGraphPage />);
 
     expect(screen.getByText(/Tips/)).toBeDefined();
+    await waitFor(() => {
+      expect(graphMocks.generateGraph).toHaveBeenCalled();
+    });
   });
 
   test('shows empty state when no notes exist', async () => {
-    mockGetAll.mockImplementation(async () => []);
-    mockGenerateGraph.mockImplementation(async () => ({
+    graphMocks.getAll.mockImplementation(async () => []);
+    graphMocks.generateGraph.mockImplementation(async () => ({
       nodes: [],
       edges: [],
       clusters: [],
@@ -176,19 +200,18 @@ describe('KnowledgeGraphPage', () => {
   });
 
   test('handles errors gracefully', async () => {
-    // Suppress console.error for this test
-    const originalConsoleError = console.error;
-    console.error = () => {};
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    mockGetAll.mockRejectedValue(new Error('Failed to load notes'));
+    try {
+      graphMocks.getAll.mockRejectedValue(new Error('Failed to load notes'));
 
-    render(<KnowledgeGraphPage />);
+      render(<KnowledgeGraphPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/error loading graph/i)).toBeDefined();
-    });
-
-    // Restore console.error
-    console.error = originalConsoleError;
+      await waitFor(() => {
+        expect(screen.getByText(/error loading graph/i)).toBeDefined();
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

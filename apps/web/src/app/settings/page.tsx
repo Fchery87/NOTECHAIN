@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { SecuritySettingsPanel } from './_components/SecuritySettingsPanel';
+
+type SettingsSection = 'general' | 'security' | 'account';
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<'general' | 'security' | 'account'>('general');
+  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -19,59 +22,76 @@ export default function SettingsPage() {
           {/* Sidebar */}
           <div className="md:col-span-1">
             <nav className="space-y-1">
-              {[
-                {
-                  id: 'general',
-                  label: 'General',
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'security',
-                  label: 'Security',
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                      />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'account',
-                  label: 'Account',
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                  ),
-                },
-              ].map(section => (
+              {(
+                [
+                  {
+                    id: 'general',
+                    label: 'General',
+                    icon: (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'security',
+                    label: 'Security',
+                    icon: (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                        />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'account',
+                    label: 'Account',
+                    icon: (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                    ),
+                  },
+                ] satisfies Array<{ id: SettingsSection; label: string; icon: ReactNode }>
+              ).map(section => (
                 <button
                   key={section.id}
-                  onClick={() => setActiveSection(section.id as any)}
+                  onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
                     activeSection === section.id
                       ? 'bg-stone-900 text-stone-50 shadow-sm'
@@ -186,100 +206,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {activeSection === 'security' && (
-                <div className="p-6">
-                  <h2 className="text-xl font-medium text-stone-900 mb-6">Security Settings</h2>
-
-                  {/* Encryption Status */}
-                  <div className="mb-8 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg
-                          className="w-5 h-5 text-green-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="font-medium text-green-900">End-to-End Encryption Active</p>
-                        <p className="text-sm text-green-700">
-                          Your data is encrypted with XSalsa20-Poly1305
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Encryption Key */}
-                  <div className="mb-8">
-                    <label className="block text-sm font-medium text-stone-700 mb-3">
-                      Encryption Key
-                    </label>
-                    <div className="flex gap-3">
-                      <div className="flex-1 px-4 py-3 bg-stone-100 rounded-lg font-mono text-sm text-stone-600 truncate">
-                        ••••••••••••••••••••••••••••••••
-                      </div>
-                      <button className="px-4 py-2 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300 transition-colors">
-                        Export
-                      </button>
-                    </div>
-                    <p className="text-xs text-stone-500 mt-2">
-                      Never share your encryption key. Keep it safe.
-                    </p>
-                  </div>
-
-                  {/* Two Factor Auth */}
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-stone-900">Two-Factor Authentication</p>
-                        <p className="text-sm text-stone-500">Add an extra layer of security</p>
-                      </div>
-                      <button className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors">
-                        Enable
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Session Management */}
-                  <div>
-                    <h3 className="font-medium text-stone-900 mb-3">Active Sessions</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-4 bg-stone-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-stone-200 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-4 h-4 text-stone-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                              />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="font-medium text-stone-900">Current Session</p>
-                            <p className="text-sm text-stone-500">MacBook Pro • Chrome • Now</p>
-                          </div>
-                        </div>
-                        <span className="text-xs text-green-600 font-medium">Active</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {activeSection === 'security' && <SecuritySettingsPanel />}
 
               {activeSection === 'account' && (
                 <div className="p-6">

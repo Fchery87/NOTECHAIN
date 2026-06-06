@@ -461,7 +461,7 @@ export function VersionHistory({
     setIsRestoring(true);
 
     try {
-      const restored = versionManager.restoreVersion(selectedVersion.id);
+      const restored = await Promise.resolve(versionManager.restoreVersion(selectedVersion.id));
       if (restored) {
         onRestore?.(restored);
       }

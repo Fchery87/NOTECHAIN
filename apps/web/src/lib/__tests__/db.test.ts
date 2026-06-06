@@ -1,18 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '../db';
 
-// Mock EncryptionService
-const _mockEncryptData = () =>
-  Promise.resolve({
-    ciphertext: new Uint8Array([1, 2, 3]),
-    nonce: new Uint8Array([4, 5, 6]),
-    authTag: new Uint8Array([7, 8, 9]),
-  });
-
 describe('Encrypted Database', () => {
-  beforeEach(() => {
-    // Clear IndexedDB before each test
-    db.delete().catch(() => {});
+  beforeEach(async () => {
+    // Clear IndexedDB before each test and wait for the delete to complete.
+    db.close();
+    await db.delete();
   });
 
   afterEach(() => {
@@ -23,7 +16,7 @@ describe('Encrypted Database', () => {
   describe('Database Initialization', () => {
     test('should initialize database with correct version', async () => {
       await db.open();
-      expect(db.verno).toBe(1);
+      expect(db.verno).toBe(3);
     });
 
     test('should create all required tables', async () => {
@@ -49,9 +42,9 @@ describe('Encrypted Database', () => {
 
       const encryptedNote = {
         id: 'note-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         version: 1,
         ...noteData,
       };
@@ -66,9 +59,9 @@ describe('Encrypted Database', () => {
     test('should update existing encrypted note', async () => {
       const encryptedNote = {
         id: 'note-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         title: 'Original Title',
         updatedAt: new Date(),
       };
@@ -91,9 +84,9 @@ describe('Encrypted Database', () => {
     test('should delete note from database', async () => {
       const encryptedNote = {
         id: 'note-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         title: 'Test Note',
       };
 
@@ -121,9 +114,9 @@ describe('Encrypted Database', () => {
 
       const encryptedTodo = {
         id: 'todo-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         ...todoData,
       };
 
@@ -149,9 +142,9 @@ describe('Encrypted Database', () => {
 
       const encryptedPdf = {
         id: 'pdf-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         ...pdfData,
       };
 
@@ -179,9 +172,9 @@ describe('Encrypted Database', () => {
 
       const encryptedEvent = {
         id: 'event-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         ...eventData,
       };
 
@@ -216,9 +209,9 @@ describe('Encrypted Database', () => {
     test('should work without network connection', async () => {
       const noteData = {
         id: 'note-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         title: 'Offline Note',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -234,9 +227,9 @@ describe('Encrypted Database', () => {
     test('should persist data across page refreshes', async () => {
       const noteData = {
         id: 'note-1',
-        ciphertext: new Uint8Array([1, 2, 3]),
-        nonce: new Uint8Array([4, 5, 6]),
-        authTag: new Uint8Array([7, 8, 9]),
+        ciphertext: 'AQID',
+        nonce: 'BAUG',
+        authTag: 'BwgJ',
         title: 'Persistent Note',
         createdAt: new Date(),
         updatedAt: new Date(),

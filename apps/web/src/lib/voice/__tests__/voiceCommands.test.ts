@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { interpretVoiceCommand, executeVoiceCommand, VoiceCommand } from '../voiceCommands';
 import type { Editor } from '@tiptap/react';
 
@@ -195,32 +195,32 @@ describe('interpretVoiceCommand', () => {
 describe('executeVoiceCommand', () => {
   let mockEditor: Editor;
   let mockChain: {
-    focus: ReturnType<typeof mock>;
-    setParagraph: ReturnType<typeof mock>;
-    toggleBold: ReturnType<typeof mock>;
-    toggleItalic: ReturnType<typeof mock>;
-    toggleUnderline: ReturnType<typeof mock>;
-    setHeading: ReturnType<typeof mock>;
-    undo: ReturnType<typeof mock>;
-    redo: ReturnType<typeof mock>;
-    run: ReturnType<typeof mock>;
+    focus: ReturnType<typeof vi.fn>;
+    setParagraph: ReturnType<typeof vi.fn>;
+    toggleBold: ReturnType<typeof vi.fn>;
+    toggleItalic: ReturnType<typeof vi.fn>;
+    toggleUnderline: ReturnType<typeof vi.fn>;
+    setHeading: ReturnType<typeof vi.fn>;
+    undo: ReturnType<typeof vi.fn>;
+    redo: ReturnType<typeof vi.fn>;
+    run: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
     mockChain = {
-      focus: mock(() => mockChain),
-      setParagraph: mock(() => mockChain),
-      toggleBold: mock(() => mockChain),
-      toggleItalic: mock(() => mockChain),
-      toggleUnderline: mock(() => mockChain),
-      setHeading: mock(() => mockChain),
-      undo: mock(() => mockChain),
-      redo: mock(() => mockChain),
-      run: mock(),
+      focus: vi.fn(() => mockChain),
+      setParagraph: vi.fn(() => mockChain),
+      toggleBold: vi.fn(() => mockChain),
+      toggleItalic: vi.fn(() => mockChain),
+      toggleUnderline: vi.fn(() => mockChain),
+      setHeading: vi.fn(() => mockChain),
+      undo: vi.fn(() => mockChain),
+      redo: vi.fn(() => mockChain),
+      run: vi.fn(),
     };
 
     mockEditor = {
-      chain: mock(() => mockChain),
+      chain: vi.fn(() => mockChain),
     } as unknown as Editor;
   });
 

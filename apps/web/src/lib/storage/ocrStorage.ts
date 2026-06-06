@@ -178,10 +178,12 @@ class OCRDatabase extends Dexie {
     return this.ocrResults.toArray();
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     if (this.inMemoryStorage) {
       this.inMemoryStorage.clear();
+      return;
     }
+    await this.ocrResults.clear();
   }
 
   async closeConnection(): Promise<void> {
@@ -449,8 +451,8 @@ export class OCRStorage {
   /**
    * Clear all OCR results (useful for testing)
    */
-  clear(): void {
-    this.db.clear();
+  async clear(): Promise<void> {
+    await this.db.clear();
   }
 }
 

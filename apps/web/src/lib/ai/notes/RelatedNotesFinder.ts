@@ -2,7 +2,7 @@
 
 import type { RelatedNote, RelatedNotesOptions, NoteAnalysis, SemanticSearchResult } from './types';
 import type { Note } from '@notechain/data-models';
-import { EmbeddingService } from '@notechain/ai-engine';
+import { EmbeddingService } from './EmbeddingService';
 import { getNoteAnalyzer } from './NoteAnalyzer';
 
 /**

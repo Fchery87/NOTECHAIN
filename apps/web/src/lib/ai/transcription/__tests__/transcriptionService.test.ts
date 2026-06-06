@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TranscriptionService } from '../transcriptionService';
 
-// Mock @xenova/transformers
-const mockPipeline = vi.fn();
-const mockPipelineInstance = vi.fn();
+const mocks = vi.hoisted(() => ({
+  pipeline: vi.fn(),
+  pipelineInstance: vi.fn(),
+}));
 
 vi.mock('@xenova/transformers', () => ({
-  pipeline: mockPipeline,
+  pipeline: mocks.pipeline,
 }));
 
 // Mock AudioContext
@@ -19,11 +20,12 @@ const mockAudioBuffer = {
 
 const mockDecodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
 const mockAudioContextClose = vi.fn();
-
-const MockAudioContext = vi.fn().mockImplementation(() => ({
-  decodeAudioData: mockDecodeAudioData,
-  close: mockAudioContextClose,
-}));
+const MockAudioContext = vi.fn(function MockAudioContext() {
+  return {
+    decodeAudioData: mockDecodeAudioData,
+    close: mockAudioContextClose,
+  };
+});
 
 (globalThis as any).AudioContext = MockAudioContext;
 (globalThis as any).webkitAudioContext = MockAudioContext;
@@ -40,7 +42,7 @@ describe('TranscriptionService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new TranscriptionService();
-    mockPipeline.mockResolvedValue(mockPipelineInstance);
+    mocks.pipeline.mockResolvedValue(mocks.pipelineInstance);
     mockDecodeAudioData.mockResolvedValue(mockAudioBuffer);
   });
 
@@ -68,7 +70,7 @@ describe('TranscriptionService', () => {
     it('should load the Whisper model on initialize', async () => {
       await service.initialize();
 
-      expect(mockPipeline).toHaveBeenCalledWith(
+      expect(mocks.pipeline).toHaveBeenCalledWith(
         'automatic-speech-recognition',
         'Xenova/whisper-tiny.en',
         {
@@ -88,13 +90,13 @@ describe('TranscriptionService', () => {
       await service.initialize();
       await service.initialize();
 
-      expect(mockPipeline).toHaveBeenCalledTimes(1);
+      expect(mocks.pipeline).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('transcribeAudio', () => {
     it('should transcribe audio and return text', async () => {
-      mockPipelineInstance.mockResolvedValue({
+      mocks.pipelineInstance.mockResolvedValue({
         text: 'Hello world',
       });
 
@@ -106,7 +108,7 @@ describe('TranscriptionService', () => {
     });
 
     it('should call onProgress with loading progress', async () => {
-      mockPipelineInstance.mockResolvedValue({
+      mocks.pipelineInstance.mockResolvedValue({
         text: 'Test transcription',
       });
 
@@ -122,7 +124,7 @@ describe('TranscriptionService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockPipelineInstance.mockRejectedValue(new Error('Transcription failed'));
+      mocks.pipelineInstance.mockRejectedValue(new Error('Transcription failed'));
 
       await service.initialize();
       const audioBlob = new Blob(['audio data'], { type: 'audio/wav' });
@@ -131,19 +133,19 @@ describe('TranscriptionService', () => {
     });
 
     it('should auto-initialize if not already initialized', async () => {
-      mockPipelineInstance.mockResolvedValue({
+      mocks.pipelineInstance.mockResolvedValue({
         text: 'Auto initialized',
       });
 
       const audioBlob = new Blob(['audio data'], { type: 'audio/wav' });
       const result = await service.transcribeAudio(audioBlob);
 
-      expect(mockPipeline).toHaveBeenCalledTimes(1);
+      expect(mocks.pipeline).toHaveBeenCalledTimes(1);
       expect(result).toBe('Auto initialized');
     });
 
     it('should handle audio blob conversion correctly', async () => {
-      mockPipelineInstance.mockResolvedValue({
+      mocks.pipelineInstance.mockResolvedValue({
         text: 'Converted audio',
       });
 
@@ -156,10 +158,10 @@ describe('TranscriptionService', () => {
       await service.transcribeAudio(audioBlob);
 
       // Verify pipeline was called with audio data
-      expect(mockPipelineInstance).toHaveBeenCalledWith(
+      expect(mocks.pipelineInstance).toHaveBeenCalledWith(
         expect.any(Float32Array),
         expect.objectContaining({
-          sampling_rate: 44100,
+          sampling_rate: 16000,
         })
       );
     });

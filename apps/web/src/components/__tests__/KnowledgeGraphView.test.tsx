@@ -1,44 +1,40 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { KnowledgeGraphView, KnowledgeGraphViewProps } from '../KnowledgeGraphView';
+import type { KnowledgeGraphViewProps } from '../KnowledgeGraphView';
 import type { KnowledgeGraph } from '../../lib/ai/notes/types';
 
-// Track cytoscape instance for assertions
-let mockCyInstance: unknown = null;
-
-// Mock cytoscape
-jest.mock('cytoscape', () => ({
-  __esModule: true,
-  default: jest.fn(() => {
+const knowledgeGraphMocks = vi.hoisted(() => {
+  const holder: { instance: any } = { instance: null };
+  const cytoscape = vi.fn(() => {
     const mockElements: unknown[] = [];
     const eventHandlers: Record<string, Array<(...args: unknown[]) => void>> = {};
 
     const instance = {
-      elements: jest.fn(() => ({
-        remove: jest.fn(() => {
+      elements: vi.fn(() => ({
+        remove: vi.fn(() => {
           mockElements.length = 0;
         }),
       })),
-      add: jest.fn((data: unknown) => {
+      add: vi.fn((data: unknown) => {
         if (Array.isArray(data)) {
           mockElements.push(...data);
         }
       }),
-      layout: jest.fn(() => ({
-        run: jest.fn(),
+      layout: vi.fn(() => ({
+        run: vi.fn(),
       })),
-      fit: jest.fn(),
-      zoom: jest.fn((level?: number) => {
+      fit: vi.fn(),
+      zoom: vi.fn((level?: number) => {
         if (level === undefined) return 1;
         return level;
       }),
-      center: jest.fn(),
-      destroy: jest.fn(() => {
-        mockCyInstance = null;
+      center: vi.fn(),
+      destroy: vi.fn(() => {
+        holder.instance = null;
       }),
-      on: jest.fn(
+      on: vi.fn(
         (
           event: string,
           selector: string | ((...args: unknown[]) => void),
@@ -49,15 +45,24 @@ jest.mock('cytoscape', () => ({
           eventHandlers[key].push(handler || (selector as (...args: unknown[]) => void));
         }
       ),
-      off: jest.fn(),
-      json: jest.fn(() => ({ elements: mockElements })),
+      off: vi.fn(),
+      json: vi.fn(() => ({ elements: mockElements })),
       _eventHandlers: eventHandlers,
     };
 
-    mockCyInstance = instance;
+    holder.instance = instance;
     return instance;
-  }),
+  });
+
+  return { holder, cytoscape };
+});
+
+vi.mock('cytoscape', () => ({
+  __esModule: true,
+  default: knowledgeGraphMocks.cytoscape,
 }));
+
+import { KnowledgeGraphView } from '../KnowledgeGraphView';
 
 describe('KnowledgeGraphView', () => {
   const mockGraph: KnowledgeGraph = {
@@ -123,19 +128,19 @@ describe('KnowledgeGraphView', () => {
   const defaultProps: KnowledgeGraphViewProps = {
     graph: mockGraph,
     isLoading: false,
-    onNodeClick: jest.fn(),
+    onNodeClick: vi.fn(),
     height: '500px',
     showControls: true,
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockCyInstance = null;
+    vi.clearAllMocks();
+    knowledgeGraphMocks.holder.instance = null;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
-    mockCyInstance = null;
+    vi.clearAllMocks();
+    knowledgeGraphMocks.holder.instance = null;
   });
 
   test('renders graph container', () => {
@@ -212,12 +217,12 @@ describe('KnowledgeGraphView', () => {
   });
 
   test('onNodeClick prop is accepted and called when node is clicked', () => {
-    const onNodeClick = jest.fn();
+    const onNodeClick = vi.fn();
     render(<KnowledgeGraphView {...defaultProps} onNodeClick={onNodeClick} />);
 
     // Verify cytoscape on event was set up for tap
-    expect(mockCyInstance).not.toBeNull();
-    expect((mockCyInstance as { on: jest.Mock }).on).toHaveBeenCalledWith(
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
+    expect((knowledgeGraphMocks.holder.instance as { on: any }).on).toHaveBeenCalledWith(
       'tap',
       'node',
       expect.any(Function)
@@ -290,8 +295,8 @@ describe('KnowledgeGraphView', () => {
     const zoomInButton = screen.getByTestId('zoom-in-button');
     fireEvent.click(zoomInButton);
 
-    expect(mockCyInstance).not.toBeNull();
-    expect((mockCyInstance as { zoom: jest.Mock }).zoom).toHaveBeenCalled();
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
+    expect((knowledgeGraphMocks.holder.instance as { zoom: any }).zoom).toHaveBeenCalled();
   });
 
   test('zoom out button decreases zoom level', () => {
@@ -300,8 +305,8 @@ describe('KnowledgeGraphView', () => {
     const zoomOutButton = screen.getByTestId('zoom-out-button');
     fireEvent.click(zoomOutButton);
 
-    expect(mockCyInstance).not.toBeNull();
-    expect((mockCyInstance as { zoom: jest.Mock }).zoom).toHaveBeenCalled();
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
+    expect((knowledgeGraphMocks.holder.instance as { zoom: any }).zoom).toHaveBeenCalled();
   });
 
   test('fit button fits the graph to view', () => {
@@ -310,8 +315,8 @@ describe('KnowledgeGraphView', () => {
     const fitButton = screen.getByTestId('fit-button');
     fireEvent.click(fitButton);
 
-    expect(mockCyInstance).not.toBeNull();
-    expect((mockCyInstance as { fit: jest.Mock }).fit).toHaveBeenCalled();
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
+    expect((knowledgeGraphMocks.holder.instance as { fit: any }).fit).toHaveBeenCalled();
   });
 
   test('node filters toggle visibility', () => {
@@ -332,21 +337,21 @@ describe('KnowledgeGraphView', () => {
     fireEvent.change(layoutSelector, { target: { value: 'CIRCLE' } });
 
     // Layout should be applied
-    expect(mockCyInstance).not.toBeNull();
-    expect((mockCyInstance as { layout: jest.Mock }).layout).toHaveBeenCalled();
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
+    expect((knowledgeGraphMocks.holder.instance as { layout: any }).layout).toHaveBeenCalled();
   });
 
   test('cleanup cytoscape on unmount', () => {
     const { unmount } = render(<KnowledgeGraphView {...defaultProps} />);
     unmount();
 
-    expect(mockCyInstance).toBeNull();
+    expect(knowledgeGraphMocks.holder.instance).toBeNull();
   });
 
   test('initializes cytoscape when container and graph are available', () => {
     render(<KnowledgeGraphView {...defaultProps} />);
 
-    expect(mockCyInstance).not.toBeNull();
+    expect(knowledgeGraphMocks.holder.instance).not.toBeNull();
   });
 
   test('toolbar uses warm editorial minimalism design', () => {

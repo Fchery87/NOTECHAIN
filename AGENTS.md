@@ -287,3 +287,19 @@ packages/
 | Glass effect    | `glass` utility class                                        |
 | Section padding | `py-20 md:py-32`                                             |
 | Container       | `max-w-7xl mx-auto px-6 lg:px-8`                             |
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in this repo's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-label triage vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses the single-context domain docs layout: root `CONTEXT.md` plus root `docs/adr/`. See `docs/agents/domain.md`.

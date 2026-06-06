@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useWebSpeechTranscription } from '../hooks/useWebSpeechTranscription';
-import { WebSpeechTranscriptionService } from '../lib/ai/transcription/webSpeechTranscriptionService';
+import React, { useState, useCallback, useRef } from 'react';
+import { useMeetingTranscriptionController } from '../hooks/useMeetingTranscriptionController';
 import { extractActionItems, type ActionItem } from '../lib/ai/transcription/actionItemExtractor';
 import {
   createMeetingStorage,
@@ -31,9 +30,9 @@ function formatDuration(seconds: number): string {
 }
 
 /**
- * Browser support warning component
+ * Browser support warning component with fallback option
  */
-function BrowserSupportWarning() {
+function BrowserSupportWarning({ onUseFallback }: { onUseFallback?: () => void }) {
   return (
     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
       <div className="flex items-start gap-3">
@@ -50,12 +49,20 @@ function BrowserSupportWarning() {
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
-        <div>
-          <p className="text-sm font-medium text-amber-900">Browser Not Supported</p>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-amber-900">Limited Browser Support</p>
           <p className="text-xs text-amber-800 mt-1">
-            Speech transcription requires Chrome, Edge, or Opera. Please switch to a supported
-            browser to use this feature.
+            Real-time speech recognition works best in Chrome, Edge, or Opera. Brave and other
+            browsers can use the fallback mode (slower but private).
           </p>
+          {onUseFallback && (
+            <button
+              onClick={onUseFallback}
+              className="mt-2 text-xs text-amber-700 underline hover:text-amber-900"
+            >
+              Use Private Fallback Mode
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -74,101 +81,51 @@ export function MeetingTranscriber({
   onSave,
   onCancel,
 }: MeetingTranscriberProps) {
-  // Check browser support for Web Speech API
-  const isBrowserSupported = WebSpeechTranscriptionService.isSupported();
-
   // State
   const [title, setTitle] = useState(initialTitle);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
 
   // Refs
   const meetingStorageRef = useRef(createMeetingStorage());
-  const recordingStartTimeRef = useRef<number | null>(null);
-  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Web Speech API transcription hook
-  const {
-    isSupported: isSpeechSupported,
-    isListening,
-    transcript,
-    interimTranscript,
-    startListening,
-    stopListening,
-    resetTranscript,
-    supportMessage,
-  } = useWebSpeechTranscription({
-    language: 'en-US',
-    continuous: true,
-    interimResults: true,
-    onTranscript: (newTranscript, isFinal) => {
-      if (isFinal) {
-        // Extract action items from the final transcript
-        const items = extractActionItems(newTranscript);
-        setActionItems(items);
-      }
-    },
-    onError: err => {
-      setError(err);
+  const transcription = useMeetingTranscriptionController({
+    onError: setError,
+    onFinalTranscript: transcript => {
+      setActionItems(extractActionItems(transcript));
     },
   });
 
-  // Update recording duration
-  useEffect(() => {
-    if (isListening) {
-      recordingStartTimeRef.current = Date.now();
-      durationIntervalRef.current = setInterval(() => {
-        if (recordingStartTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-          setRecordingDuration(elapsed);
-        }
-      }, 1000);
-    } else {
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-      }
-    }
+  const {
+    mode,
+    selectMode,
+    transcript: currentTranscript,
+    audioBlob,
+    recordingDuration,
+    isRecording,
+    isProcessing,
+    isWebSpeechSupported,
+    isHuggingFaceSupported,
+    isHfModelLoaded,
+    isHfLoading,
+    isHfTranscribing,
+    hfProgress,
+    canStartSelectedMode,
+    startRecording,
+    stopRecording,
+    stopActiveRecording,
+  } = transcription;
 
-    return () => {
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-      }
-    };
-  }, [isListening]);
-
-  // Handle start recording
   const handleStartRecording = useCallback(async () => {
-    if (!isSpeechSupported) {
-      setError(
-        'Speech recognition is not supported in this browser. Please use Chrome, Edge, or Opera.'
-      );
-      return;
-    }
-
     setError(null);
-    setAudioBlob(null);
-    setRecordingDuration(0);
-    resetTranscript();
     setActionItems([]);
-    startListening();
-  }, [isSpeechSupported, startListening, resetTranscript]);
+    await startRecording();
+  }, [startRecording]);
 
-  // Handle stop recording
   const handleStopRecording = useCallback(async () => {
-    stopListening();
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
-    }
-  }, [stopListening]);
-
-  // Handle transcript change
-  const handleTranscriptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // Note: transcript is now managed by useWebSpeechTranscription hook
-    // This handler is kept for UI consistency but doesn't update state directly
-  }, []);
+    await stopRecording();
+  }, [stopRecording]);
 
   // Handle title change
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,7 +153,9 @@ export function MeetingTranscriber({
       return;
     }
 
-    if (!transcript.trim()) {
+    const finalTranscript = currentTranscript;
+
+    if (!finalTranscript.trim()) {
       setError('No transcript available to save');
       return;
     }
@@ -213,7 +172,7 @@ export function MeetingTranscriber({
         title: title.trim(),
         date: new Date(),
         duration: recordingDuration,
-        transcript,
+        transcript: finalTranscript,
         actionItems,
         calendarEventId,
         audioBlob: audioBlob || undefined,
@@ -228,24 +187,25 @@ export function MeetingTranscriber({
     } finally {
       setIsSaving(false);
     }
-  }, [title, recordingDuration, transcript, actionItems, calendarEventId, audioBlob, onSave]);
+  }, [
+    title,
+    recordingDuration,
+    currentTranscript,
+    actionItems,
+    calendarEventId,
+    audioBlob,
+    onSave,
+  ]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {
-    if (isListening) {
-      stopListening();
-    }
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current);
-    }
+    stopActiveRecording();
     onCancel?.();
-  }, [isListening, stopListening, onCancel]);
+  }, [stopActiveRecording, onCancel]);
 
   // Check if save is enabled
-  const canSave = title.trim() && transcript.trim() && !isListening && !isSaving;
-
-  // Combine final and interim transcripts for display
-  const displayTranscript = transcript + (interimTranscript ? ' ' + interimTranscript : '');
+  const canSave =
+    title.trim() && currentTranscript.trim() && !isRecording && !isSaving && !isProcessing;
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-lg border border-stone-100 overflow-hidden">
@@ -267,15 +227,103 @@ export function MeetingTranscriber({
             onChange={handleTitleChange}
             placeholder="Enter meeting title..."
             className="w-full px-4 py-2 bg-white border border-stone-200 rounded-lg text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all duration-200"
-            disabled={isListening || isSaving}
+            disabled={isRecording || isSaving}
           />
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-6 space-y-6">
+        {/* Mode Selection - Show if no mode selected */}
+        {!mode && (
+          <div className="space-y-4">
+            <p className="text-sm text-stone-600">Choose transcription mode:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={() => selectMode('webspeech')}
+                disabled={!isWebSpeechSupported}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  isWebSpeechSupported
+                    ? 'border-stone-200 hover:border-amber-500 hover:bg-amber-50'
+                    : 'border-stone-100 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <svg
+                    className="w-5 h-5 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  <span className="font-medium text-stone-900">Real-time Mode</span>
+                </div>
+                <p className="text-xs text-stone-600">
+                  Fast, real-time transcription. Works in Chrome, Edge, Opera.
+                </p>
+                {!isWebSpeechSupported && (
+                  <p className="text-xs text-rose-600 mt-2">Not available in this browser</p>
+                )}
+              </button>
+
+              <button
+                onClick={() => selectMode('huggingface')}
+                disabled={!isHuggingFaceSupported}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  isHuggingFaceSupported
+                    ? 'border-stone-200 hover:border-amber-500 hover:bg-amber-50'
+                    : 'border-stone-100 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <svg
+                    className="w-5 h-5 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <span className="font-medium text-stone-900">Private Mode</span>
+                </div>
+                <p className="text-xs text-stone-600">
+                  Works in all browsers including Brave. Audio stays on your device.
+                </p>
+                {isHfLoading && <p className="text-xs text-amber-600 mt-2">Loading AI model...</p>}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Browser Support Warning */}
-        {!isBrowserSupported && <BrowserSupportWarning />}
+        {mode === 'webspeech' && !isWebSpeechSupported && (
+          <BrowserSupportWarning onUseFallback={() => selectMode('huggingface')} />
+        )}
+
+        {/* Model Loading Progress for Hugging Face */}
+        {mode === 'huggingface' && isHfLoading && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-900 mb-2">Loading AI model (one-time)...</p>
+            <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-300"
+                style={{ width: `${hfProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-blue-700 mt-1">{hfProgress}%</p>
+          </div>
+        )}
 
         {/* Error Display */}
         {error && (
@@ -284,84 +332,84 @@ export function MeetingTranscriber({
           </div>
         )}
 
-        {/* Recording Controls */}
-        <div className="flex items-center justify-center gap-4">
-          {!isListening ? (
-            <button
-              type="button"
-              onClick={handleStartRecording}
-              disabled={!isBrowserSupported || isSaving}
-              className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Start recording"
-            >
-              {/* Record Icon */}
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+        {/* Recording Controls - Only show after mode selected */}
+        {mode && (
+          <div className="flex items-center justify-center gap-4">
+            {!isRecording ? (
+              <button
+                type="button"
+                onClick={handleStartRecording}
+                disabled={!canStartSelectedMode || isSaving}
+                className="flex items-center gap-2 px-6 py-3 bg-stone-900 text-stone-50 font-medium rounded-lg hover:bg-stone-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Start recording"
               >
-                <circle cx="12" cy="12" r="6" fill="currentColor" />
-              </svg>
-              <span>Start Recording</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleStopRecording}
-              className="flex items-center gap-2 px-6 py-3 bg-rose-500 text-white font-medium rounded-lg hover:bg-rose-600 transition-all duration-300 relative"
-              aria-label="Stop recording"
-            >
-              {/* Pulse Animation */}
-              <span className="absolute top-0 right-0 flex h-3 w-3 -mt-1 -mr-1">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-              </span>
-
-              {/* Stop Icon */}
-              <svg
-                className="w-5 h-5"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="6" fill="currentColor" />
+                </svg>
+                <span>Start Recording</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStopRecording}
+                className="flex items-center gap-2 px-6 py-3 bg-rose-500 text-white font-medium rounded-lg hover:bg-rose-600 transition-all duration-300 relative"
+                aria-label="Stop recording"
               >
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-              <span>Stop Recording</span>
-            </button>
-          )}
+                <span className="absolute top-0 right-0 flex h-3 w-3 -mt-1 -mr-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                </span>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+                <span>Stop Recording</span>
+              </button>
+            )}
 
-          {/* Duration Display */}
-          {isListening && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-lg">
-              <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
-              <span className="font-mono text-lg font-medium text-stone-700">
-                {formatDuration(recordingDuration)}
-              </span>
+            {/* Duration Display */}
+            {isRecording && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-lg">
+                <div className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+                <span className="font-mono text-lg font-medium text-stone-700">
+                  {formatDuration(recordingDuration)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Transcription Progress for Hugging Face */}
+        {mode === 'huggingface' && isHfTranscribing && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-stone-600">Transcribing with AI...</span>
+              <span className="text-stone-500">{hfProgress}%</span>
             </div>
-          )}
-        </div>
+            <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all duration-300"
+                style={{ width: `${hfProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Transcript Display */}
-        {(displayTranscript || isListening) && (
+        {(currentTranscript || isRecording) && mode && (
           <div className="space-y-2">
             <label htmlFor="transcript" className="block text-sm font-medium text-stone-600">
               Transcript
-              {isListening && <span className="ml-2 text-xs text-amber-600">● Recording...</span>}
+              {isRecording && <span className="ml-2 text-xs text-amber-600">● Recording...</span>}
+              {isProcessing && <span className="ml-2 text-xs text-blue-600">● Processing...</span>}
             </label>
             <textarea
               id="transcript"
-              value={displayTranscript}
-              onChange={handleTranscriptChange}
+              value={currentTranscript}
               rows={8}
               className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-lg text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all duration-200 resize-y"
-              placeholder={isListening ? 'Speak now...' : 'Transcript will appear here...'}
+              placeholder={isRecording ? 'Speak now...' : 'Transcript will appear here...'}
               readOnly
             />
-            {interimTranscript && !transcript.includes(interimTranscript) && (
-              <p className="text-xs text-stone-500 italic">{interimTranscript}</p>
-            )}
           </div>
         )}
 

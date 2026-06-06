@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#fafaf9" />
+    <title>NoteChain Offline</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #fafaf9;
+        color: #1c1917;
+      }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      main {
+        max-width: 560px;
+        border: 1px solid #e7e5e4;
+        background: #fff;
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 0 20px 60px rgb(28 25 23 / 0.08);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        background: #fef3c7;
+        color: #92400e;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 20px 0 12px;
+        font-size: clamp(28px, 6vw, 42px);
+        line-height: 1.05;
+      }
+      p {
+        color: #57534e;
+        line-height: 1.6;
+      }
+      a,
+      button {
+        display: inline-flex;
+        margin-top: 18px;
+        border: 0;
+        border-radius: 12px;
+        background: #1c1917;
+        color: #fafaf9;
+        padding: 12px 16px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="badge">Offline mode</span>
+      <h1>NoteChain is offline</h1>
+      <p>
+        Your locally cached encrypted notes can still be available when the app shell has already
+        loaded. Reconnect to sync changes or open routes that were not cached yet.
+      </p>
+      <button onclick="window.location.reload()">Try again</button>
+      <a href="/notes">Open Notes</a>
+    </main>
+  </body>
+</html>

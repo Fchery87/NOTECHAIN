@@ -3,15 +3,14 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { generateNonce, getSecurityHeadersWithNonce } from './lib/security/csp';
 
 /**
- * Next.js Middleware
+ * Next.js Proxy
  *
- * Note: The "middleware" convention is deprecated in Next.js 16.
- * It will be replaced by "proxy" in a future update.
- * For now, we continue using middleware as the proxy API is still experimental.
+ * Runs before matched requests to attach security headers, refresh Supabase
+ * sessions, and route unauthenticated users away from protected pages.
  *
- * @see https://nextjs.org/docs/messages/middleware-to-proxy
+ * @see https://nextjs.org/docs/app/api-reference/file-conventions/proxy
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Generate nonce for this request
   const nonce = generateNonce();
 

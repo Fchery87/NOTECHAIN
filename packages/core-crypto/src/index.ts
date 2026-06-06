@@ -7,38 +7,74 @@ import {
   PBKDF2_CONFIG,
 } from './encryption';
 import { KeyManager } from './keyManagement';
+import { encodeRecoveryKey, decodeRecoveryKey, isValidRecoveryKey } from './recoveryKey';
 import {
-  StorageAdapter,
+  activeRecipientKeyPackages,
+  decryptDocumentPayload,
+  deserializeRecipientKeyPackage,
+  DOCUMENT_CONTENT_KEY_BYTES,
+  encryptDocumentPayload,
+  generateDocumentContentKey,
+  KEY_PACKAGE_FORMAT,
+  KEY_PACKAGE_VERSION,
+  revokeRecipientKeyPackage,
+  serializeRecipientKeyPackage,
+  unwrapDocumentContentKeyForRecipient,
+  wrapDocumentContentKeyForRecipient,
+} from './documentSharing';
+import type {
+  EncryptedDocumentPayload,
+  RecipientKeyPackage,
+  SerializableRecipientKeyPackage,
+} from './documentSharing';
+import {
   BrowserStorageAdapter,
   MemoryStorageAdapter,
   detectStorage,
   defaultStorage,
 } from './storage';
+import type { StorageAdapter } from './storage';
 import {
-  SecureStorageAdapter,
   SecureIndexedDBStorage,
   SecureMemoryStorage,
   detectSecureStorage,
   defaultSecureStorage,
 } from './secureStorage';
+import type { SecureStorageAdapter } from './secureStorage';
 
-export { EncryptionService, KeyManager, encryptData, decryptData, PBKDF2_CONFIG };
-export type { EncryptedData };
+export {
+  EncryptionService,
+  KeyManager,
+  encryptData,
+  decryptData,
+  PBKDF2_CONFIG,
+  encodeRecoveryKey,
+  decodeRecoveryKey,
+  isValidRecoveryKey,
+  activeRecipientKeyPackages,
+  decryptDocumentPayload,
+  deserializeRecipientKeyPackage,
+  DOCUMENT_CONTENT_KEY_BYTES,
+  encryptDocumentPayload,
+  generateDocumentContentKey,
+  KEY_PACKAGE_FORMAT,
+  KEY_PACKAGE_VERSION,
+  revokeRecipientKeyPackage,
+  serializeRecipientKeyPackage,
+  unwrapDocumentContentKeyForRecipient,
+  wrapDocumentContentKeyForRecipient,
+};
+export type {
+  EncryptedData,
+  EncryptedDocumentPayload,
+  RecipientKeyPackage,
+  SerializableRecipientKeyPackage,
+};
 
 // Storage exports
-export {
-  StorageAdapter,
-  BrowserStorageAdapter,
-  MemoryStorageAdapter,
-  detectStorage,
-  defaultStorage,
-};
+export { BrowserStorageAdapter, MemoryStorageAdapter, detectStorage, defaultStorage };
+export type { StorageAdapter };
 
 // Secure storage exports
-export {
-  SecureStorageAdapter,
-  SecureIndexedDBStorage,
-  SecureMemoryStorage,
-  detectSecureStorage,
-  defaultSecureStorage,
-};
+export { SecureIndexedDBStorage, SecureMemoryStorage, detectSecureStorage, defaultSecureStorage };
+export type { SecureStorageAdapter };

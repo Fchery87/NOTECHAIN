@@ -1,15 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ImageOCRUploader, ImageOCRUploaderProps } from '../ImageOCRUploader';
+import type { ImageOCRUploaderProps } from '../ImageOCRUploader';
 
-// Mock the OCR service
-const mockExtractTextFromImage = jest.fn();
-
-jest.mock('@/lib/ocr', () => ({
-  extractTextFromImage: (...args: unknown[]) => mockExtractTextFromImage(...args),
+const imageOcrMocks = vi.hoisted(() => ({
+  extractTextFromImage: vi.fn(),
 }));
+
+vi.mock('@/lib/ocr', () => ({
+  extractTextFromImage: imageOcrMocks.extractTextFromImage,
+}));
+
+import { ImageOCRUploader } from '../ImageOCRUploader';
+
+const mockExtractTextFromImage = imageOcrMocks.extractTextFromImage;
 
 // Mock FileReader
 global.FileReader = class FileReader {
@@ -44,13 +49,13 @@ global.FileReader = class FileReader {
 
 describe('ImageOCRUploader', () => {
   const defaultProps: ImageOCRUploaderProps = {
-    onTextExtracted: jest.fn(),
-    onSaveToNote: jest.fn(),
+    onTextExtracted: vi.fn(),
+    onSaveToNote: vi.fn(),
     className: '',
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockExtractTextFromImage.mockResolvedValue({
       text: 'Extracted text from image',
       confidence: 0.95,
@@ -58,7 +63,7 @@ describe('ImageOCRUploader', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('component renders with upload area', () => {
@@ -257,7 +262,7 @@ describe('ImageOCRUploader', () => {
       confidence: 0.95,
     });
 
-    const mockWriteText = jest.fn().mockResolvedValue(undefined);
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: mockWriteText },
       writable: true,

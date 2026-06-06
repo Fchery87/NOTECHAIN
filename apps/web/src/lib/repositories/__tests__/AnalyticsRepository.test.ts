@@ -1,5 +1,14 @@
 // apps/web/src/lib/repositories/__tests__/AnalyticsRepository.test.ts
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
+
+const analyticsModuleMocks = vi.hoisted(() => ({
+  supabase: { from: vi.fn() },
+}));
+
+vi.mock('@/lib/supabaseClient', () => ({
+  supabase: analyticsModuleMocks.supabase,
+}));
+
 import { AnalyticsRepository, createAnalyticsRepository } from '../AnalyticsRepository';
 
 // Mock encryption functions

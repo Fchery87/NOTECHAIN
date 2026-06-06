@@ -1,49 +1,59 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
-import { OCRService } from '../ocrService';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// Mock Tesseract.js
-const mockRecognize = mock(async () => ({
-  data: {
-    text: 'Extracted text',
-    confidence: 95,
-  },
+const ocrServiceMocks = vi.hoisted(() => {
+  const recognize = vi.fn(async () => ({
+    data: {
+      text: 'Extracted text',
+      confidence: 95,
+    },
+  }));
+  const terminate = vi.fn(async () => {});
+  const worker = { recognize, terminate };
+  const createWorker = vi.fn(async () => worker);
+  const pdfPageRender = vi.fn(async () => {});
+  const getSize = vi.fn(() => ({ width: 612, height: 792 }));
+  const pdfPage = { getSize, render: pdfPageRender };
+  const getPageCount = vi.fn(() => 2);
+  const getPage = vi.fn(() => pdfPage);
+  const pdfDocument = { getPageCount, getPage };
+  const pdfDocumentLoad = vi.fn(async () => pdfDocument);
+
+  return {
+    recognize,
+    terminate,
+    worker,
+    createWorker,
+    pdfDocumentLoad,
+    pdfPageRender,
+    getPageCount,
+    getPage,
+    getSize,
+    pdfPage,
+    pdfDocument,
+  };
+});
+
+vi.mock('tesseract.js', () => ({
+  createWorker: ocrServiceMocks.createWorker,
 }));
 
-const mockTerminate = mock(async () => {});
-
-const mockWorker = {
-  recognize: mockRecognize,
-  terminate: mockTerminate,
-};
-
-const mockCreateWorker = mock(async () => mockWorker);
-
-mock.module('tesseract.js', () => ({
-  createWorker: mockCreateWorker,
-}));
-
-// Mock pdf-lib
-const mockPdfDocumentLoad = mock(async () => mockPdfDocument);
-const mockPdfPageRender = mock(async () => {});
-const mockGetPageCount = mock(() => 2);
-const mockGetPage = mock(() => mockPdfPage);
-const mockGetSize = mock(() => ({ width: 612, height: 792 }));
-
-const mockPdfPage = {
-  getSize: mockGetSize,
-  render: mockPdfPageRender,
-};
-
-const mockPdfDocument = {
-  getPageCount: mockGetPageCount,
-  getPage: mockGetPage,
-};
-
-mock.module('pdf-lib', () => ({
+vi.mock('pdf-lib', () => ({
   PDFDocument: {
-    load: mockPdfDocumentLoad,
+    load: ocrServiceMocks.pdfDocumentLoad,
   },
 }));
+
+const mockRecognize = ocrServiceMocks.recognize;
+const mockTerminate = ocrServiceMocks.terminate;
+const mockCreateWorker = ocrServiceMocks.createWorker;
+const mockPdfDocumentLoad = ocrServiceMocks.pdfDocumentLoad;
+const mockPdfPageRender = ocrServiceMocks.pdfPageRender;
+const mockGetPageCount = ocrServiceMocks.getPageCount;
+const mockGetPage = ocrServiceMocks.getPage;
+const mockGetSize = ocrServiceMocks.getSize;
+const mockPdfDocument = ocrServiceMocks.pdfDocument;
+
+import { OCRService } from '../ocrService';
 
 describe('OCRService', () => {
   let service: OCRService;
@@ -102,7 +112,7 @@ describe('OCRService', () => {
     });
 
     it('should call onProgress during OCR', async () => {
-      const onProgress = mock(() => {});
+      const onProgress = vi.fn(() => {});
 
       const imageBlob = new Blob(['image data'], { type: 'image/png' });
       await service.extractTextFromImage(imageBlob, { onProgress });
@@ -150,12 +160,12 @@ describe('OCRService', () => {
       mockGetPageCount.mockReturnValue(2);
 
       // Mock canvas operations
-      const mockToBlob = mock((callback: (blob: Blob | null) => void) => {
+      const mockToBlob = vi.fn((callback: (blob: Blob | null) => void) => {
         callback(new Blob(['pdf page image'], { type: 'image/png' }));
       });
 
-      const mockGetContext = mock(() => ({
-        drawImage: mock(() => {}),
+      const mockGetContext = vi.fn(() => ({
+        drawImage: vi.fn(() => {}),
       }));
 
       // Mock document.createElement for canvas
@@ -335,7 +345,7 @@ describe('OCRService', () => {
     });
 
     it('should use console.log as default logger', async () => {
-      const consoleSpy = mock(() => {});
+      const consoleSpy = vi.fn(() => {});
       const originalLog = console.log;
       console.log = consoleSpy;
 

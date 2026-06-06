@@ -1,21 +1,29 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { PDFTextExtractor, PDFTextExtractorProps } from '../PDFTextExtractor';
+import type { PDFTextExtractorProps } from '../PDFTextExtractor';
 
-// Mock the OCR service
-const mockInitialize = jest.fn().mockResolvedValue(undefined);
-const mockExtractTextFromPDF = jest.fn();
-const mockTerminate = jest.fn().mockResolvedValue(undefined);
+const pdfExtractorMocks = vi.hoisted(() => {
+  const initialize = vi.fn().mockResolvedValue(undefined);
+  const extractTextFromPDF = vi.fn();
+  const terminate = vi.fn().mockResolvedValue(undefined);
+  const OCRService = vi.fn(function OCRService() {
+    return { initialize, extractTextFromPDF, terminate };
+  });
 
-jest.mock('@/lib/ocr', () => ({
-  OCRService: jest.fn().mockImplementation(() => ({
-    initialize: mockInitialize,
-    extractTextFromPDF: mockExtractTextFromPDF,
-    terminate: mockTerminate,
-  })),
+  return { initialize, extractTextFromPDF, terminate, OCRService };
+});
+
+vi.mock('@/lib/ocr', () => ({
+  OCRService: pdfExtractorMocks.OCRService,
 }));
+
+import { PDFTextExtractor } from '../PDFTextExtractor';
+
+const mockInitialize = pdfExtractorMocks.initialize;
+const mockExtractTextFromPDF = pdfExtractorMocks.extractTextFromPDF;
+const mockTerminate = pdfExtractorMocks.terminate;
 
 describe('PDFTextExtractor', () => {
   const createMockBlob = (content: string = 'mock pdf content'): Blob => {
@@ -25,12 +33,12 @@ describe('PDFTextExtractor', () => {
   const defaultProps: PDFTextExtractorProps = {
     pdfBlob: createMockBlob(),
     pdfName: 'test-document.pdf',
-    onTextExtracted: jest.fn(),
-    onClose: jest.fn(),
+    onTextExtracted: vi.fn(),
+    onClose: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockExtractTextFromPDF.mockResolvedValue({
       text: 'Extracted text from PDF page 1',
       confidence: 0.95,
@@ -39,7 +47,7 @@ describe('PDFTextExtractor', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('component renders with Extract Text button', () => {
@@ -177,7 +185,7 @@ describe('PDFTextExtractor', () => {
       pageCount: 1,
     });
 
-    const mockWriteText = jest.fn().mockResolvedValue(undefined);
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: mockWriteText },
       writable: true,
@@ -208,7 +216,7 @@ describe('PDFTextExtractor', () => {
       pageCount: 3,
     });
 
-    const mockWriteText = jest.fn().mockResolvedValue(undefined);
+    const mockWriteText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: mockWriteText },
       writable: true,
@@ -233,7 +241,7 @@ describe('PDFTextExtractor', () => {
   });
 
   test('save to note button works', async () => {
-    const onTextExtracted = jest.fn();
+    const onTextExtracted = vi.fn();
     mockExtractTextFromPDF.mockResolvedValue({
       text: 'Text to save',
       confidence: 0.95,
@@ -270,7 +278,7 @@ describe('PDFTextExtractor', () => {
   });
 
   test('close modal works', async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
 
     render(<PDFTextExtractor {...defaultProps} onClose={onClose} />);
 
@@ -310,7 +318,7 @@ describe('PDFTextExtractor', () => {
   });
 
   test('modal closes when clicking outside', async () => {
-    const onClose = jest.fn();
+    const onClose = vi.fn();
 
     render(<PDFTextExtractor {...defaultProps} onClose={onClose} />);
 
@@ -371,7 +379,7 @@ describe('PDFTextExtractor', () => {
   });
 
   test('onTextExtracted callback is called with text and page number', async () => {
-    const onTextExtracted = jest.fn();
+    const onTextExtracted = vi.fn();
     mockExtractTextFromPDF.mockResolvedValue({
       text: 'Callback test text',
       confidence: 0.95,

@@ -1,21 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { getVoiceSettings, saveVoiceSettings } from '../voiceSettings';
 
 describe('voiceSettings', () => {
-  let getItemSpy: ReturnType<typeof mock>;
-  let setItemSpy: ReturnType<typeof mock>;
+  let getItemSpy: ReturnType<typeof vi.fn>;
+  let setItemSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    getItemSpy = mock();
-    setItemSpy = mock();
+    getItemSpy = vi.fn();
+    setItemSpy = vi.fn();
 
     Object.defineProperty(globalThis, 'window', {
       value: {
         localStorage: {
           getItem: getItemSpy,
           setItem: setItemSpy,
-          clear: mock(),
-          removeItem: mock(),
+          clear: vi.fn(),
+          removeItem: vi.fn(),
         },
       },
       writable: true,

@@ -1,6 +1,7 @@
 import nacl from 'tweetnacl';
 import { StorageAdapter, defaultStorage } from './storage';
 import { SecureStorageAdapter, defaultSecureStorage } from './secureStorage';
+import { decodeRecoveryKey, encodeRecoveryKey } from './recoveryKey';
 
 /**
  * KeyManager handles the storage and derivation of encryption keys
@@ -119,6 +120,29 @@ export class KeyManager {
 
     // Take first 32 bytes as the device key
     return hash.slice(0, 32);
+  }
+
+  /**
+   * Export the current master key as a user-held recovery key.
+   * The recovery key is the only way to restore encrypted data after local
+   * browser storage is lost until a fuller cross-device key-transfer flow ships.
+   */
+  static async exportRecoveryKey(): Promise<string> {
+    const masterKey = await this.getMasterKey();
+    if (!masterKey) {
+      throw new Error('Cannot export recovery key: master key not found');
+    }
+
+    return encodeRecoveryKey(masterKey);
+  }
+
+  /**
+   * Restore and store a master key from a user-held recovery key.
+   */
+  static async importRecoveryKey(recoveryKey: string): Promise<Uint8Array> {
+    const masterKey = decodeRecoveryKey(recoveryKey);
+    await this.storeMasterKey(masterKey);
+    return masterKey;
   }
 
   /**

@@ -126,7 +126,6 @@ describe('ActivityFeed', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
     mockSubscribers = [];
     mockActivityLogger = createMockLogger() as ActivityLogger & {
       addActivity: (activity: Activity) => void;
@@ -135,7 +134,6 @@ describe('ActivityFeed', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     mockSubscribers = [];
   });
 

@@ -13,6 +13,7 @@ class MockWebSocket {
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
+  static lastInstance: MockWebSocket | null = null;
 
   readyState = MockWebSocket.OPEN;
   onopen: ((event: Event) => void) | null = null;
@@ -21,14 +22,15 @@ class MockWebSocket {
   onerror: ((event: Event) => void) | null = null;
 
   constructor(public url: string) {
+    MockWebSocket.lastInstance = this;
     setTimeout(() => {
       this.onopen?.(new Event('open'));
     }, 0);
   }
 
-  send(_data: string) {
+  send = vi.fn((_data: string) => {
     // Echo back for testing
-  }
+  });
 
   close(code = 1000, reason = '') {
     this.readyState = MockWebSocket.CLOSED;
@@ -47,6 +49,7 @@ vi.stubGlobal('WebSocket', MockWebSocket);
 describe('useWebSocket', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    MockWebSocket.lastInstance = null;
 
     // Mock fetch to return a token for WebSocket authentication
     global.fetch = vi.fn(() =>
@@ -87,19 +90,18 @@ describe('useWebSocket', () => {
       })
     );
 
-    expect(result.current.connectionState).toBe('connecting');
+    expect(result.current.connectionState).toBe('disconnected');
 
     await act(async () => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(51);
     });
 
-    // Simulate receiving AUTH_SUCCESS message
-    const mockWs = new MockWebSocket('ws://localhost:3001');
+    // Simulate receiving AUTH_SUCCESS message on the hook-created socket
     act(() => {
-      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
+      MockWebSocket.lastInstance?._receiveMessage({ type: 'AUTH_SUCCESS' });
     });
 
-    expect(result.current.connectionState).toBe('connected');
+    expect(result.current.connectionState).toBe('authenticated');
     expect(result.current.isConnected).toBe(true);
   });
 
@@ -112,22 +114,22 @@ describe('useWebSocket', () => {
     );
 
     await act(async () => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(51);
     });
 
     // Simulate receiving AUTH_SUCCESS message
-    const mockWs = new MockWebSocket('ws://localhost:3001');
     act(() => {
-      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
+      MockWebSocket.lastInstance?._receiveMessage({ type: 'AUTH_SUCCESS' });
     });
 
-    const sendSpy = vi.spyOn(MockWebSocket.prototype, 'send');
+    const socket = MockWebSocket.lastInstance;
+    expect(socket).not.toBeNull();
 
     act(() => {
       result.current.send({ type: 'TEST', data: 'hello' });
     });
 
-    expect(sendSpy).toHaveBeenCalledWith(JSON.stringify({ type: 'TEST', data: 'hello' }));
+    expect(socket?.send).toHaveBeenCalledWith(JSON.stringify({ type: 'TEST', data: 'hello' }));
   });
 
   it('should queue messages when not connected', () => {
@@ -138,13 +140,11 @@ describe('useWebSocket', () => {
       })
     );
 
-    const sendSpy = vi.spyOn(MockWebSocket.prototype, 'send');
-
     act(() => {
       result.current.send({ type: 'TEST', data: 'queued' });
     });
 
-    expect(sendSpy).not.toHaveBeenCalled();
+    expect(MockWebSocket.lastInstance).toBeNull();
   });
 
   it('should handle received messages', async () => {
@@ -156,17 +156,12 @@ describe('useWebSocket', () => {
     );
 
     await act(async () => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(51);
     });
 
     act(() => {
-      // Simulate receiving a message
-      const mockWs = new MockWebSocket('ws://localhost:3001');
-      mockWs.onmessage?.(
-        new MessageEvent('message', {
-          data: JSON.stringify({ type: 'TEST', data: 'received' }),
-        })
-      );
+      MockWebSocket.lastInstance?._receiveMessage({ type: 'AUTH_SUCCESS' });
+      MockWebSocket.lastInstance?._receiveMessage({ type: 'TEST', data: 'received' });
     });
   });
 
@@ -181,7 +176,7 @@ describe('useWebSocket', () => {
     );
 
     await act(async () => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(51);
     });
 
     act(() => {
@@ -200,13 +195,12 @@ describe('useWebSocket', () => {
     );
 
     await act(async () => {
-      vi.runAllTimers();
+      vi.advanceTimersByTime(51);
     });
 
     // Simulate receiving AUTH_SUCCESS message
-    const mockWs = new MockWebSocket('ws://localhost:3001');
     act(() => {
-      mockWs._receiveMessage({ type: 'AUTH_SUCCESS' });
+      MockWebSocket.lastInstance?._receiveMessage({ type: 'AUTH_SUCCESS' });
     });
 
     expect(result.current.isConnected).toBe(true);

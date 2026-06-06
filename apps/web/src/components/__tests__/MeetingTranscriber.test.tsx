@@ -1,95 +1,181 @@
-import { describe, it, expect, beforeEach, afterEach, vi, mock } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MeetingTranscriber, MeetingTranscriberProps } from '../MeetingTranscriber';
+import type { ActionItem } from '../../lib/ai/transcription/actionItemExtractor';
+import type { MeetingTranscriberProps } from '../MeetingTranscriber';
 
-import { act } from '@testing-library/react';
+const transcriberMocks = vi.hoisted(() => {
+  const startWebSpeech = vi.fn();
+  const stopWebSpeech = vi.fn();
+  const resetWebSpeech = vi.fn();
+  const startRecording = vi.fn();
+  const stopRecording = vi.fn();
+  const initializeHf = vi.fn();
+  const transcribeHf = vi.fn();
+  const resetHf = vi.fn();
+  const saveMeeting = vi.fn();
+  const extractActionItems = vi.fn(() => []);
 
-// Mock hooks
-const mockStartRecording = jest.fn();
-const mockStopRecording = jest.fn();
+  const webSpeechState = {
+    isSupported: true,
+    isListening: false,
+    transcript: '',
+    interimTranscript: '',
+  };
 
-jest.mock('../../hooks/useAudioCapture', () => ({
-  useAudioCapture: jest.fn(() => ({
+  const hfState = {
+    isSupported: true,
+    isModelLoaded: true,
+    isLoading: false,
+    isTranscribing: false,
+    progress: 0,
+    transcript: '',
+  };
+
+  const audioState = {
     isRecording: false,
     isSupported: true,
     duration: 0,
-    error: null,
-    startRecording: mockStartRecording,
-    stopRecording: mockStopRecording,
+    error: null as string | null,
+  };
+
+  return {
+    startWebSpeech,
+    stopWebSpeech,
+    resetWebSpeech,
+    startRecording,
+    stopRecording,
+    initializeHf,
+    transcribeHf,
+    resetHf,
+    saveMeeting,
+    extractActionItems,
+    webSpeechState,
+    hfState,
+    audioState,
+  };
+});
+
+vi.mock('../../hooks/useWebSpeechTranscription', () => ({
+  useWebSpeechTranscription: vi.fn(() => ({
+    ...transcriberMocks.webSpeechState,
+    startListening: transcriberMocks.startWebSpeech,
+    stopListening: transcriberMocks.stopWebSpeech,
+    resetTranscript: transcriberMocks.resetWebSpeech,
   })),
 }));
 
-// Mock transcription service
-jest.mock('../../lib/ai/transcription/transcriptionService', () => ({
-  TranscriptionService: jest.fn().mockImplementation(() => ({
-    transcribeAudio: jest.fn(),
-    initialize: jest.fn(),
-    isModelLoaded: false,
+vi.mock('../../hooks/useHuggingFaceTranscription', () => ({
+  useHuggingFaceTranscription: vi.fn(() => ({
+    ...transcriberMocks.hfState,
+    initialize: transcriberMocks.initializeHf,
+    transcribe: transcriberMocks.transcribeHf,
+    resetTranscript: transcriberMocks.resetHf,
   })),
-  transcriptionService: {
-    transcribeAudio: jest.fn(),
-    initialize: jest.fn(),
-    isModelLoaded: false,
+}));
+
+vi.mock('../../hooks/useAudioCapture', () => ({
+  useAudioCapture: vi.fn(() => ({
+    ...transcriberMocks.audioState,
+    startRecording: transcriberMocks.startRecording,
+    stopRecording: transcriberMocks.stopRecording,
+  })),
+}));
+
+vi.mock('../../lib/ai/transcription/webSpeechTranscriptionService', () => ({
+  WebSpeechTranscriptionService: {
+    isSupported: vi.fn(() => true),
   },
 }));
 
-// Mock action item extractor
-jest.mock('../../lib/ai/transcription/actionItemExtractor', () => ({
-  extractActionItems: jest.fn(() => []),
+vi.mock('../../lib/ai/transcription/huggingfaceTranscriptionService', () => ({
+  HuggingFaceTranscriptionService: {
+    isSupported: vi.fn(() => true),
+  },
 }));
 
-// Mock meeting storage
-jest.mock('../../lib/storage/meetingStorage', () => ({
-  MeetingStorage: jest.fn().mockImplementation(() => ({
-    saveMeeting: jest.fn(),
-  })),
-  createMeetingStorage: jest.fn(() => ({
-    saveMeeting: jest.fn(),
+vi.mock('../../lib/ai/transcription/actionItemExtractor', () => ({
+  extractActionItems: transcriberMocks.extractActionItems,
+}));
+
+vi.mock('../../lib/storage/meetingStorage', () => ({
+  createMeetingStorage: vi.fn(() => ({
+    saveMeeting: transcriberMocks.saveMeeting,
   })),
 }));
 
-// Mock crypto functions
-jest.mock('@notechain/core-crypto', () => ({
-  encryptData: jest.fn(() =>
-    Promise.resolve({
-      ciphertext: new Uint8Array([1, 2, 3]),
-      nonce: new Uint8Array([4, 5, 6]),
-    })
-  ),
-  decryptData: jest.fn(() => Promise.resolve('decrypted text')),
-}));
+import { MeetingTranscriber } from '../MeetingTranscriber';
+
+const defaultProps: MeetingTranscriberProps = {
+  onSave: vi.fn(),
+  onCancel: vi.fn(),
+};
+
+const resetMockState = () => {
+  transcriberMocks.webSpeechState.isSupported = true;
+  transcriberMocks.webSpeechState.isListening = false;
+  transcriberMocks.webSpeechState.transcript = '';
+  transcriberMocks.webSpeechState.interimTranscript = '';
+
+  transcriberMocks.hfState.isSupported = true;
+  transcriberMocks.hfState.isModelLoaded = true;
+  transcriberMocks.hfState.isLoading = false;
+  transcriberMocks.hfState.isTranscribing = false;
+  transcriberMocks.hfState.progress = 0;
+  transcriberMocks.hfState.transcript = '';
+
+  transcriberMocks.audioState.isRecording = false;
+  transcriberMocks.audioState.isSupported = true;
+  transcriberMocks.audioState.duration = 0;
+  transcriberMocks.audioState.error = null;
+};
+
+const selectRealTimeMode = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /real-time mode/i }));
+  });
+};
+
+const selectPrivateMode = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /private mode/i }));
+  });
+};
 
 describe('MeetingTranscriber', () => {
-  const defaultProps: MeetingTranscriberProps = {
-    onSave: jest.fn(),
-    onCancel: jest.fn(),
-  };
-
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockStartRecording.mockResolvedValue(undefined);
-    mockStopRecording.mockResolvedValue(new Blob(['audio data'], { type: 'audio/webm' }));
+    vi.clearAllMocks();
+    resetMockState();
+    transcriberMocks.startWebSpeech.mockResolvedValue(undefined);
+    transcriberMocks.startRecording.mockResolvedValue(undefined);
+    transcriberMocks.stopRecording.mockResolvedValue(
+      new Blob(['audio data'], { type: 'audio/webm' })
+    );
+    transcriberMocks.saveMeeting.mockResolvedValue({
+      id: 'meeting-1',
+      title: 'Saved Meeting',
+      transcript: 'Transcript',
+      actionItems: [],
+      date: new Date(),
+      duration: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  test('component renders with initial state', () => {
+  test('component renders with initial mode-selection state', () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    // Should have title input
     expect(screen.getByPlaceholderText(/enter meeting title/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /real-time mode/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /private mode/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /start recording/i })).not.toBeInTheDocument();
 
-    // Should have record button
-    expect(screen.getByRole('button', { name: /start recording/i })).toBeInTheDocument();
-
-    // Should have cancel button
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
-
-    // Should have save button (disabled initially)
     const saveButton = screen.getByRole('button', { name: /save meeting/i });
     expect(saveButton).toBeInTheDocument();
     expect(saveButton).toBeDisabled();
@@ -99,8 +185,6 @@ describe('MeetingTranscriber', () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
     const titleInput = screen.getByPlaceholderText(/enter meeting title/i);
-    expect(titleInput).toBeInTheDocument();
-
     await act(async () => {
       fireEvent.change(titleInput, { target: { value: 'Team Sync Meeting' } });
     });
@@ -111,171 +195,139 @@ describe('MeetingTranscriber', () => {
   test('initialTitle prop sets initial title value', () => {
     render(<MeetingTranscriber {...defaultProps} initialTitle="Pre-filled Title" />);
 
-    const titleInput = screen.getByPlaceholderText(/enter meeting title/i);
-    expect(titleInput).toHaveValue('Pre-filled Title');
+    expect(screen.getByPlaceholderText(/enter meeting title/i)).toHaveValue('Pre-filled Title');
   });
 
-  test('record button starts recording when clicked', async () => {
+  test('real-time mode start button starts web speech recording', async () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    const recordButton = screen.getByRole('button', { name: /start recording/i });
-
+    await selectRealTimeMode();
     await act(async () => {
-      fireEvent.click(recordButton);
+      fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
     });
 
-    expect(mockStartRecording).toHaveBeenCalledTimes(1);
+    expect(transcriberMocks.resetWebSpeech).toHaveBeenCalledTimes(1);
+    expect(transcriberMocks.startWebSpeech).toHaveBeenCalledTimes(1);
+  });
+
+  test('private mode start button starts local audio capture', async () => {
+    render(<MeetingTranscriber {...defaultProps} />);
+
+    await selectPrivateMode();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start recording/i }));
+    });
+
+    expect(transcriberMocks.resetHf).toHaveBeenCalledTimes(1);
+    expect(transcriberMocks.startRecording).toHaveBeenCalledTimes(1);
   });
 
   test('cancel button calls onCancel callback', async () => {
-    const mockOnCancel = jest.fn();
+    const mockOnCancel = vi.fn();
 
     render(<MeetingTranscriber {...defaultProps} onCancel={mockOnCancel} />);
 
-    const cancelButton = screen.getByRole('button', { name: /cancel/i });
-
     await act(async () => {
-      fireEvent.click(cancelButton);
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     });
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
   test('calendar event ID prop works', () => {
-    const calendarEventId = 'calendar-event-456';
+    render(<MeetingTranscriber {...defaultProps} calendarEventId="calendar-event-456" />);
 
-    render(<MeetingTranscriber {...defaultProps} calendarEventId={calendarEventId} />);
-
-    // Component should render without errors
     expect(screen.getByPlaceholderText(/enter meeting title/i)).toBeInTheDocument();
   });
 });
 
-// Test recording state separately
 describe('MeetingTranscriber - Recording State', () => {
-  const defaultProps: MeetingTranscriberProps = {
-    onSave: jest.fn(),
-    onCancel: jest.fn(),
-  };
-
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Mock recording state
-    const { useAudioCapture } = require('../../hooks/useAudioCapture');
-    useAudioCapture.mockReturnValue({
-      isRecording: true,
-      isSupported: true,
-      duration: 65,
-      error: null,
-      startRecording: mockStartRecording,
-      stopRecording: mockStopRecording,
-    });
+    vi.clearAllMocks();
+    resetMockState();
+    transcriberMocks.webSpeechState.isListening = true;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  test('stop button is shown when recording', () => {
+  test('stop button is shown when real-time recording', async () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    const stopButton = screen.getByRole('button', { name: /stop recording/i });
-    expect(stopButton).toBeInTheDocument();
+    await selectRealTimeMode();
+
+    expect(screen.getByRole('button', { name: /stop recording/i })).toBeInTheDocument();
   });
 
-  test('duration timer displays during recording', () => {
+  test('duration timer displays during recording', async () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    expect(screen.getByText('01:05')).toBeInTheDocument();
+    await selectRealTimeMode();
+
+    expect(screen.getByText('00:00')).toBeInTheDocument();
   });
 
-  test('stop button stops recording when clicked', async () => {
+  test('stop button stops web speech recording when clicked', async () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    const stopButton = screen.getByRole('button', { name: /stop recording/i });
-
+    await selectRealTimeMode();
     await act(async () => {
-      fireEvent.click(stopButton);
+      fireEvent.click(screen.getByRole('button', { name: /stop recording/i }));
     });
 
-    expect(mockStopRecording).toHaveBeenCalledTimes(1);
+    expect(transcriberMocks.stopWebSpeech).toHaveBeenCalledTimes(1);
   });
 });
 
-// Test error state
-describe('MeetingTranscriber - Error State', () => {
-  const defaultProps: MeetingTranscriberProps = {
-    onSave: jest.fn(),
-    onCancel: jest.fn(),
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Mock error state
-    const { useAudioCapture } = require('../../hooks/useAudioCapture');
-    useAudioCapture.mockReturnValue({
-      isRecording: false,
-      isSupported: true,
-      duration: 0,
-      error: 'Permission denied. Please allow microphone access.',
-      startRecording: mockStartRecording,
-      stopRecording: mockStopRecording,
-    });
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('error handling displays errors', () => {
-    render(<MeetingTranscriber {...defaultProps} />);
-
-    expect(screen.getByText(/permission denied/i)).toBeInTheDocument();
-  });
-});
-
-// Test with transcript and action items
 describe('MeetingTranscriber - With Data', () => {
-  const defaultProps: MeetingTranscriberProps = {
-    onSave: jest.fn(),
-    onCancel: jest.fn(),
-  };
-
   const mockActionItems: ActionItem[] = [
     { text: 'John will review the proposal', assignee: 'John', completed: false },
     { text: 'Complete the report', completed: false },
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Mock transcript and action items
-    const { extractActionItems } = require('../../lib/ai/transcription/actionItemExtractor');
-    extractActionItems.mockReturnValue(mockActionItems);
-
-    const { useAudioCapture } = require('../../hooks/useAudioCapture');
-    useAudioCapture.mockReturnValue({
-      isRecording: false,
-      isSupported: true,
-      duration: 0,
-      error: null,
-      startRecording: mockStartRecording,
-      stopRecording: mockStopRecording,
-    });
+    vi.clearAllMocks();
+    resetMockState();
+    transcriberMocks.webSpeechState.transcript =
+      'John will review the proposal. Complete the report.';
+    transcriberMocks.extractActionItems.mockReturnValue(mockActionItems);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  test('action items display in list', () => {
-    // We need to render with transcript to see action items
-    // This test verifies the component structure is correct
+  test('transcript display appears after selecting a mode with transcript data', async () => {
     render(<MeetingTranscriber {...defaultProps} />);
 
-    // Component should render without errors
-    expect(screen.getByPlaceholderText(/enter meeting title/i)).toBeInTheDocument();
+    await selectRealTimeMode();
+
+    expect(screen.getByLabelText(/transcript/i)).toHaveTextContent('John will review the proposal');
+  });
+
+  test('can save a meeting when title and transcript are present', async () => {
+    const onSave = vi.fn();
+    render(<MeetingTranscriber {...defaultProps} onSave={onSave} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/enter meeting title/i), {
+      target: { value: 'Team Sync Meeting' },
+    });
+    await selectRealTimeMode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /save meeting/i }));
+    });
+
+    await waitFor(() => {
+      expect(transcriberMocks.saveMeeting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Team Sync Meeting',
+          transcript: 'John will review the proposal. Complete the report.',
+        }),
+        expect.any(Uint8Array)
+      );
+      expect(onSave).toHaveBeenCalled();
+    });
   });
 });

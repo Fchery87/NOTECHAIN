@@ -170,10 +170,12 @@ class MeetingDatabase extends Dexie {
     return this.meetings.toArray();
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     if (this.inMemoryStorage) {
       this.inMemoryStorage.clear();
+      return;
     }
+    await this.meetings.clear();
   }
 
   async closeConnection(): Promise<void> {
@@ -405,8 +407,8 @@ export class MeetingStorage {
   /**
    * Clear all meetings (useful for testing)
    */
-  clear(): void {
-    this.db.clear();
+  async clear(): Promise<void> {
+    await this.db.clear();
   }
 }
 

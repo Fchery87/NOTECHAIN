@@ -1,5 +1,6 @@
 // apps/web/src/lib/supabase/syncAdapter.ts
 import { createClient, isSupabaseConfigured } from './client';
+import { getLocalSyncCursor, setLocalSyncCursor } from '@/lib/sync/noteSyncLocalStore';
 import type { SyncRepositoryAdapter, SyncOperation } from '@notechain/sync-engine';
 
 /**
@@ -32,6 +33,37 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+/**
+ * Supabase Realtime may return BYTEA columns as Uint8Array-like values or as
+ * Postgres hex strings (\\x...). Normalize either shape to the payload format
+ * expected by EncryptedSyncService.
+ */
+function byteaToBase64(value: unknown): string {
+  if (value instanceof Uint8Array) {
+    return uint8ArrayToBase64(value);
+  }
+
+  if (Array.isArray(value)) {
+    return uint8ArrayToBase64(new Uint8Array(value));
+  }
+
+  if (typeof value === 'string') {
+    if (value.startsWith('\\x')) {
+      const hex = value.slice(2);
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+      }
+      return uint8ArrayToBase64(bytes);
+    }
+
+    // Already base64 or a binary string, depending on client serialization.
+    return value;
+  }
+
+  throw new Error('Unsupported BYTEA payload shape from Supabase Realtime');
 }
 
 /**
@@ -203,6 +235,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       encryptedPayload: string;
       version: number;
       operationType: string;
+      isDeleted: boolean;
     }>
   > {
     if (!this.supabase) {
@@ -215,7 +248,6 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       .select('entity_id, encrypted_payload, version, operation_type, is_deleted')
       .eq('user_id', userId)
       .eq('entity_type', 'note')
-      .eq('is_deleted', false)
       .order('version', { ascending: false });
 
     if (error) {
@@ -223,11 +255,21 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
       return [];
     }
 
-    return (data || []).map(row => ({
+    // The sync table is an append-only operation log. Keep only the newest
+    // operation per note so older creates/updates do not render as duplicates.
+    const latestByEntity = new Map<string, NonNullable<typeof data>[number]>();
+    for (const row of data || []) {
+      if (!latestByEntity.has(row.entity_id)) {
+        latestByEntity.set(row.entity_id, row);
+      }
+    }
+
+    return Array.from(latestByEntity.values()).map(row => ({
       entityId: row.entity_id,
       encryptedPayload: row.encrypted_payload,
       version: row.version,
       operationType: row.operation_type,
+      isDeleted: row.is_deleted,
     }));
   }
 
@@ -260,8 +302,8 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
    * Get sync metadata for a user
    */
   async getSyncMetadata(userId: string): Promise<{ last_sync_version: number } | null> {
-    const latestVersion = await this.getLatestVersion(userId);
-    return { last_sync_version: latestVersion };
+    const localCursor = await getLocalSyncCursor(userId);
+    return { last_sync_version: localCursor };
   }
 
   /**
@@ -272,6 +314,10 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
     _status: string,
     lastSyncVersion?: number
   ): Promise<void> {
+    if (typeof lastSyncVersion === 'number') {
+      await setLocalSyncCursor(userId, lastSyncVersion);
+    }
+
     console.log(
       `[SupabaseSyncAdapter] Sync metadata updated for ${userId}: version ${lastSyncVersion}`
     );
@@ -296,10 +342,10 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
 
     try {
       const { error } = await this.supabase
-        .from('sync_operations')
+        .from('encrypted_blobs')
         .delete()
         .eq('user_id', userId)
-        .in('entity_id', entityIds);
+        .in('blob_uuid', entityIds);
 
       if (error) {
         console.error('[SupabaseSyncAdapter] Error deleting notes:', error);
@@ -343,7 +389,7 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
               operationType: row.operation_type,
               entityType: row.blob_type,
               entityId: row.blob_uuid,
-              encryptedPayload: `${uint8ArrayToBase64(row.ciphertext)}:${uint8ArrayToBase64(row.nonce)}:${uint8ArrayToBase64(row.auth_tag)}`,
+              encryptedPayload: `${byteaToBase64(row.ciphertext)}:${byteaToBase64(row.nonce)}:${byteaToBase64(row.auth_tag)}`,
               timestamp: new Date(row.created_at).getTime(),
               version: row.version,
             });
