@@ -61,6 +61,41 @@ export function getCytoscapeStyles(): CytoscapeStyle[] {
       },
     },
 
+    // Meeting node styles
+    {
+      selector: 'node[type="meeting"]',
+      style: {
+        shape: 'round-hexagon',
+        'background-color': '#f43f5e',
+        color: '#fff1f2',
+        'font-weight': '600',
+      },
+    },
+
+    // Transcript segment node styles
+    {
+      selector: 'node[type="transcript_segment"]',
+      style: {
+        shape: 'round-rectangle',
+        'background-color': '#fed7aa',
+        color: '#7c2d12',
+        'font-size': '10px',
+        width: 'mapData(size, 1, 100, 40, 110)',
+        height: 'mapData(size, 1, 100, 18, 48)',
+      },
+    },
+
+    // Task node styles
+    {
+      selector: 'node[type="task"]',
+      style: {
+        shape: 'diamond',
+        'background-color': '#0f766e',
+        color: '#f0fdfa',
+        'font-weight': '600',
+      },
+    },
+
     // Hover state for nodes
     {
       selector: 'node:hover',
@@ -140,6 +175,28 @@ export function getCytoscapeStyles(): CytoscapeStyle[] {
         'line-style': 'dotted',
         width: 1.5,
         'target-arrow-shape': 'none',
+      },
+    },
+
+    // Created-from edge styles
+    {
+      selector: 'edge[type="created_from"]',
+      style: {
+        'line-color': '#f43f5e',
+        'target-arrow-color': '#f43f5e',
+        'line-style': 'solid',
+        width: 2.5,
+      },
+    },
+
+    // Citation edge styles
+    {
+      selector: 'edge[type="cites"]',
+      style: {
+        'line-color': '#d97706',
+        'target-arrow-color': '#d97706',
+        'line-style': 'dashed',
+        width: 2,
       },
     },
 

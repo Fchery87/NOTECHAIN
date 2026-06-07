@@ -2,7 +2,11 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import cytoscape from 'cytoscape';
-import type { KnowledgeGraph } from '../lib/ai/notes/types';
+import type {
+  KnowledgeGraph,
+  KnowledgeGraphEdgeType,
+  KnowledgeGraphNodeType,
+} from '../lib/ai/notes/types';
 import {
   transformGraphData,
   filterGraphByType,
@@ -62,10 +66,21 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
 
   // State
   const [layoutType, setLayoutType] = useState<LayoutType>(LayoutType.FORCE_DIRECTED);
-  const [visibleTypes, setVisibleTypes] = useState<Array<'note' | 'tag'>>(['note', 'tag']);
-  const [visibleEdgeTypes, _setVisibleEdgeTypes] = useState<
-    Array<'backlink' | 'tag' | 'similarity'>
-  >(['backlink', 'tag', 'similarity']);
+  const [visibleTypes, setVisibleTypes] = useState<KnowledgeGraphNodeType[]>([
+    'note',
+    'tag',
+    'meeting',
+    'transcript_segment',
+    'task',
+  ]);
+  const [visibleEdgeTypes, _setVisibleEdgeTypes] = useState<KnowledgeGraphEdgeType[]>([
+    'backlink',
+    'tag',
+    'similarity',
+    'temporal',
+    'created_from',
+    'cites',
+  ]);
 
   /**
    * Transform and filter graph data for Cytoscape
@@ -202,7 +217,7 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
   /**
    * Toggle node type visibility
    */
-  const toggleNodeType = useCallback((type: 'note' | 'tag') => {
+  const toggleNodeType = useCallback((type: KnowledgeGraphNodeType) => {
     setVisibleTypes(prev => {
       if (prev.includes(type)) {
         return prev.filter(t => t !== type);
@@ -395,6 +410,45 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               Tags
             </button>
+            <button
+              data-testid="filter-meetings"
+              onClick={() => toggleNodeType('meeting')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                visibleTypes.includes('meeting')
+                  ? 'bg-rose-100 text-rose-800'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+              }`}
+              type="button"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              Meetings
+            </button>
+            <button
+              data-testid="filter-segments"
+              onClick={() => toggleNodeType('transcript_segment')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                visibleTypes.includes('transcript_segment')
+                  ? 'bg-orange-100 text-orange-800'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+              }`}
+              type="button"
+            >
+              <span className="w-2 h-2 rounded bg-orange-300" />
+              Segments
+            </button>
+            <button
+              data-testid="filter-tasks"
+              onClick={() => toggleNodeType('task')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                visibleTypes.includes('task')
+                  ? 'bg-teal-100 text-teal-800'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+              }`}
+              type="button"
+            >
+              <span className="w-2 h-2 rotate-45 bg-teal-600" />
+              Tasks
+            </button>
           </div>
         </div>
       )}
@@ -426,6 +480,18 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
                 <span className="w-3 h-3 rounded bg-amber-500" />
                 <span className="text-sm text-stone-700">Tag</span>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-500" />
+                <span className="text-sm text-stone-700">Meeting</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded bg-orange-300" />
+                <span className="text-sm text-stone-700">Transcript segment</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rotate-45 bg-teal-600" />
+                <span className="text-sm text-stone-700">Task</span>
+              </div>
               <div className="mt-2 pt-2 border-t border-stone-200">
                 <div className="flex items-center gap-2">
                   <span className="w-6 h-0.5 bg-stone-600" />
@@ -434,6 +500,14 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
                 <div className="flex items-center gap-2 mt-1">
                   <span className="w-6 h-0.5 bg-amber-500" style={{ borderStyle: 'dashed' }} />
                   <span className="text-xs text-stone-500">Tag Connection</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="w-6 h-0.5 bg-rose-500" />
+                  <span className="text-xs text-stone-500">Created from</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="w-6 h-0.5 bg-amber-600" />
+                  <span className="text-xs text-stone-500">Cites source</span>
                 </div>
               </div>
             </div>

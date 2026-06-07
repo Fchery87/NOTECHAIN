@@ -106,18 +106,42 @@ export interface NoteSummary {
 /**
  * Knowledge graph node representing a note
  */
+export type KnowledgeGraphNodeType =
+  | 'note'
+  | 'tag'
+  | 'concept'
+  | 'meeting'
+  | 'transcript_segment'
+  | 'task';
+
+export type KnowledgeGraphEdgeType =
+  | 'backlink'
+  | 'tag'
+  | 'similarity'
+  | 'temporal'
+  | 'created_from'
+  | 'cites';
+
+export interface KnowledgeGraphNodeMetadata {
+  wordCount: number;
+  createdAt: Date;
+  tagCount: number;
+  backlinkCount: number;
+  sourceId?: string;
+  sourceType?: string;
+  status?: string;
+  priority?: string;
+  confidence?: number;
+  excerpt?: string;
+}
+
 export interface KnowledgeGraphNode {
   id: string;
   label: string;
-  type: 'note' | 'tag' | 'concept';
+  type: KnowledgeGraphNodeType;
   size: number; // Based on connections or importance
   color: string;
-  metadata: {
-    wordCount: number;
-    createdAt: Date;
-    tagCount: number;
-    backlinkCount: number;
-  };
+  metadata: KnowledgeGraphNodeMetadata;
 }
 
 /**
@@ -126,7 +150,7 @@ export interface KnowledgeGraphNode {
 export interface KnowledgeGraphEdge {
   source: string;
   target: string;
-  type: 'backlink' | 'tag' | 'similarity' | 'temporal';
+  type: KnowledgeGraphEdgeType;
   weight: number;
   label?: string;
 }

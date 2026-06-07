@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { getKnowledgeGraphGenerator } from '@/lib/ai/notes';
+import { listNotes, listTodos } from '@/lib/db';
+import { buildContextGraph } from '@/lib/graph/contextGraph';
 import { createNoteRepository } from '@/lib/repositories';
+import { getMeetingEncryptionKey } from '@/lib/storage/meetingEncryptionKey';
+import { createMeetingStorage } from '@/lib/storage/meetingStorage';
 import { useUser } from '@/lib/supabase/UserProvider';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 import type { Note } from '@notechain/data-models';
@@ -54,7 +58,22 @@ export default function KnowledgeGraphPage() {
           maxNodes: 200,
         });
 
-        setGraph(graphData);
+        const meetingStorage = createMeetingStorage();
+        const meetingKey = await getMeetingEncryptionKey();
+        const [localNotes, meetings, todos] = await Promise.all([
+          listNotes(),
+          meetingStorage.getAllMeetings(meetingKey),
+          listTodos(),
+        ]);
+
+        setGraph(
+          buildContextGraph({
+            baseGraph: graphData,
+            notes: localNotes,
+            meetings,
+            todos,
+          })
+        );
       } catch (err) {
         console.error('Failed to load knowledge graph:', err);
         const errorMessage =
@@ -78,17 +97,37 @@ export default function KnowledgeGraphPage() {
    * Handle node click - navigate to note detail page
    */
   const handleNodeClick = (nodeId: string, nodeData: any) => {
-    // Only navigate for note nodes (not tags or other node types)
     if (nodeData?.type === 'note') {
       router.push(`/notes/${nodeId}`);
+      return;
+    }
+
+    if (nodeData?.type === 'meeting') {
+      router.push(`/meetings/${nodeData.metadata?.sourceId ?? nodeId.replace('meeting:', '')}`);
+      return;
+    }
+
+    if (nodeData?.type === 'transcript_segment') {
+      const [, meetingId] = nodeId.split(':');
+      if (meetingId) {
+        router.push(`/meetings/${meetingId}`);
+      }
+      return;
+    }
+
+    if (nodeData?.type === 'task') {
+      router.push('/tasks');
     }
   };
 
   return (
-    <AppLayout pageTitle="Knowledge Graph">
+    <AppLayout pageTitle="Knowledge Map">
       <div className="py-6">
         <div className="mb-6">
-          <p className="text-stone-600">Visualize connections between your notes</p>
+          <p className="text-stone-600">
+            Visualize source-cited connections between notes, meetings, transcript segments, and
+            tasks.
+          </p>
         </div>
 
         {/* Error State */}
@@ -116,7 +155,7 @@ export default function KnowledgeGraphPage() {
           </div>
         )}
 
-        {/* Graph View */}
+        {/* Knowledge Map View */}
         <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <KnowledgeGraphView
             graph={graph || { nodes: [], edges: [], clusters: [] }}
@@ -156,8 +195,8 @@ export default function KnowledgeGraphPage() {
                 3
               </span>
               <span>
-                <strong className="text-stone-900">Toggle node types</strong> to show or hide notes
-                and tags, helping you focus on specific connections.
+                <strong className="text-stone-900">Toggle node types</strong> to show or hide notes,
+                meetings, transcript segments, tasks, and tags.
               </span>
             </li>
             <li className="flex items-start gap-3">
@@ -174,8 +213,9 @@ export default function KnowledgeGraphPage() {
                 5
               </span>
               <span>
-                <strong className="text-stone-900">Thicker lines</strong> indicate stronger
-                connections. Dashed lines show tag relationships, solid lines show backlinks.
+                <strong className="text-stone-900">Source edges</strong> show what was created from
+                a meeting, note, or transcript segment. Citation edges show the evidence a task
+                cites.
               </span>
             </li>
           </ul>

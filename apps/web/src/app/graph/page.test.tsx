@@ -48,6 +48,9 @@ const graphMocks = vi.hoisted(() => ({
   push: vi.fn(),
   generateGraph: vi.fn(),
   getAll: vi.fn(),
+  listNotes: vi.fn(),
+  listTodos: vi.fn(),
+  getAllMeetings: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -81,6 +84,17 @@ vi.mock('@/lib/repositories', () => ({
   }),
 }));
 
+vi.mock('@/lib/db', () => ({
+  listNotes: graphMocks.listNotes,
+  listTodos: graphMocks.listTodos,
+}));
+
+vi.mock('@/lib/storage/meetingStorage', () => ({
+  createMeetingStorage: () => ({
+    getAllMeetings: graphMocks.getAllMeetings,
+  }),
+}));
+
 // Mock cytoscape to avoid initialization errors
 vi.mock('cytoscape', () => ({
   __esModule: true,
@@ -105,12 +119,15 @@ describe('KnowledgeGraphPage', () => {
     graphMocks.push.mockClear();
     graphMocks.generateGraph.mockImplementation(async () => mockGraphData);
     graphMocks.getAll.mockImplementation(async () => mockNotes);
+    graphMocks.listNotes.mockImplementation(async () => []);
+    graphMocks.listTodos.mockImplementation(async () => []);
+    graphMocks.getAllMeetings.mockImplementation(async () => []);
   });
 
   test('renders page title', async () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText('Knowledge Graph')).toBeDefined();
+    expect(screen.getByText('Knowledge Map')).toBeDefined();
     await waitFor(() => {
       expect(graphMocks.generateGraph).toHaveBeenCalled();
     });
@@ -119,7 +136,7 @@ describe('KnowledgeGraphPage', () => {
   test('renders subtitle/description', async () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText(/Visualize connections between your notes/)).toBeDefined();
+    expect(screen.getByText(/Visualize source-cited connections/)).toBeDefined();
     await waitFor(() => {
       expect(graphMocks.generateGraph).toHaveBeenCalled();
     });

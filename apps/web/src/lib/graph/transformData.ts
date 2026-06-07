@@ -3,7 +3,12 @@
  * Converts KnowledgeGraph data to Cytoscape.js format
  */
 
-import type { KnowledgeGraph } from '../ai/notes/types';
+import type {
+  KnowledgeGraph,
+  KnowledgeGraphEdgeType,
+  KnowledgeGraphNodeMetadata,
+  KnowledgeGraphNodeType,
+} from '../ai/notes/types';
 
 /**
  * Cytoscape node data structure
@@ -12,15 +17,10 @@ export interface CytoscapeNode {
   data: {
     id: string;
     label: string;
-    type: 'note' | 'tag' | 'concept';
+    type: KnowledgeGraphNodeType;
     size: number;
     color: string;
-    metadata: {
-      wordCount: number;
-      createdAt: Date;
-      tagCount: number;
-      backlinkCount: number;
-    };
+    metadata: KnowledgeGraphNodeMetadata;
   };
 }
 
@@ -32,7 +32,7 @@ export interface CytoscapeEdge {
     id: string;
     source: string;
     target: string;
-    type: 'backlink' | 'tag' | 'similarity' | 'temporal';
+    type: KnowledgeGraphEdgeType;
     weight: number;
     label?: string;
   };
@@ -85,7 +85,7 @@ export function transformGraphData(graph: KnowledgeGraph): CytoscapeData {
  */
 export function filterGraphByType(
   data: CytoscapeData,
-  types: Array<'note' | 'tag' | 'concept'>
+  types: KnowledgeGraphNodeType[]
 ): CytoscapeData {
   // Filter nodes by type
   const filteredNodes = data.nodes.filter(node => types.includes(node.data.type));
@@ -112,7 +112,7 @@ export function filterGraphByType(
  */
 export function filterGraphByEdgeType(
   data: CytoscapeData,
-  edgeTypes: Array<'backlink' | 'tag' | 'similarity' | 'temporal'>
+  edgeTypes: KnowledgeGraphEdgeType[]
 ): CytoscapeData {
   // Filter edges by type
   const filteredEdges = data.edges.filter(edge => edgeTypes.includes(edge.data.type));
