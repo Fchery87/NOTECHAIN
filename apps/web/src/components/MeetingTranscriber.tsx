@@ -8,6 +8,7 @@ import {
   type Meeting,
   type MeetingInput,
 } from '../lib/storage/meetingStorage';
+import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
 
 export interface MeetingTranscriberProps {
   /** Optional calendar event ID to link the meeting */
@@ -164,16 +165,26 @@ export function MeetingTranscriber({
       setIsSaving(true);
       setError(null);
 
-      // Generate a simple encryption key (in production, this should come from user auth)
-      const key = new Uint8Array(32);
-      crypto.getRandomValues(key);
+      const key = await getMeetingEncryptionKey();
+
+      const confirmedActionItems: ActionItem[] = actionItems.map(item =>
+        item.provenance
+          ? {
+              ...item,
+              provenance: {
+                ...item.provenance,
+                confirmationStatus: 'confirmed',
+              },
+            }
+          : item
+      );
 
       const meetingInput: MeetingInput = {
         title: title.trim(),
         date: new Date(),
         duration: recordingDuration,
         transcript: finalTranscript,
-        actionItems,
+        actionItems: confirmedActionItems,
         calendarEventId,
         audioBlob: audioBlob || undefined,
       };
@@ -436,8 +447,8 @@ export function MeetingTranscriber({
                       onChange={e => handleActionItemChange(index, e.target.value)}
                       className="w-full bg-transparent text-stone-900 focus:outline-none"
                     />
-                    {(item.assignee || item.deadline || item.priority) && (
-                      <div className="flex items-center gap-2 text-xs">
+                    {(item.assignee || item.deadline || item.priority || item.provenance) && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
                         {item.assignee && (
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
                             {item.assignee}
@@ -459,6 +470,13 @@ export function MeetingTranscriber({
                             }`}
                           >
                             {item.priority}
+                          </span>
+                        )}
+                        {item.provenance && (
+                          <span className="px-2 py-0.5 bg-stone-200 text-stone-600 rounded-full">
+                            Source: {item.provenance.source.segmentId} ·{' '}
+                            {Math.round(item.provenance.confidence * 100)}% ·{' '}
+                            {item.provenance.confirmationStatus}
                           </span>
                         )}
                       </div>

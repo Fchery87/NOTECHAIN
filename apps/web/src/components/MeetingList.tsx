@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
+import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
 
 export interface MeetingListProps {
   /** Callback when a meeting is selected */
@@ -47,9 +48,7 @@ export function MeetingList({ onMeetingSelect, onDelete, className = '' }: Meeti
     const loadMeetings = async () => {
       try {
         const storage = createMeetingStorage();
-        // Generate a simple encryption key for decryption (same as in MeetingTranscriber)
-        const key = new Uint8Array(32);
-        crypto.getRandomValues(key);
+        const key = await getMeetingEncryptionKey();
 
         const allMeetings = await storage.getAllMeetings(key);
         setMeetings(allMeetings);

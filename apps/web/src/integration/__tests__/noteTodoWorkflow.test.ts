@@ -65,6 +65,29 @@ describe('Note → Todo Integration Workflow', () => {
       expect(todo?.priority).toBe('high');
     });
 
+    it('should create todo linked to a meeting transcript segment', async () => {
+      const todoId = await createTodo({
+        title: 'Prepare launch slides',
+        description: 'Source: Launch Review · transcript-segment-2',
+        priority: 'high',
+        status: 'pending',
+        sourceType: 'meeting',
+        sourceMeetingId: 'meeting-123',
+        sourceTranscriptSegmentId: 'transcript-segment-2',
+        sourceText: 'John will prepare launch slides',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const todo = await getTodo(todoId);
+
+      expect(todo).toBeDefined();
+      expect(todo?.sourceType).toBe('meeting');
+      expect(todo?.sourceMeetingId).toBe('meeting-123');
+      expect(todo?.sourceTranscriptSegmentId).toBe('transcript-segment-2');
+      expect(todo?.sourceText).toBe('John will prepare launch slides');
+    });
+
     it('should link multiple todos to same note', async () => {
       // Step 1: Create note
       const noteId = await createNote({

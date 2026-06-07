@@ -201,7 +201,9 @@ describe('CalendarEventTranscript', () => {
     });
 
     // Should refresh meetings (called twice: initial + after save)
-    expect(transcriptMocks.getMeetingsByCalendarEvent).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(transcriptMocks.getMeetingsByCalendarEvent).toHaveBeenCalledTimes(2);
+    });
   });
 
   test('closes modal on cancel', async () => {

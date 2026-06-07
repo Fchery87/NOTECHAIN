@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
+import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
 import { MeetingTranscriber } from './MeetingTranscriber';
 
 /**
@@ -68,9 +69,7 @@ export function CalendarEventTranscript({
       setError(null);
 
       const storage = meetingStorageRef.current;
-      // Generate a simple key for testing (in production, this should come from user auth)
-      const key = new Uint8Array(32);
-      crypto.getRandomValues(key);
+      const key = await getMeetingEncryptionKey();
 
       const meetings = await storage.getMeetingsByCalendarEvent(eventId, key);
 

@@ -1,7 +1,10 @@
 import Dexie, { type Table } from 'dexie';
 import { v4 as uuidv4 } from 'uuid';
 import { encryptData, decryptData, type EncryptedData } from '@notechain/core-crypto';
-import type { ActionItem } from '../ai/transcription/actionItemExtractor';
+import {
+  addMissingActionItemProvenance,
+  type ActionItem,
+} from '../ai/transcription/actionItemExtractor';
 
 /**
  * Meeting interface representing a stored meeting
@@ -230,10 +233,12 @@ export class MeetingStorage {
       date: input.date,
       duration: input.duration,
       encryptedTranscript,
-      actionItems: input.actionItems.map(item => ({
-        ...item,
-        completed: item.completed ?? false,
-      })),
+      actionItems: addMissingActionItemProvenance(input.actionItems, input.transcript).map(
+        item => ({
+          ...item,
+          completed: item.completed ?? false,
+        })
+      ),
       calendarEventId: input.calendarEventId,
       audioBlob: input.audioBlob,
       createdAt: now,
@@ -330,7 +335,13 @@ export class MeetingStorage {
       date: updates.date ?? storedMeeting.date,
       duration: updates.duration !== undefined ? updates.duration : storedMeeting.duration,
       encryptedTranscript,
-      actionItems: updates.actionItems ?? storedMeeting.actionItems,
+      actionItems:
+        updates.actionItems !== undefined
+          ? addMissingActionItemProvenance(
+              updates.actionItems,
+              updates.transcript ?? decryptedTranscript ?? ''
+            )
+          : storedMeeting.actionItems,
       calendarEventId:
         updates.calendarEventId !== undefined
           ? updates.calendarEventId

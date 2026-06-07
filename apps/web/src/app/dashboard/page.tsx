@@ -1,7 +1,9 @@
 'use client';
 
 import AppLayout from '@/components/AppLayout';
+import { MeetingFollowUps } from '@/components/MeetingFollowUps';
 import { SyncDebugPanel } from '@/components/SyncDebugPanel';
+import { isSharedSpacesSurfaceEnabled } from '@/lib/launchScope';
 
 export default function DashboardPage() {
   return (
@@ -13,6 +15,8 @@ export default function DashboardPage() {
           </h1>
           <p className="text-stone-500">What would you like to focus on today?</p>
         </div>
+
+        <MeetingFollowUps />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Notes Card */}
@@ -41,9 +45,9 @@ export default function DashboardPage() {
             </p>
           </a>
 
-          {/* Todos Card */}
+          {/* Tasks Card */}
           <a
-            href="/todos"
+            href="/tasks"
             className="group block bg-white rounded-3xl border border-stone-100 p-8 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300"
           >
             <div className="w-10 h-10 bg-stone-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
@@ -139,37 +143,38 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <h2 className="text-lg font-medium text-stone-900 mb-2">Knowledge Graph</h2>
+            <h2 className="text-lg font-medium text-stone-900 mb-2">Knowledge Map</h2>
             <p className="text-sm text-stone-500 leading-relaxed">
-              Visualize connections between your notes.
+              Explore source-cited context across notes, meetings, and tasks.
             </p>
           </a>
 
-          {/* Teams Card */}
-          <a
-            href="/teams"
-            className="group block bg-white rounded-3xl border border-stone-100 p-8 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300"
-          >
-            <div className="w-10 h-10 bg-stone-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-              <svg
-                className="w-5 h-5 text-stone-900 group-hover:text-amber-500 transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-            <h2 className="text-lg font-medium text-stone-900 mb-2">Teams</h2>
-            <p className="text-sm text-stone-500 leading-relaxed">
-              Collaborate with your team in shared workspaces.
-            </p>
-          </a>
+          {isSharedSpacesSurfaceEnabled() && (
+            <a
+              href="/teams"
+              className="group block bg-white rounded-3xl border border-stone-100 p-8 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300"
+            >
+              <div className="w-10 h-10 bg-stone-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg
+                  className="w-5 h-5 text-stone-900 group-hover:text-amber-500 transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-lg font-medium text-stone-900 mb-2">Shared Spaces</h2>
+              <p className="text-sm text-stone-500 leading-relaxed">
+                Preview trust-gated encrypted collaboration spaces.
+              </p>
+            </a>
+          )}
         </div>
       </div>
 

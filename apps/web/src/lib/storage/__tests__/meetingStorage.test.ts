@@ -114,6 +114,19 @@ describe('MeetingStorage', () => {
         expect(item.completed).toBe(false);
       });
     });
+
+    it('should add missing provenance to saved action items', async () => {
+      const meeting = await storage.saveMeeting(sampleMeetingInput, mockKey);
+
+      expect(meeting.actionItems[0].provenance).toMatchObject({
+        source: {
+          type: 'transcript',
+          segmentId: 'transcript-segment-1',
+        },
+        confirmationStatus: 'candidate',
+      });
+      expect(meeting.actionItems[0].provenance?.confidence).toBeGreaterThan(0);
+    });
   });
 
   describe('getMeeting', () => {
@@ -148,6 +161,7 @@ describe('MeetingStorage', () => {
       expect(retrievedMeeting?.actionItems).toHaveLength(2);
       expect(retrievedMeeting?.actionItems[0]).toHaveProperty('text');
       expect(retrievedMeeting?.actionItems[0]).toHaveProperty('completed');
+      expect(retrievedMeeting?.actionItems[0]).toHaveProperty('provenance');
     });
   });
 

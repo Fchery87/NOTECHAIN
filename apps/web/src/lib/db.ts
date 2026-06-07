@@ -101,6 +101,10 @@ export interface EncryptedTodo {
   priority?: 'high' | 'medium' | 'low';
   status?: 'pending' | 'completed';
   linkedNoteId?: string;
+  sourceType?: 'note' | 'meeting';
+  sourceMeetingId?: string;
+  sourceTranscriptSegmentId?: string;
+  sourceText?: string;
   dueDate?: Date;
   projectId?: string;
   ciphertext: string;
@@ -371,13 +375,19 @@ export async function listNotes(folderId?: string): Promise<EncryptedNote[]> {
 }
 
 // Todo operations
-export async function createTodo(todo: Omit<EncryptedTodo, 'id'>): Promise<string> {
+export async function createTodo(
+  todo: Omit<EncryptedTodo, 'id' | 'ciphertext' | 'nonce' | 'authTag' | 'version'>
+): Promise<string> {
   const encrypted = await encryptObject({
     title: todo.title,
     description: todo.description,
     priority: todo.priority,
     status: todo.status,
     linkedNoteId: todo.linkedNoteId,
+    sourceType: todo.sourceType,
+    sourceMeetingId: todo.sourceMeetingId,
+    sourceTranscriptSegmentId: todo.sourceTranscriptSegmentId,
+    sourceText: todo.sourceText,
     dueDate: todo.dueDate,
     projectId: todo.projectId,
   });
@@ -429,6 +439,10 @@ export async function updateTodo(id: string, updates: Partial<EncryptedTodo>): P
     priority: updates.priority,
     status: updates.status,
     linkedNoteId: updates.linkedNoteId,
+    sourceType: updates.sourceType,
+    sourceMeetingId: updates.sourceMeetingId,
+    sourceTranscriptSegmentId: updates.sourceTranscriptSegmentId,
+    sourceText: updates.sourceText,
     dueDate: updates.dueDate,
     projectId: updates.projectId,
   });
@@ -446,6 +460,8 @@ export async function deleteTodo(id: string): Promise<void> {
 export async function listTodos(filter?: {
   status?: string;
   priority?: string;
+  sourceType?: EncryptedTodo['sourceType'];
+  sourceMeetingId?: string;
 }): Promise<EncryptedTodo[]> {
   const records = await db.todos.toArray();
   const decrypted = await Promise.all(
@@ -477,6 +493,14 @@ export async function listTodos(filter?: {
 
   if (filter?.priority) {
     filtered = filtered.filter(todo => todo.priority === filter.priority);
+  }
+
+  if (filter?.sourceType) {
+    filtered = filtered.filter(todo => todo.sourceType === filter.sourceType);
+  }
+
+  if (filter?.sourceMeetingId) {
+    filtered = filtered.filter(todo => todo.sourceMeetingId === filter.sourceMeetingId);
   }
 
   return filtered.reverse().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());

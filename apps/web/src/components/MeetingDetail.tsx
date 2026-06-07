@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
+import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
+import { createTodo } from '../lib/db';
+import { createTodoInputFromMeetingActionItem } from '../lib/meetings/actionItemToTodo';
+import { getMeetingPrepContext, type MeetingPrepContext } from '../lib/meetings/meetingPrepContext';
 
 export interface MeetingDetailProps {
   /** Meeting ID to display */
@@ -43,15 +47,15 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [createdTaskIds, setCreatedTaskIds] = useState<Record<number, string>>({});
+  const [prepContext, setPrepContext] = useState<MeetingPrepContext | null>(null);
 
   // Load meeting on mount
   useEffect(() => {
     const loadMeeting = async () => {
       try {
         const storage = createMeetingStorage();
-        // Generate a simple encryption key for decryption
-        const key = new Uint8Array(32);
-        crypto.getRandomValues(key);
+        const key = await getMeetingEncryptionKey();
 
         const loadedMeeting = await storage.getMeeting(meetingId, key);
         setMeeting(loadedMeeting);
@@ -68,6 +72,40 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
     loadMeeting();
   }, [meetingId]);
 
+  // Load meeting prep context after meeting is available
+  useEffect(() => {
+    if (!meeting) {
+      setPrepContext(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadPrepContext = async () => {
+      try {
+        const context = await getMeetingPrepContext({
+          meetingTitle: meeting.title,
+          calendarEventId: meeting.calendarEventId,
+        });
+
+        if (!isCancelled) {
+          setPrepContext(context);
+        }
+      } catch (error) {
+        console.error('Failed to load meeting prep context:', error);
+        if (!isCancelled) {
+          setPrepContext(null);
+        }
+      }
+    };
+
+    loadPrepContext();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [meeting]);
+
   // Handle title edit
   const handleTitleEdit = useCallback(() => {
     if (meeting) {
@@ -80,8 +118,7 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
     if (meeting && editedTitle.trim() && editedTitle !== meeting.title) {
       try {
         const storage = createMeetingStorage();
-        const key = new Uint8Array(32);
-        crypto.getRandomValues(key);
+        const key = await getMeetingEncryptionKey();
 
         const updatedMeeting = await storage.updateMeeting(
           meeting.id,
@@ -103,8 +140,7 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
 
       try {
         const storage = createMeetingStorage();
-        const key = new Uint8Array(32);
-        crypto.getRandomValues(key);
+        const key = await getMeetingEncryptionKey();
 
         const updatedActionItems = meeting.actionItems.map((item, i) =>
           i === index ? { ...item, completed: !item.completed } : item
@@ -123,6 +159,31 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
     [meeting]
   );
 
+  // Handle action item to task conversion
+  const handleCreateTaskFromActionItem = useCallback(
+    async (index: number) => {
+      if (!meeting || createdTaskIds[index]) return;
+
+      try {
+        const actionItem = meeting.actionItems[index];
+        if (!actionItem) return;
+
+        const todoId = await createTodo(
+          createTodoInputFromMeetingActionItem({
+            meetingId: meeting.id,
+            meetingTitle: meeting.title,
+            actionItem,
+          })
+        );
+
+        setCreatedTaskIds(prev => ({ ...prev, [index]: todoId }));
+      } catch (error) {
+        console.error('Failed to create task from meeting action item:', error);
+      }
+    },
+    [meeting, createdTaskIds]
+  );
+
   // Handle export markdown
   const handleExportMarkdown = useCallback(() => {
     if (!meeting || typeof document === 'undefined') return;
@@ -130,7 +191,7 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
     const markdown = `# ${meeting.title}\n\n**Date:** ${formatDate(meeting.date)}\n**Duration:** ${formatDuration(meeting.duration)}\n\n## Transcript\n\n${meeting.transcript}\n\n## Action Items\n\n${meeting.actionItems
       .map(
         item =>
-          `- [${item.completed ? 'x' : ' '}] ${item.text}${item.assignee ? ` (@${item.assignee})` : ''}${item.deadline ? ` (by ${item.deadline})` : ''}`
+          `- [${item.completed ? 'x' : ' '}] ${item.text}${item.assignee ? ` (@${item.assignee})` : ''}${item.deadline ? ` (by ${item.deadline})` : ''}${item.provenance ? ` [source: ${item.provenance.source.segmentId}, confidence: ${Math.round(item.provenance.confidence * 100)}%, status: ${item.provenance.confirmationStatus}]` : ''}`
       )
       .join('\n')}`;
 
@@ -313,6 +374,59 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
         </button>
       </div>
 
+      {/* Prep Context Section */}
+      <div className="mb-8 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-lg font-medium text-stone-900">Meeting Prep Context</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              {meeting.calendarEventId
+                ? 'Linked to a calendar event shell for prep and follow-up context.'
+                : 'Manual meeting context based on the meeting title and local notes.'}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+            {prepContext?.source === 'calendar-event' ? 'Calendar shell' : 'Manual'}
+          </span>
+        </div>
+
+        {meeting.calendarEventId && (
+          <p className="mt-3 text-xs text-stone-500">
+            Calendar event ID: {meeting.calendarEventId}
+          </p>
+        )}
+
+        {prepContext && prepContext.relatedNotes.length > 0 ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
+              Related local notes for “{prepContext.query}”
+            </p>
+            {prepContext.relatedNotes.map(note => (
+              <a
+                key={note.id}
+                href={`/notes?noteId=${note.id}`}
+                className="block rounded-lg border border-stone-100 bg-stone-50 px-4 py-3 transition-colors hover:border-amber-200 hover:bg-amber-50/50"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-stone-900">{note.title}</p>
+                    {note.content && (
+                      <p className="mt-1 line-clamp-2 text-xs text-stone-500">{note.content}</p>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-amber-700">{note.score}%</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg bg-stone-50 px-4 py-3 text-sm text-stone-500">
+            No related local notes found yet. Add project or topic notes with matching terms to
+            improve prep context.
+          </p>
+        )}
+      </div>
+
       {/* Action Items Section */}
       {meeting.actionItems.length > 0 && (
         <div className="mb-8">
@@ -330,13 +444,23 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
                   className="mt-1 w-5 h-5 rounded border-stone-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
                 />
                 <div className="flex-1">
-                  <p
-                    className={`text-stone-900 ${item.completed ? 'line-through text-stone-400' : ''}`}
-                  >
-                    {item.text}
-                  </p>
-                  {(item.assignee || item.deadline || item.priority) && (
-                    <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <p
+                      className={`text-stone-900 ${item.completed ? 'line-through text-stone-400' : ''}`}
+                    >
+                      {item.text}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateTaskFromActionItem(index)}
+                      disabled={!!createdTaskIds[index]}
+                      className="shrink-0 rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:cursor-default disabled:border-green-200 disabled:bg-green-50 disabled:text-green-700"
+                    >
+                      {createdTaskIds[index] ? 'Task created' : 'Create task'}
+                    </button>
+                  </div>
+                  {(item.assignee || item.deadline || item.priority || item.provenance) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
                       {item.assignee && (
                         <span className="inline-flex items-center px-2 py-0.5 bg-stone-100 text-stone-700 text-xs rounded">
                           {item.assignee}
@@ -358,6 +482,18 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
                           }`}
                         >
                           {item.priority}
+                        </span>
+                      )}
+                      {item.provenance && (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded">
+                          Source: {item.provenance.source.segmentId} ·{' '}
+                          {Math.round(item.provenance.confidence * 100)}% ·{' '}
+                          {item.provenance.confirmationStatus}
+                        </span>
+                      )}
+                      {createdTaskIds[index] && (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded">
+                          Linked task: {createdTaskIds[index]}
                         </span>
                       )}
                     </div>

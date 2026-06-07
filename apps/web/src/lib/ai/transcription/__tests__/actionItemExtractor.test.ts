@@ -157,6 +157,26 @@ describe('extractActionItems', () => {
     expect(result[0].completed).toBe(false);
   });
 
+  it('should attach transcript provenance to extracted action items', () => {
+    const text = 'We discussed the launch. John will prepare the slides by Friday.';
+    const result = extractActionItems(text);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].provenance).toMatchObject({
+      source: {
+        type: 'transcript',
+        segmentId: 'transcript-segment-2',
+        text: 'John will prepare the slides by Friday',
+      },
+      confirmationStatus: 'candidate',
+    });
+    expect(result[0].provenance?.confidence).toBeGreaterThan(0);
+    expect(result[0].provenance?.source.startOffset).toBeGreaterThanOrEqual(0);
+    expect(result[0].provenance?.source.endOffset).toBeGreaterThan(
+      result[0].provenance?.source.startOffset ?? 0
+    );
+  });
+
   it('should not create action items from non-action sentences', () => {
     const text = 'The meeting started at 2pm. We discussed the budget. Everyone was present.';
     const result = extractActionItems(text);

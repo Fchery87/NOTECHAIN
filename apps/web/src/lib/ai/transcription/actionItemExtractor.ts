@@ -4,6 +4,28 @@
  * Extracts tasks and action items from meeting transcripts using pattern matching.
  */
 
+export interface TranscriptSegmentSource {
+  /** Source kind for meeting-derived artifacts */
+  type: 'transcript';
+  /** Stable segment identifier within the transcript */
+  segmentId: string;
+  /** Character offset where the source segment starts */
+  startOffset: number;
+  /** Character offset where the source segment ends */
+  endOffset: number;
+  /** Source text used to derive the artifact */
+  text: string;
+}
+
+export interface MeetingArtifactProvenance {
+  /** Source transcript segment for the extracted artifact */
+  source: TranscriptSegmentSource;
+  /** Extraction confidence from 0 to 1 */
+  confidence: number;
+  /** Whether a user has confirmed or rejected the extraction */
+  confirmationStatus: 'candidate' | 'confirmed' | 'rejected';
+}
+
 export interface ActionItem {
   /** The action item text description */
   text: string;
@@ -15,6 +37,8 @@ export interface ActionItem {
   priority?: 'high' | 'medium' | 'low';
   /** Whether the action item is completed */
   completed: boolean;
+  /** Source citation and confidence for meeting-derived action items */
+  provenance?: MeetingArtifactProvenance;
 }
 
 // Action verb patterns
@@ -53,15 +77,40 @@ const PRIORITY_HIGH = ['urgent', 'urgently', 'important', 'ASAP', 'critical', 'p
 const PRIORITY_MEDIUM: string[] = [];
 const PRIORITY_LOW: string[] = [];
 
+interface TranscriptSegmentCandidate {
+  text: string;
+  segmentId: string;
+  startOffset: number;
+  endOffset: number;
+}
+
 /**
- * Split text into sentences
+ * Split text into transcript segments while preserving character offsets.
  */
-function splitIntoSentences(text: string): string[] {
-  // Split by sentence-ending punctuation followed by space or end of string
-  return text
-    .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+function splitIntoTranscriptSegments(text: string): TranscriptSegmentCandidate[] {
+  const segments: TranscriptSegmentCandidate[] = [];
+  const sentencePattern = /[^.!?]+[.!?]*/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = sentencePattern.exec(text)) !== null) {
+    const rawText = match[0];
+    const trimmedText = rawText.trim();
+
+    if (!trimmedText) continue;
+
+    const leadingWhitespace = rawText.search(/\S/);
+    const startOffset = match.index + (leadingWhitespace === -1 ? 0 : leadingWhitespace);
+    const endOffset = startOffset + trimmedText.length;
+
+    segments.push({
+      text: trimmedText.replace(/[.!?]+$/, '').trim(),
+      segmentId: `transcript-segment-${segments.length + 1}`,
+      startOffset,
+      endOffset,
+    });
+  }
+
+  return segments;
 }
 
 /**
@@ -190,6 +239,58 @@ function cleanActionText(sentence: string): string {
   return cleaned;
 }
 
+function estimateActionItemConfidence(sentence: string): number {
+  let confidence = 0.55;
+
+  if (ACTION_VERBS.some(pattern => pattern.test(sentence))) confidence += 0.15;
+  if (TODO_PATTERNS.some(pattern => pattern.test(sentence))) confidence += 0.15;
+  if (extractAssignee(sentence)) confidence += 0.1;
+  if (extractDeadline(sentence)) confidence += 0.05;
+  if (determinePriority(sentence)) confidence += 0.05;
+
+  return Math.min(confidence, 0.95);
+}
+
+function createProvenance(segment: TranscriptSegmentCandidate): MeetingArtifactProvenance {
+  return {
+    source: {
+      type: 'transcript',
+      segmentId: segment.segmentId,
+      startOffset: segment.startOffset,
+      endOffset: segment.endOffset,
+      text: segment.text,
+    },
+    confidence: estimateActionItemConfidence(segment.text),
+    confirmationStatus: 'candidate',
+  };
+}
+
+export function addMissingActionItemProvenance(
+  actionItems: ActionItem[],
+  transcript: string
+): ActionItem[] {
+  const segments = splitIntoTranscriptSegments(transcript);
+
+  return actionItems.map((item, index) => {
+    if (item.provenance) return item;
+
+    const matchingSegment = segments.find(segment =>
+      segment.text.toLowerCase().includes(item.text.toLowerCase())
+    );
+    const fallbackSegment: TranscriptSegmentCandidate = matchingSegment ?? {
+      text: item.text,
+      segmentId: `transcript-segment-${index + 1}`,
+      startOffset: -1,
+      endOffset: -1,
+    };
+
+    return {
+      ...item,
+      provenance: createProvenance(fallbackSegment),
+    };
+  });
+}
+
 /**
  * Extract action items from a transcript
  *
@@ -197,14 +298,17 @@ function cleanActionText(sentence: string): string {
  * @returns Array of ActionItem objects
  */
 export function extractActionItems(transcript: string): ActionItem[] {
-  const sentences = splitIntoSentences(transcript);
+  const segments = splitIntoTranscriptSegments(transcript);
   const actionItems: ActionItem[] = [];
 
-  for (const sentence of sentences) {
+  for (const segment of segments) {
+    const sentence = segment.text;
+
     if (containsActionPattern(sentence)) {
       const actionItem: ActionItem = {
         text: cleanActionText(sentence),
         completed: false,
+        provenance: createProvenance(segment),
       };
 
       actionItem.assignee = extractAssignee(sentence);
