@@ -90,8 +90,8 @@ Prove that the hardened database policies and sync RPC cannot be bypassed.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' test src/lib/supabase/__tests__/syncRpcMigrationGuard.test.ts` ✅
-- `bun run --filter='@notechain/web' typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/supabase/__tests__/syncRpcMigrationGuard.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
 - Optional staging/linked DB check when credentials are available: `supabase test db supabase/tests/database/017_harden_sync_rpc_and_delete_policy.test.sql --linked`.
 
 ---
@@ -155,7 +155,7 @@ Make the full web test suite reliable enough for CI gating.
 
 ### Acceptance criteria
 
-- `bun run --filter='@notechain/web' test` passes or has documented split scripts.
+- `bun --filter='@notechain/web' run test` passes or has documented split scripts.
 - CI can reliably gate on unit tests.
 
 ---
@@ -205,9 +205,9 @@ Ensure every user saves/verifies a recovery key before first sync.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts` ✅
-- `bun run --filter='@notechain/core-crypto' test src/__tests__/recoveryKey.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts` ✅
+- `bun --filter='@notechain/core-crypto' run test src/__tests__/recoveryKey.test.ts` ✅
 
 ---
 
@@ -251,8 +251,8 @@ If encryption initialization fails, show a dedicated recovery prompt instead of 
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/components/security/__tests__/RecoveryRequiredPrompt.test.tsx src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/components/security/__tests__/RecoveryRequiredPrompt.test.tsx src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts` ✅
 
 ---
 
@@ -385,9 +385,9 @@ Allow complete workspace backup/restore independent of Supabase availability.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts src/lib/supabase/__tests__/syncRpcMigrationGuard.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts src/lib/supabase/__tests__/syncRpcMigrationGuard.test.ts` ✅
 
 ---
 
@@ -421,9 +421,9 @@ Give users readable, portable data.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/backup/__tests__/markdownPortability.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/backup/__tests__/markdownPortability.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
 
 ---
 
@@ -455,9 +455,9 @@ Support full-fidelity machine-readable portability.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/backup/__tests__/jsonWorkspacePortability.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/backup/__tests__/jsonWorkspacePortability.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
 
 ---
 
@@ -493,9 +493,9 @@ Make PWA offline behavior match local-first claims.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/pwa/__tests__/serviceWorkerStatic.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/pwa/__tests__/serviceWorkerStatic.test.ts src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/pwa/__tests__/serviceWorkerStatic.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/pwa/__tests__/serviceWorkerStatic.test.ts src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/backup/__tests__/encryptedWorkspaceBackup.test.ts` ✅
 
 ---
 
@@ -531,9 +531,9 @@ Reduce capture friction.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/quickCapture/__tests__/quickCapture.test.ts src/lib/pwa/__tests__/manifestStatic.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/quickCapture/__tests__/quickCapture.test.ts src/lib/pwa/__tests__/manifestStatic.test.ts src/lib/pwa/__tests__/serviceWorkerStatic.test.ts src/lib/backup/__tests__/markdownPortability.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/quickCapture/__tests__/quickCapture.test.ts src/lib/pwa/__tests__/manifestStatic.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/quickCapture/__tests__/quickCapture.test.ts src/lib/pwa/__tests__/manifestStatic.test.ts src/lib/pwa/__tests__/serviceWorkerStatic.test.ts src/lib/backup/__tests__/markdownPortability.test.ts` ✅
 
 ---
 
@@ -567,9 +567,9 @@ Search all local-first data from one interface.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/localSearchIndex.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/localSearchIndex.test.ts src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/localSearchIndex.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/localSearchIndex.test.ts src/lib/backup/__tests__/jsonWorkspacePortability.test.ts src/lib/backup/__tests__/markdownPortability.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
 
 ---
 
@@ -602,9 +602,9 @@ Combine exact, fuzzy, and semantic search.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/hybridSearch.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/hybridSearch.test.ts src/lib/search/__tests__/localSearchIndex.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/hybridSearch.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/hybridSearch.test.ts src/lib/search/__tests__/localSearchIndex.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
 
 ---
 
@@ -637,9 +637,9 @@ Make AI retrieval trustworthy.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/localAnswer.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/search/__tests__/localAnswer.test.ts src/lib/search/__tests__/hybridSearch.test.ts src/lib/search/__tests__/localSearchIndex.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/localAnswer.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/search/__tests__/localAnswer.test.ts src/lib/search/__tests__/hybridSearch.test.ts src/lib/search/__tests__/localSearchIndex.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts` ✅
 
 ---
 
@@ -678,8 +678,8 @@ Design sharing before building more collaboration UX.
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/security/__tests__/cryptographicSharingAdr.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/security/__tests__/cryptographicSharingAdr.test.ts` ✅
 
 ---
 
@@ -712,10 +712,10 @@ Make shared notes decryptable only by authorized collaborators.
 
 ### Verification
 
-- `bun run --filter='@notechain/core-crypto' typecheck` ✅
-- `bun run --filter='@notechain/core-crypto' test src/__tests__/documentSharing.test.ts` ✅
-- `bun run --filter='@notechain/core-crypto' test src/__tests__/documentSharing.test.ts src/__tests__/recoveryKey.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/security/__tests__/cryptographicSharingAdr.test.ts` ✅
+- `bun --filter='@notechain/core-crypto' run typecheck` ✅
+- `bun --filter='@notechain/core-crypto' run test src/__tests__/documentSharing.test.ts` ✅
+- `bun --filter='@notechain/core-crypto' run test src/__tests__/documentSharing.test.ts src/__tests__/recoveryKey.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/security/__tests__/cryptographicSharingAdr.test.ts` ✅
 
 ---
 
@@ -749,9 +749,9 @@ Replace volatile broadcast-only collaboration with durable, authorized collabora
 
 ### Verification
 
-- `bun run --filter='@notechain/sync-engine' typecheck` ✅
-- `bun run --filter='@notechain/sync-engine' test src/server/__tests__/CollaborationGuards.test.ts` ✅
-- `bun run --filter='@notechain/core-crypto' test src/__tests__/documentSharing.test.ts` ✅
+- `bun --filter='@notechain/sync-engine' run typecheck` ✅
+- `bun --filter='@notechain/sync-engine' run test:fast` ✅
+- `bun --filter='@notechain/core-crypto' run test src/__tests__/documentSharing.test.ts` ✅
 
 ---
 
@@ -793,9 +793,9 @@ Privacy-first encrypted notes with local-first sync, recovery, import/export, an
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/__tests__/launchScope.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/__tests__/featureGate.test.ts src/lib/__tests__/launchScope.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/__tests__/launchScope.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/__tests__/featureGate.test.ts src/lib/__tests__/launchScope.test.ts` ✅
 
 ---
 
@@ -823,9 +823,9 @@ Privacy-first encrypted notes with local-first sync, recovery, import/export, an
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/performance/__tests__/staticImportBudget.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/performance/__tests__/staticImportBudget.test.ts src/lib/__tests__/launchScope.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/performance/__tests__/staticImportBudget.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/performance/__tests__/staticImportBudget.test.ts src/lib/__tests__/launchScope.test.ts` ✅
 
 ---
 
@@ -855,9 +855,9 @@ Privacy-first encrypted notes with local-first sync, recovery, import/export, an
 
 ### Verification
 
-- `bun run --filter='@notechain/web' typecheck` ✅
-- `bun run --filter='@notechain/web' test src/lib/release/__tests__/productionReadinessChecklist.test.ts` ✅
-- `bun run --filter='@notechain/web' test src/lib/release/__tests__/productionReadinessChecklist.test.ts src/lib/performance/__tests__/staticImportBudget.test.ts src/lib/__tests__/launchScope.test.ts` ✅
+- `bun --filter='@notechain/web' run typecheck` ✅
+- `bun --filter='@notechain/web' run test src/lib/release/__tests__/productionReadinessChecklist.test.ts` ✅
+- `bun --filter='@notechain/web' run test src/lib/release/__tests__/productionReadinessChecklist.test.ts src/lib/performance/__tests__/staticImportBudget.test.ts src/lib/__tests__/launchScope.test.ts` ✅
 
 ---
 

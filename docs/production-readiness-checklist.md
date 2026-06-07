@@ -6,9 +6,9 @@ Use this checklist for every release candidate. A release is not production-read
 
 Required:
 
-- `bun run --filter='@notechain/core-crypto' typecheck`
-- `bun run --filter='@notechain/sync-engine' typecheck`
-- `bun run --filter='@notechain/web' typecheck`
+- `bun --filter='@notechain/core-crypto' run typecheck`
+- `bun --filter='@notechain/sync-engine' run typecheck`
+- `bun --filter='@notechain/web' run typecheck`
 - production web build completes successfully
 
 ## 2. Focused trust-first test gates

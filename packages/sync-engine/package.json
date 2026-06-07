@@ -10,6 +10,8 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
+    "test:fast": "bun test src/__tests__/sync.test.ts src/crdt/__tests__/MultiUserCRDT.test.ts src/server/__tests__/CollaborationGuards.test.ts",
+    "test:server": "bun test src/server/__tests__/WebSocketServer.test.ts",
     "test:watch": "bun test --watch",
     "start:ws": "bun --env-file=../../apps/web/.env.local run src/server/index.ts"
   },

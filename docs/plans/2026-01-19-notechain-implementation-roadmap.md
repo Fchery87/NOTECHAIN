@@ -1,8 +1,8 @@
 # NoteChain Implementation Roadmap
 
-**Created:** 2026-01-19  
-**Timeline:** 26 weeks (6 months)  
-**Team Size:** Solo developer  
+**Created:** 2026-01-19
+**Timeline:** 26 weeks (6 months)
+**Team Size:** Solo developer
 **Status:** Draft
 
 ---
@@ -410,7 +410,7 @@ interface AppError {
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "bun run --filter=@notechain/mobile dev",
+    "dev": "bun --filter=@notechain/mobile run dev",
     "build": "bun run build --filter='apps/*'",
     "test": "bun run test --filter='@notechain/*'",
     "lint": "eslint . --ext .ts,.tsx",
@@ -2870,6 +2870,6 @@ export class FeatureGate {
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-19  
+**Document Version:** 1.0
+**Last Updated:** 2026-01-19
 **Status:** Draft, awaiting approval

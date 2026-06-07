@@ -10,6 +10,10 @@
     "analyze": "ANALYZE=true next build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke:meeting-to-knowledge": "vitest run src/components/__tests__/PrototypeNotice.test.tsx src/lib/__tests__/launchScope.test.ts src/lib/privacy/__tests__/derivedMetadata.test.ts src/lib/ai/transcription/__tests__/actionItemExtractor.test.ts src/lib/storage/__tests__/meetingStorage.test.ts src/lib/storage/__tests__/meetingEncryptionKey.test.ts src/lib/meetings/__tests__/actionItemToTodo.test.ts src/lib/meetings/__tests__/meetingPrepContext.test.ts src/lib/meetings/__tests__/meetingFollowUps.test.ts src/lib/graph/__tests__/contextGraph.test.ts src/lib/search/__tests__/citedContextSearch.test.ts src/integration/__tests__/noteTodoWorkflow.test.ts",
+    "test:smoke:public-beta": "vitest run src/components/__tests__/PrototypeNotice.test.tsx src/lib/__tests__/launchScope.test.ts",
+    "test:verify:privacy": "vitest run src/lib/privacy/__tests__/derivedMetadata.test.ts",
+    "test:verify:sync": "vitest run src/lib/__tests__/syncQueue.test.ts src/lib/supabase/__tests__/syncRpcMigrationGuard.test.ts src/lib/sync/__tests__/remoteNoteApply.test.ts src/lib/sync/__tests__/recoveryBackupState.test.ts src/lib/sync/__tests__/noteSyncLocalStore.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
