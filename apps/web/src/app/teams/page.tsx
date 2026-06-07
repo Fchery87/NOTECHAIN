@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { PrototypeNotice } from '@/components/PrototypeNotice';
 import type { Team } from '../../components/TeamSwitcher';
 
 export default function TeamsPage() {
@@ -69,14 +70,21 @@ export default function TeamsPage() {
       onClick={() => setShowCreateModal(true)}
       className="px-4 py-2 bg-stone-900 text-stone-50 text-sm font-medium rounded-lg hover:bg-stone-800 transition-colors shadow-sm"
     >
-      New Team
+      New Shared Space
     </button>
   );
 
   return (
-    <AppLayout pageTitle="Teams" actions={headerActions}>
+    <AppLayout pageTitle="Shared Spaces" actions={headerActions}>
       <div className="py-8 max-w-5xl mx-auto">
-        {/* Teams Grid */}
+        <PrototypeNotice title="Shared Spaces are an internal preview">
+          This route is intentionally hidden from public-beta navigation unless
+          NEXT_PUBLIC_FEATURE_SHARED_SPACES is enabled. Shared Space records, member counts, roles,
+          and creation flows are local demo state until encrypted sharing, revocation,
+          authorization, and audit logs are implemented.
+        </PrototypeNotice>
+
+        {/* Shared Spaces Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teams.map(team => (
             <a
@@ -86,7 +94,7 @@ export default function TeamsPage() {
                 group bg-white rounded-3xl border border-stone-100 p-8 hover:border-amber-500/30 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300
               "
             >
-              {/* Team Icon */}
+              {/* Shared Space Icon */}
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                   <span className="text-xl font-medium text-amber-700">
@@ -100,7 +108,7 @@ export default function TeamsPage() {
                 </span>
               </div>
 
-              {/* Team Info */}
+              {/* Shared Space Info */}
               <h3 className="text-lg font-medium text-stone-900 group-hover:text-amber-700 transition-colors">
                 {team.name}
               </h3>
@@ -162,7 +170,7 @@ export default function TeamsPage() {
               </svg>
             </div>
             <span className="mt-4 font-medium text-stone-600 group-hover:text-amber-700 transition-colors">
-              Create New Team
+              Create New Shared Space
             </span>
           </button>
         </div>
@@ -173,7 +181,7 @@ export default function TeamsPage() {
         <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-medium text-stone-900">Create New Team</h2>
+              <h2 className="text-xl font-medium text-stone-900">Create New Shared Space</h2>
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
@@ -191,12 +199,14 @@ export default function TeamsPage() {
 
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Team Name</label>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  Shared Space Name
+                </label>
                 <input
                   type="text"
                   value={newTeamName}
                   onChange={e => setNewTeamName(e.target.value)}
-                  placeholder="Enter team name"
+                  placeholder="Enter shared space name"
                   autoFocus
                   className="
                     w-full px-4 py-3 bg-white border border-stone-200 rounded-lg
@@ -214,7 +224,7 @@ export default function TeamsPage() {
                 <textarea
                   value={newTeamDescription}
                   onChange={e => setNewTeamDescription(e.target.value)}
-                  placeholder="What is this team for?"
+                  placeholder="What is this shared space for?"
                   rows={3}
                   className="
                     w-full px-4 py-3 bg-white border border-stone-200 rounded-lg
@@ -245,7 +255,7 @@ export default function TeamsPage() {
                     disabled:opacity-50 disabled:cursor-not-allowed
                   "
                 >
-                  Create Team
+                  Create Shared Space
                 </button>
               </div>
             </form>

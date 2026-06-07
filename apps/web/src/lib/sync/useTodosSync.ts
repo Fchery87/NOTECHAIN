@@ -4,6 +4,7 @@ import { useCallback, useRef } from 'react';
 import { useSync } from './SyncProvider';
 import type { Todo } from '@notechain/data-models';
 import { v4 as uuidv4 } from 'uuid';
+import { assertNoSensitiveDerivedMetadataFields } from '../privacy/derivedMetadata';
 
 interface SyncTodoOperation {
   id: string;
@@ -58,6 +59,7 @@ export function useTodosSync() {
           version,
         };
 
+        assertNoSensitiveDerivedMetadataFields(todoData, 'todo create sync payload');
         const payload = btoa(JSON.stringify(todoData));
         const mockCiphertext = `${payload}:nonce:authTag`;
 
@@ -94,6 +96,7 @@ export function useTodosSync() {
           version,
         };
 
+        assertNoSensitiveDerivedMetadataFields(todoData, 'todo update sync payload');
         const payload = btoa(JSON.stringify(todoData));
         const mockCiphertext = `${payload}:nonce:authTag`;
 
@@ -124,6 +127,7 @@ export function useTodosSync() {
           version,
         };
 
+        assertNoSensitiveDerivedMetadataFields(toggleData, 'todo toggle sync payload');
         const payload = btoa(JSON.stringify(toggleData));
         const mockCiphertext = `${payload}:nonce:authTag`;
 

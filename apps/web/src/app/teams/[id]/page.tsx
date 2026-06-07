@@ -2,6 +2,7 @@
 
 import { useState, use } from 'react';
 import AppLayout from '@/components/AppLayout';
+import { PrototypeNotice } from '@/components/PrototypeNotice';
 import { TeamSettings } from '../../../components/TeamSettings';
 import type { Team } from '../../../components/TeamSwitcher';
 import type { TeamMember } from '../../../components/MemberList';
@@ -116,6 +117,12 @@ export default function TeamDashboardPage({ params }: TeamDashboardProps) {
   return (
     <AppLayout pageTitle={currentTeam.name} showBackButton backHref="/teams">
       <div className="py-6">
+        <PrototypeNotice title="Shared Space internal preview">
+          This route is intentionally hidden from public-beta navigation unless
+          NEXT_PUBLIC_FEATURE_SHARED_SPACES is enabled. Notes, folders, members, and role changes
+          are local demo state until cryptographic sharing and authorization gates are implemented.
+        </PrototypeNotice>
+
         {/* Navigation Tabs */}
         <div className="mb-6">
           <nav className="flex gap-1 border-b border-stone-200">

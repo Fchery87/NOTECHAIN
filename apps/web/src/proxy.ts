@@ -96,6 +96,7 @@ export async function proxy(request: NextRequest) {
   const protectedRoutes = [
     '/dashboard',
     '/notes',
+    '/tasks',
     '/todos',
     '/calendar',
     '/pdfs',

@@ -52,7 +52,7 @@ export const FEATURES: Record<FeatureType, FeatureConfig> = {
     requiredTier: 'free',
   },
   basic_todos: {
-    name: 'Basic Todos',
+    name: 'Basic Tasks',
     description: 'Create and manage simple tasks',
     requiredTier: 'free',
   },

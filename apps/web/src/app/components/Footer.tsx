@@ -15,7 +15,7 @@ const footerLinks = {
   ],
   resources: [
     { label: 'Notes', href: '/notes' },
-    { label: 'Todos', href: '/todos' },
+    { label: 'Tasks', href: '/tasks' },
     { label: 'Security', href: '#privacy' },
     { label: 'Calendar', href: '/calendar' },
   ],

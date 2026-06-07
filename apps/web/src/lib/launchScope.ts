@@ -8,6 +8,7 @@ export type LaunchFeatureKey =
   | 'pdf_signing'
   | 'calendar_sync'
   | 'local_ai_models'
+  | 'shared_spaces'
   | 'admin_analytics'
   | 'custom_realtime_collaboration'
   | 'blockchain_storage';
@@ -94,6 +95,15 @@ export const LAUNCH_FEATURES: Record<LaunchFeatureKey, LaunchFeatureConfig> = {
     experimental: true,
     rationale: 'Avoid large model bundles on core routes.',
   },
+  shared_spaces: {
+    key: 'shared_spaces',
+    label: 'Shared Spaces',
+    defaultEnabled: false,
+    heavy: false,
+    experimental: true,
+    rationale:
+      'Hide shared collaboration from public beta until cryptographic sharing, revocation, authorization, and audit gates are implemented.',
+  },
   admin_analytics: {
     key: 'admin_analytics',
     label: 'Admin analytics',
@@ -147,6 +157,14 @@ export function getDisabledLaunchFeatures(
   return Object.values(LAUNCH_FEATURES).filter(
     feature => !isLaunchFeatureEnabled(feature.key, env)
   );
+}
+
+export function isSharedSpacesSurfaceEnabled(
+  env: Record<string, string | undefined> = {
+    NEXT_PUBLIC_FEATURE_SHARED_SPACES: process.env.NEXT_PUBLIC_FEATURE_SHARED_SPACES,
+  }
+): boolean {
+  return isLaunchFeatureEnabled('shared_spaces', env);
 }
 
 export function assertHeavyExperimentalFeaturesDisabledByDefault(): void {

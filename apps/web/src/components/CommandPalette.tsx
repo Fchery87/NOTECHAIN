@@ -85,7 +85,7 @@ export default function CommandPalette() {
                   shortcut="G N"
                 />
                 <CommandItem
-                  onClick={() => handleAction('/todos')}
+                  onClick={() => handleAction('/tasks')}
                   icon={<TasksIcon />}
                   title="Tasks"
                   shortcut="G T"

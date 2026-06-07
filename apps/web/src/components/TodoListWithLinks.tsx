@@ -162,7 +162,7 @@ export function TodoListWithLinks({
 
   if (isLoading) {
     return (
-      <div className="space-y-3" role="list" aria-label="Loading todos">
+      <div className="space-y-3" role="list" aria-label="Loading tasks">
         {[1, 2, 3].map(i => (
           <div key={i} className="animate-pulse bg-stone-100 rounded-xl h-20" />
         ))}
@@ -195,7 +195,7 @@ export function TodoListWithLinks({
   }
 
   return (
-    <div className="space-y-2" role="list" aria-label="Todo list">
+    <div className="space-y-2" role="list" aria-label="Task list">
       {todos.map(todo => {
         const isCompleted = todo.status === 'completed';
         const overdue = todo.dueDate && isOverdue(todo.dueDate) && !isCompleted;

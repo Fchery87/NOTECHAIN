@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@/lib/supabase/UserProvider';
 import { SyncStatusIndicator } from '@/components/SyncStatusIndicator';
+import { isSharedSpacesSurfaceEnabled } from '@/lib/launchScope';
 
 interface AppHeaderProps {
   pageTitle?: string;
@@ -16,11 +17,13 @@ interface AppHeaderProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
   { href: '/notes', label: 'Notes', icon: NotesIcon },
-  { href: '/todos', label: 'Tasks', icon: TasksIcon },
+  { href: '/tasks', label: 'Tasks', icon: TasksIcon },
   { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
   { href: '/meetings', label: 'Meetings', icon: MeetingsIcon },
-  { href: '/teams', label: 'Teams', icon: TeamsIcon },
-  { href: '/graph', label: 'Graph', icon: GraphIcon },
+  ...(isSharedSpacesSurfaceEnabled()
+    ? [{ href: '/teams', label: 'Shared Spaces', icon: TeamsIcon }]
+    : []),
+  { href: '/graph', label: 'Knowledge Map', icon: GraphIcon },
 ];
 
 function DashboardIcon({ className }: { className?: string }) {

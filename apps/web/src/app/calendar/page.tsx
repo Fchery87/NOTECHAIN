@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { ExternalEvent } from '@notechain/data-models';
 import AppLayout from '@/components/AppLayout';
 import { CalendarView } from '@/components/CalendarView';
+import { PrototypeNotice } from '@/components/PrototypeNotice';
 
 // Mock events for demonstration
 const mockEvents: ExternalEvent[] = [
@@ -63,6 +64,11 @@ export default function CalendarPage() {
   return (
     <AppLayout pageTitle="Calendar" actions={headerActions}>
       <div className="py-8">
+        <PrototypeNotice title="Calendar integration prototype">
+          Events and connected-calendar states on this page are demonstration data. Calendar should
+          support meeting prep and follow-up before NoteChain claims full provider sync.
+        </PrototypeNotice>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Calendar */}
           <div className="lg:col-span-3">
@@ -125,7 +131,7 @@ export default function CalendarPage() {
                     </svg>
                     <span className="text-sm text-stone-700">Google Calendar</span>
                   </div>
-                  <span className="text-xs text-green-600 font-medium">Connected</span>
+                  <span className="text-xs text-amber-700 font-medium">Demo</span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
                   <div className="flex items-center gap-2">
@@ -138,7 +144,7 @@ export default function CalendarPage() {
                     </svg>
                     <span className="text-sm text-stone-700">Outlook</span>
                   </div>
-                  <span className="text-xs text-green-600 font-medium">Connected</span>
+                  <span className="text-xs text-amber-700 font-medium">Demo</span>
                 </div>
                 <button className="w-full p-2 text-sm text-stone-600 hover:bg-stone-100 rounded-lg transition-colors border border-dashed border-stone-300">
                   + Connect Calendar

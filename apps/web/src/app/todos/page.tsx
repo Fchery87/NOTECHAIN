@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { Todo } from '@notechain/data-models';
 import AppLayout from '@/components/AppLayout';
+import { PrototypeNotice } from '@/components/PrototypeNotice';
 import { TodoList } from '@/components/TodoList';
 import { TodoForm } from '@/components/TodoForm';
 import { useTodosSync } from '@/lib/sync/useTodosSync';
@@ -193,6 +194,12 @@ export default function TodosPage() {
   return (
     <AppLayout pageTitle="Tasks" actions={headerActions}>
       <div className="py-8 max-w-4xl mx-auto">
+        <PrototypeNotice title="Prototype task data">
+          This view is seeded with demonstration tasks. New task persistence depends on the sync
+          engine being enabled; meeting-derived source links are planned in the Meeting-to-Knowledge
+          roadmap.
+        </PrototypeNotice>
+
         <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <TodoList
             todos={todos}

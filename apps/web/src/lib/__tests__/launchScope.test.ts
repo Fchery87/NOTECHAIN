@@ -4,6 +4,7 @@ import {
   getDisabledLaunchFeatures,
   getEnabledLaunchFeatures,
   isLaunchFeatureEnabled,
+  isSharedSpacesSurfaceEnabled,
   LAUNCH_FEATURES,
 } from '../launchScope';
 
@@ -26,6 +27,11 @@ describe('launch scope feature matrix', () => {
     expect(isLaunchFeatureEnabled('blockchain_storage', {})).toBe(false);
   });
 
+  it('hides Shared Spaces from public beta surfaces by default', () => {
+    expect(isLaunchFeatureEnabled('shared_spaces', {})).toBe(false);
+    expect(isSharedSpacesSurfaceEnabled({})).toBe(false);
+  });
+
   it('allows explicit environment overrides', () => {
     expect(
       isLaunchFeatureEnabled('local_ai_models', {
@@ -37,6 +43,16 @@ describe('launch scope feature matrix', () => {
         NEXT_PUBLIC_FEATURE_ENCRYPTED_NOTES: 'false',
       })
     ).toBe(false);
+    expect(
+      isLaunchFeatureEnabled('shared_spaces', {
+        NEXT_PUBLIC_FEATURE_SHARED_SPACES: 'true',
+      })
+    ).toBe(true);
+    expect(
+      isSharedSpacesSurfaceEnabled({
+        NEXT_PUBLIC_FEATURE_SHARED_SPACES: 'true',
+      })
+    ).toBe(true);
   });
 
   it('returns enabled and disabled feature lists', () => {
@@ -45,6 +61,7 @@ describe('launch scope feature matrix', () => {
 
     expect(enabled).toContain('encrypted_notes');
     expect(disabled).toContain('pdf_signing');
+    expect(disabled).toContain('shared_spaces');
     expect(Object.keys(LAUNCH_FEATURES).sort()).toEqual([...enabled, ...disabled].sort());
   });
 });

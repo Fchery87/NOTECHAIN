@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isSharedSpacesSurfaceEnabled } from '@/lib/launchScope';
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
@@ -10,11 +11,13 @@ export default function MobileBottomNav() {
   const navItems = [
     { href: '/dashboard', label: 'Home', icon: HomeIcon },
     { href: '/notes', label: 'Notes', icon: NotesIcon },
-    { href: '/todos', label: 'Tasks', icon: TasksIcon },
+    { href: '/tasks', label: 'Tasks', icon: TasksIcon },
     { href: '/calendar', label: 'Calendar', icon: CalendarIcon },
     { href: '/meetings', label: 'Meetings', icon: MeetingsIcon },
-    { href: '/teams', label: 'Teams', icon: TeamsIcon },
-    { href: '/graph', label: 'Graph', icon: GraphIcon },
+    ...(isSharedSpacesSurfaceEnabled()
+      ? [{ href: '/teams', label: 'Shared', icon: TeamsIcon }]
+      : []),
+    { href: '/graph', label: 'Map', icon: GraphIcon },
   ];
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
