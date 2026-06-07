@@ -36,7 +36,7 @@ bun run verify:sync
 bun run verify:sync-server
 ```
 
-Use the `run` form for workspace package scripts, e.g. `bun --filter='@notechain/sync-engine' run test`; do not use `bun --filter='@notechain/sync-engine' run test` from the repo root.
+Use the `run` form for workspace package scripts, e.g. `bun --filter='@notechain/sync-engine' run test`; do not use `bun --filter='@notechain/sync-engine' test` from the repo root.
 
 Planned future focused gates:
 
@@ -71,7 +71,15 @@ bun --filter='@notechain/web' run test -- src/lib/privacy/__tests__/derivedMetad
 bun run test:web
 ```
 
-This runs the web package Vitest suite. Prefer targeted tests plus `verify:launch` during agent work because the full suite can be slower and may need separate stabilization.
+This runs the web package Vitest suite. Prefer targeted tests plus `verify:launch` during agent work because the full suite is slower than routine focused gates.
+
+### Root full repository suite
+
+```bash
+bun run test
+```
+
+This runs package test suites sequentially for `@notechain/core-crypto`, `@notechain/ai-engine`, `@notechain/sync-engine`, and `@notechain/web`. The web package suite is chunked into smaller Vitest invocations to avoid full-suite jsdom/mock-state pressure. Treat it as a slow comprehensive gate, not the default agent loop. Use a long terminal timeout when running it manually because the web Vitest suite dominates runtime. If it fails after command or test-harness changes, stabilize the failing test or update stale assertions rather than folding the full suite into `verify:launch`.
 
 ## Avoid this for app tests
 

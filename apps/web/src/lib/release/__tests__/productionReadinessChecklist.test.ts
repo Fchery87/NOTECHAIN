@@ -9,7 +9,7 @@ const checklist = readFileSync(
 
 describe('production readiness checklist', () => {
   it('documents build, type, and trust-first test gates', () => {
-    expect(checklist).toContain("bun run --filter='@notechain/web' typecheck");
+    expect(checklist).toContain("bun --filter='@notechain/web' run typecheck");
     expect(checklist).toContain('recovery key tests pass');
     expect(checklist).toContain('encrypted local cache tests pass');
     expect(checklist).toContain('encrypted backup tests pass');

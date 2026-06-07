@@ -15,7 +15,9 @@ const transcriberMocks = vi.hoisted(() => {
   const transcribeHf = vi.fn();
   const resetHf = vi.fn();
   const saveMeeting = vi.fn();
+  const getMeetingEncryptionKey = vi.fn();
   const extractActionItems = vi.fn(() => []);
+  const meetingKey = new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1));
 
   const webSpeechState = {
     isSupported: true,
@@ -50,7 +52,9 @@ const transcriberMocks = vi.hoisted(() => {
     transcribeHf,
     resetHf,
     saveMeeting,
+    getMeetingEncryptionKey,
     extractActionItems,
+    meetingKey,
     webSpeechState,
     hfState,
     audioState,
@@ -105,6 +109,10 @@ vi.mock('../../lib/storage/meetingStorage', () => ({
   })),
 }));
 
+vi.mock('../../lib/storage/meetingEncryptionKey', () => ({
+  getMeetingEncryptionKey: transcriberMocks.getMeetingEncryptionKey,
+}));
+
 import { MeetingTranscriber } from '../MeetingTranscriber';
 
 const defaultProps: MeetingTranscriberProps = {
@@ -149,6 +157,7 @@ describe('MeetingTranscriber', () => {
     resetMockState();
     transcriberMocks.startWebSpeech.mockResolvedValue(undefined);
     transcriberMocks.startRecording.mockResolvedValue(undefined);
+    transcriberMocks.getMeetingEncryptionKey.mockResolvedValue(transcriberMocks.meetingKey);
     transcriberMocks.stopRecording.mockResolvedValue(
       new Blob(['audio data'], { type: 'audio/webm' })
     );
@@ -291,6 +300,7 @@ describe('MeetingTranscriber - With Data', () => {
     resetMockState();
     transcriberMocks.webSpeechState.transcript =
       'John will review the proposal. Complete the report.';
+    transcriberMocks.getMeetingEncryptionKey.mockResolvedValue(transcriberMocks.meetingKey);
     transcriberMocks.extractActionItems.mockReturnValue(mockActionItems);
   });
 

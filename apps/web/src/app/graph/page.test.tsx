@@ -48,9 +48,12 @@ const graphMocks = vi.hoisted(() => ({
   push: vi.fn(),
   generateGraph: vi.fn(),
   getAll: vi.fn(),
+  createNoteRepository: vi.fn(),
+  getLocalDataEncryptionKey: vi.fn(),
   listNotes: vi.fn(),
   listTodos: vi.fn(),
   getAllMeetings: vi.fn(),
+  localDataEncryptionKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -79,12 +82,11 @@ vi.mock('@/lib/ai/notes', () => ({
 }));
 
 vi.mock('@/lib/repositories', () => ({
-  createNoteRepository: () => ({
-    getAll: graphMocks.getAll,
-  }),
+  createNoteRepository: graphMocks.createNoteRepository,
 }));
 
 vi.mock('@/lib/db', () => ({
+  getLocalDataEncryptionKey: graphMocks.getLocalDataEncryptionKey,
   listNotes: graphMocks.listNotes,
   listTodos: graphMocks.listTodos,
 }));
@@ -116,9 +118,13 @@ import KnowledgeGraphPage from './page';
 
 describe('KnowledgeGraphPage', () => {
   beforeEach(() => {
-    graphMocks.push.mockClear();
+    vi.clearAllMocks();
     graphMocks.generateGraph.mockImplementation(async () => mockGraphData);
     graphMocks.getAll.mockImplementation(async () => mockNotes);
+    graphMocks.createNoteRepository.mockImplementation(() => ({
+      getAll: graphMocks.getAll,
+    }));
+    graphMocks.getLocalDataEncryptionKey.mockResolvedValue(graphMocks.localDataEncryptionKey);
     graphMocks.listNotes.mockImplementation(async () => []);
     graphMocks.listTodos.mockImplementation(async () => []);
     graphMocks.getAllMeetings.mockImplementation(async () => []);
@@ -161,6 +167,18 @@ describe('KnowledgeGraphPage', () => {
     });
   });
 
+  test('uses the local data encryption key for repository-backed notes', async () => {
+    render(<KnowledgeGraphPage />);
+
+    await waitFor(() => {
+      expect(graphMocks.getLocalDataEncryptionKey).toHaveBeenCalled();
+      expect(graphMocks.createNoteRepository).toHaveBeenCalledWith(
+        'user-1',
+        graphMocks.localDataEncryptionKey
+      );
+    });
+  });
+
   test('generates graph with correct options', async () => {
     render(<KnowledgeGraphPage />);
 
@@ -189,7 +207,9 @@ describe('KnowledgeGraphPage', () => {
     );
 
     // The graph should show the toolbar with controls
-    expect(screen.getByTestId('graph-toolbar')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByTestId('graph-toolbar')).toBeDefined();
+    });
   });
 
   test('renders tips section', async () => {

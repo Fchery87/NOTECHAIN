@@ -245,7 +245,7 @@ function getDeviceId(): string {
 const DEVICE_ID = getDeviceId();
 
 // Get encryption key
-async function getEncryptionKey(): Promise<Uint8Array> {
+export async function getLocalDataEncryptionKey(): Promise<Uint8Array> {
   const masterKey = await KeyManager.getMasterKey();
   if (!masterKey) {
     throw new Error('Master key not found. User must be logged in.');
@@ -257,12 +257,12 @@ async function getEncryptionKey(): Promise<Uint8Array> {
 // Helper functions for encryption/decryption
 async function encryptObject<T>(obj: T): Promise<EncryptedData> {
   const json = JSON.stringify(obj);
-  const key = await getEncryptionKey();
+  const key = await getLocalDataEncryptionKey();
   return await encryptData(json, key);
 }
 
 async function decryptObject<T>(encrypted: EncryptedData): Promise<T> {
-  const key = await getEncryptionKey();
+  const key = await getLocalDataEncryptionKey();
   const decrypted = await decryptData(encrypted, key);
   return JSON.parse(decrypted) as T;
 }

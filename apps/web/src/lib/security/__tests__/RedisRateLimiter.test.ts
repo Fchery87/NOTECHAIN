@@ -96,7 +96,8 @@ describe('RedisStore', () => {
     const get1 = await redisStore.get(id);
     expect(get1).toBeDefined();
     expect(get1?.count).toBe(1);
-    expect(get1?.resetTime).toBeGreaterThanOrEqual(result1.resetTime - 5);
+    expect(get1?.resetTime).toBeGreaterThan(Date.now());
+    expect(get1?.resetTime).toBeLessThanOrEqual(result1.resetTime + 50);
 
     const result2 = await redisStore.increment(id, windowMs);
     expect(result2.count).toBe(2);

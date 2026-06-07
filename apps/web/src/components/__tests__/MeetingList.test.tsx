@@ -8,6 +8,8 @@ import type { MeetingListProps } from '../MeetingList';
 const meetingListMocks = vi.hoisted(() => ({
   getAllMeetings: vi.fn(),
   deleteMeeting: vi.fn(),
+  getMeetingEncryptionKey: vi.fn(),
+  meetingKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
 }));
 
 vi.mock('../../lib/storage/meetingStorage', () => ({
@@ -19,6 +21,10 @@ vi.mock('../../lib/storage/meetingStorage', () => ({
     getAllMeetings: meetingListMocks.getAllMeetings,
     deleteMeeting: meetingListMocks.deleteMeeting,
   })),
+}));
+
+vi.mock('../../lib/storage/meetingEncryptionKey', () => ({
+  getMeetingEncryptionKey: meetingListMocks.getMeetingEncryptionKey,
 }));
 
 import { MeetingList } from '../MeetingList';
@@ -89,6 +95,7 @@ describe('MeetingList', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    meetingListMocks.getMeetingEncryptionKey.mockResolvedValue(meetingListMocks.meetingKey);
     mockGetAllMeetings.mockResolvedValue(mockMeetings);
     mockConfirm.mockReturnValue(true);
   });

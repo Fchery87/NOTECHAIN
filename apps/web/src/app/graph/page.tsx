@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { getKnowledgeGraphGenerator } from '@/lib/ai/notes';
-import { listNotes, listTodos } from '@/lib/db';
+import { getLocalDataEncryptionKey, listNotes, listTodos } from '@/lib/db';
 import { buildContextGraph } from '@/lib/graph/contextGraph';
 import { createNoteRepository } from '@/lib/repositories';
 import { getMeetingEncryptionKey } from '@/lib/storage/meetingEncryptionKey';
@@ -45,7 +45,7 @@ export default function KnowledgeGraphPage() {
         setError(null);
 
         const userId = user.id;
-        const encryptionKey = new Uint8Array(32);
+        const encryptionKey = await getLocalDataEncryptionKey();
 
         const noteRepository = createNoteRepository(userId, encryptionKey);
         const notes: Note[] = await noteRepository.getAll();

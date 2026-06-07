@@ -12,6 +12,8 @@ const transcriptMocks = vi.hoisted(() => ({
   onCancel: vi.fn(),
   getMeetingsByCalendarEvent: vi.fn(),
   createMeetingStorage: vi.fn(),
+  getMeetingEncryptionKey: vi.fn(),
+  meetingKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
 }));
 transcriptMocks.createMeetingStorage.mockImplementation(() => ({
   getMeetingsByCalendarEvent: transcriptMocks.getMeetingsByCalendarEvent,
@@ -36,6 +38,10 @@ vi.mock('../MeetingTranscriber', () => ({
 // Mock meeting storage
 vi.mock('../../lib/storage/meetingStorage', () => ({
   createMeetingStorage: transcriptMocks.createMeetingStorage,
+}));
+
+vi.mock('../../lib/storage/meetingEncryptionKey', () => ({
+  getMeetingEncryptionKey: transcriptMocks.getMeetingEncryptionKey,
 }));
 
 describe('CalendarEventTranscript', () => {
@@ -75,6 +81,8 @@ describe('CalendarEventTranscript', () => {
     transcriptMocks.onCancel.mockClear();
     transcriptMocks.getMeetingsByCalendarEvent.mockClear();
     transcriptMocks.createMeetingStorage.mockClear();
+    transcriptMocks.getMeetingEncryptionKey.mockClear();
+    transcriptMocks.getMeetingEncryptionKey.mockResolvedValue(transcriptMocks.meetingKey);
     transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
   });
 
@@ -83,6 +91,7 @@ describe('CalendarEventTranscript', () => {
     transcriptMocks.onCancel.mockClear();
     transcriptMocks.getMeetingsByCalendarEvent.mockClear();
     transcriptMocks.createMeetingStorage.mockClear();
+    transcriptMocks.getMeetingEncryptionKey.mockClear();
   });
 
   test('shows loading state initially', async () => {

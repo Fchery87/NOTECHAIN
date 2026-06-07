@@ -300,6 +300,7 @@ Relevant feature docs:
 7. The accepted implementation slice plan is `docs/plans/2026-06-06-meeting-to-knowledge-implementation-roadmap.md`.
 8. The current launch verification gate is `bun run verify:launch`, which runs the Meeting-to-Knowledge smoke suite plus web typecheck. Targeted web tests should use `bun run test:web:file src/path/to/file.test.ts`.
 9. `verify:launch` should stay fast until focused gates in `docs/plans/2026-06-06-launch-verification-hardening-plan.md` are stable. Phase 1 gates now exist as `bun run smoke:public-beta`, `bun run verify:privacy`, and `bun run verify:sync`, but they are not yet folded into `verify:launch`. S18 stabilized sync-engine test invocation; use `bun --filter='@notechain/sync-engine' run ...`, not `bun --filter='@notechain/sync-engine' ...` without `run`.
+10. The June 2026 residual-risk closeout treats Shared Spaces production readiness and internal `Todo*`/`Team*` renames as explicit acceptance-gated future work, not open launch blockers. Do not expose Shared Spaces broadly or rename internals until their migration triggers and verification requirements are active in the linked plans. Graph repository loading must use the local data encryption key rather than placeholder keys, and full-suite `bun run test` should be treated as a slow comprehensive gate distinct from routine focused gates.
 
 ## Remaining Decisions for Next Grill
 
