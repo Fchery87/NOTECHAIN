@@ -1,6 +1,6 @@
 # ADR: Cryptographic Sharing Model
 
-Status: Accepted for implementation planning  
+Status: Accepted for implementation planning
 Date: 2026-06-04
 
 ## Context
@@ -120,3 +120,8 @@ Volatile broadcast-only collaboration is not production-acceptable.
 - Unauthorized realtime join is tested.
 - Revocation rotates future document keys.
 - Product copy documents revocation limits.
+
+## Related documents
+
+- `docs/plans/2026-06-06-shared-spaces-internal-migration-plan.md`
+- `docs/plans/2026-06-06-meeting-to-knowledge-implementation-roadmap.md`

@@ -1,10 +1,29 @@
-# Knowledge Graph
+# Knowledge Map
 
-Visualize and explore your notes as an interconnected network.
+Visualize and act on your encrypted context network.
 
 ## Overview
 
-The Knowledge Graph provides an interactive visualization of your notes and their relationships. It transforms your NoteChain into a visual network, making it easy to discover connections, explore topics, and understand the structure of your knowledge base.
+The **Knowledge Map** is the user-facing exploration view for NoteChain's **Context Graph**: the typed, source-cited relationship layer across notes, meetings, transcript segments, tasks, calendar events, people, shared spaces, projects, decisions, tags, and attachments.
+
+The map remains a user-facing canvas for exploration, but the underlying Context Graph should also power semantic search, related context, meeting preparation, cited AI answers, action-item provenance, decision history, and cross-meeting intelligence.
+
+See also:
+
+- `CONTEXT.md`
+- `docs/adr/ADR-context-graph-product-substrate.md`
+- `docs/plans/2026-06-06-notechain-feature-review-and-june-2026-standards.md`
+
+## Product Direction
+
+Knowledge Map value must come from actionability and provenance, not visual novelty. A Context Graph edge should answer:
+
+- What relationship exists?
+- Why does the system believe it exists?
+- Which note, transcript segment, calendar event, attachment, or prior edge supports it?
+- What can the user do next?
+
+Near-term graph work should prioritize typed entities, typed edges, citations, and search/AI usage before adding more layouts or animations.
 
 ## Features
 
@@ -31,7 +50,11 @@ Filter the graph to focus on specific content:
 
 - **Notes**: Show/hide note nodes
 - **Tags**: Show/hide tag nodes
-- **Combined view**: See both notes and their tags
+- **Meetings**: Show/hide meeting and transcript-derived nodes (planned)
+- **Tasks**: Show/hide task and action-item nodes (planned)
+- **Calendar Events**: Show/hide time-context nodes (planned)
+- **People / Shared Spaces**: Show/hide collaboration and ownership nodes (planned)
+- **Combined view**: See multiple entity types and their relationships
 
 ### Visual Connection Types
 
@@ -40,6 +63,18 @@ Different relationship types are shown with distinct visual styles:
 - **Backlinks** (solid lines): Notes that reference each other
 - **Tag Links** (dashed lines): Notes connected through shared tags
 - **Similarity** (dotted lines): AI-detected semantic similarities between notes
+
+Planned typed edges include:
+
+- **Mentions**: A note or transcript references a person, project, topic, or artifact
+- **Created From**: A task, decision, or summary came from a note or transcript segment
+- **Decided In**: A decision was made in a meeting or note
+- **Assigned To**: A task/action item belongs to a person
+- **Due On**: A task is tied to a calendar date/event
+- **Follows Up**: A task or meeting follows from previous context
+- **Blocks / Blocked By**: A task or decision is constrained by another item
+- **Cites**: An AI answer or summary uses a source artifact
+- **Supersedes / Contradicts**: Knowledge changes or conflicts over time
 
 ## Node Types
 
@@ -56,6 +91,17 @@ Different relationship types are shown with distinct visual styles:
 - **Color**: Amber (#f59e0b)
 - **Label**: Tag name
 - **Action**: Click to filter notes by this tag
+
+### Planned Context Nodes
+
+- **Meetings**: Link transcripts, decisions, risks, and follow-up tasks
+- **Transcript Segments**: Provide citation-level provenance for AI outputs
+- **Tasks / Action Items**: Connect execution work back to source conversations or notes
+- **Calendar Events**: Provide time context for prep, deadlines, and follow-up
+- **People**: Represent speakers, assignees, collaborators, and owners
+- **Shared Spaces**: Represent authorization and collaboration boundaries
+- **Decisions**: Capture source-cited choices and their history
+- **Attachments / OCR Documents**: Bring PDFs and extracted content into the graph
 
 ## Node Colors (by Age)
 
@@ -76,13 +122,13 @@ This color coding helps you identify:
 
 ## Usage
 
-### Accessing the Knowledge Graph
+### Accessing the Knowledge Map
 
 1. Navigate to the main navigation menu
-2. Click "Knowledge Graph" (or use the graph icon)
-3. The graph loads with your notes and their connections
+2. Click "Knowledge Map"
+3. The map loads with your notes and their connections
 
-### Interacting with the Graph
+### Interacting with the Knowledge Map
 
 #### Navigation
 
@@ -147,6 +193,8 @@ The core graph engine that:
 
 ### Data Flow
 
+Current visualization flow:
+
 ```
 Notes & Tags (Database)
     ↓
@@ -157,6 +205,18 @@ Graph Data Structure (Nodes + Edges)
 Cytoscape.js Renderer
     ↓
 Interactive Visualization
+```
+
+Target context-graph flow:
+
+```
+Notes + Meetings + Transcript Segments + Tasks + Calendar Events + People + Shared Spaces + Attachments
+    ↓
+Entity Extraction + Provenance Capture + Permission Filtering
+    ↓
+Typed Context Graph (Nodes + Edges + Source Citations)
+    ↓
+Search / Related Context / Meeting Prep / AI Answers / Knowledge Map
 ```
 
 ### Node Sizing Algorithm
@@ -283,4 +343,4 @@ For optimal performance:
 
 ---
 
-_The Knowledge Graph is continuously evolving. Share your feedback to help us improve this feature._
+_The Knowledge Map is continuously evolving. Share your feedback to help us improve this feature._

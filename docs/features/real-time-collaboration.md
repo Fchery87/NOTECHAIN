@@ -65,18 +65,18 @@ NoteChain uses CRDTs (Conflict-free Replicated Data Types) to ensure that all co
 | Edit    | ✓    | ✓       | ✓    | ✗     | ✗      |
 | Admin   | ✓    | ✓       | ✓    | ✓     | ✓      |
 
-## Team Workspaces
+## Shared Spaces
 
-### Creating a Team
+### Creating a Shared Space
 
-1. Navigate to **Teams** in the sidebar
-2. Click **Create Team**
-3. Enter team name and description
+1. Navigate to **Shared Spaces** in the sidebar when the feature is enabled
+2. Click **Create Shared Space**
+3. Enter shared space name and description
 4. Click **Create**
 
-### Managing Team Members
+### Managing Shared Space Members
 
-1. Go to your team page
+1. Go to your shared space page
 2. Click **Settings**
 3. Under **Members**, you can:
    - Invite new members by email

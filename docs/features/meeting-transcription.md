@@ -1,18 +1,26 @@
 # Meeting Transcription
 
-> AI-powered meeting transcription with automatic action item extraction — 100% private and local.
+> Private meeting capture that turns conversations into source-cited decisions, tasks, follow-ups, and knowledge graph context.
 
 ## Overview
 
-NoteChain's meeting transcription feature transforms how you capture and manage meeting content. Using a local Whisper AI model, it automatically transcribes audio recordings and extracts action items — all without sending any data to external servers.
+NoteChain's meeting transcription feature transforms meetings from disposable recordings into encrypted, actionable knowledge. The near-term product wedge is **meeting-to-knowledge**: calendar context and private notes prepare the meeting; transcription captures the conversation; structured intelligence extracts decisions, risks, open questions, and action items; tasks and graph links preserve follow-through.
+
+Local transcription remains a core trust advantage, but the product should not stop at transcript storage. Every AI-derived summary, decision, action item, and graph relationship should cite the transcript segment or note that supports it.
 
 **Key Benefits:**
 
-- **100% Private**: Audio never leaves your device
-- **Zero Cost**: No API fees or subscription costs
-- **Instant Results**: Real-time transcription as you record
-- **Actionable**: Automatic detection of tasks and commitments
-- **Integrated**: Seamlessly connects with your notes and calendar
+- **Private by design**: Prefer local transcription and disclose when any processing leaves the device
+- **Source-cited**: Summaries, decisions, and tasks link back to transcript segments or notes
+- **Actionable**: Automatic detection of tasks, commitments, risks, and open questions
+- **Integrated**: Connects with notes, tasks, calendar events, and the context graph
+- **Follow-through focused**: Turns meetings into tasks, reminders, prep material, and decision history
+
+See also:
+
+- `CONTEXT.md`
+- `docs/adr/ADR-context-graph-product-substrate.md`
+- `docs/plans/2026-06-06-notechain-feature-review-and-june-2026-standards.md`
 
 ---
 
@@ -36,6 +44,20 @@ Smart AI extraction identifies:
 - Assigned responsibilities ("John will...", "I'll handle...")
 - Follow-up items and next steps
 
+Action items should preserve provenance: who said it, where in the transcript it came from, and whether a user confirmed it before task creation.
+
+### 🧭 Structured Meeting Intelligence
+
+Meeting intelligence should produce source-cited artifacts, not just a full transcript:
+
+- **Summary**: Short meeting recap with cited transcript segments
+- **Decisions**: Explicit choices made during the conversation
+- **Risks**: Blockers, concerns, or unresolved dependencies
+- **Open Questions**: Items requiring follow-up or another decision
+- **Action Items**: Candidate tasks with assignee, due date, priority, and source citation
+- **Follow-up Drafts**: Optional email/chat summaries grounded in meeting sources
+- **Graph Links**: Connections to related notes, projects, people, calendar events, and prior meetings
+
 ### 🔐 Encrypted Storage
 
 All meeting data is protected with:
@@ -51,8 +73,11 @@ Connect with your calendar to:
 
 - Pre-populate meeting metadata (title, participants, time)
 - Link transcripts to calendar events
+- Generate meeting prep from related notes and previous meetings
 - Automatic reminders for action items
 - Export to calendar as events or tasks
+
+Calendar should provide meeting context and follow-through rather than becoming a generic calendar clone.
 
 ### 📤 Export Capabilities
 
@@ -78,6 +103,8 @@ Instantly find any meeting content:
 
 ### The Transcription Pipeline
 
+Current capture pipeline:
+
 ```
 ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
 │   Record    │───▶│   Whisper    │───▶│    Extract   │───▶│   Encrypt &  │
@@ -85,14 +112,29 @@ Instantly find any meeting content:
 └─────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
+Target meeting-to-knowledge pipeline:
+
+```
+Calendar Event + Related Notes
+    ↓
+Meeting Prep Context
+    ↓
+Private Recording + Transcript Segments
+    ↓
+Source-Cited Summary + Decisions + Risks + Open Questions + Action Items
+    ↓
+Tasks + Follow-ups + Context Graph Edges + Searchable Meeting Memory
+```
+
 ### Step-by-Step Process
 
 1. **Record** — Capture meeting audio via your microphone
 2. **Transcribe** — Whisper model processes audio locally
-3. **Extract** — AI identifies action items and key decisions
-4. **Encrypt** — All data encrypted with XSalsa20-Poly1305
-5. **Store** — Saved locally with optional encrypted backup
-6. **Integrate** — Linked to notes, calendar, and knowledge graph
+3. **Extract** — AI identifies action items, decisions, risks, open questions, and follow-ups
+4. **Cite** — Derived artifacts link back to transcript segments or notes
+5. **Encrypt** — All data encrypted before storage/sync according to the active trust model
+6. **Store** — Saved locally with optional encrypted backup
+7. **Integrate** — Linked to notes, tasks, calendar, and the context graph
 
 ### Privacy Architecture
 
@@ -147,6 +189,7 @@ After recording, your transcript includes:
 - **Full text** of the conversation with timestamps
 - **Speaker labels** (when diarization is enabled)
 - **Highlighted action items** automatically detected
+- **Source-cited decisions, risks, and open questions** as structured intelligence matures
 - **Search functionality** to find specific moments
 
 ### Managing Action Items
@@ -341,7 +384,7 @@ Meeting transcription requires modern browser features:
 ## Related Documentation
 
 - [Voice-to-Text](./voice-to-text.md) — General voice capture features
-- [Knowledge Graph](./knowledge-graph.md) — How meetings connect to your notes
+- [Knowledge Map](./knowledge-graph.md) — How meetings connect to your notes
 - [Privacy Policy](../privacy-policy.md) — Complete privacy practices
 - [API Documentation](../api/README.md) — Programmatic access to meetings
 
