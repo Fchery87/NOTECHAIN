@@ -37,6 +37,7 @@ import type { StorageAdapter } from './storage';
 import {
   SecureIndexedDBStorage,
   SecureMemoryStorage,
+  SecureStorageDecryptionError,
   detectSecureStorage,
   defaultSecureStorage,
 } from './secureStorage';
@@ -76,5 +77,11 @@ export { BrowserStorageAdapter, MemoryStorageAdapter, detectStorage, defaultStor
 export type { StorageAdapter };
 
 // Secure storage exports
-export { SecureIndexedDBStorage, SecureMemoryStorage, detectSecureStorage, defaultSecureStorage };
+export {
+  SecureIndexedDBStorage,
+  SecureMemoryStorage,
+  SecureStorageDecryptionError,
+  detectSecureStorage,
+  defaultSecureStorage,
+};
 export type { SecureStorageAdapter };

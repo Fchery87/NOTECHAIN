@@ -8,11 +8,14 @@ import { useNotesSync } from '@/lib/sync/useNotesSync';
 export default function RecoveryRequiredPrompt() {
   const router = useRouter();
   const { signOut } = useUser();
-  const { encryptionError, importRecoveryKey, isEncryptionReady } = useNotesSync();
+  const { encryptionError, importRecoveryKey, isEncryptionReady, resetEncryptedVault } =
+    useNotesSync();
   const [recoveryKey, setRecoveryKey] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetConfirmation, setResetConfirmation] = useState('');
 
   if (isEncryptionReady || !encryptionError) {
     return null;
@@ -37,6 +40,24 @@ export default function RecoveryRequiredPrompt() {
   const handleSignOut = async () => {
     await signOut();
     router.push('/auth/login');
+  };
+
+  const handleResetVault = async () => {
+    if (resetConfirmation !== 'RESET') return;
+
+    setIsBusy(true);
+    setError(null);
+    setStatus(null);
+
+    try {
+      await resetEncryptedVault();
+      setResetConfirmation('');
+      setStatus('Old encrypted vault reset. A new vault was created; save its recovery key next.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reset encrypted vault');
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   return (
@@ -99,7 +120,46 @@ export default function RecoveryRequiredPrompt() {
             >
               Sign out
             </button>
+            <button
+              type="button"
+              onClick={() => setShowReset(current => !current)}
+              className="rounded-lg border border-red-300 px-4 py-2 text-red-700 hover:bg-red-50"
+            >
+              I do not have this key
+            </button>
           </div>
+
+          {showReset && (
+            <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+              <div>
+                <strong>Start over with a new encrypted vault?</strong>
+                <p className="mt-1">
+                  This is destructive. NoteChain will delete old encrypted synced notes for this
+                  account, clear queued/local encrypted note cache, and create a new vault with a
+                  new recovery key. Old notes cannot be recovered unless you later find the original
+                  recovery key.
+                </p>
+              </div>
+              <label htmlFor="reset-vault-confirmation" className="block font-medium">
+                Type RESET to permanently reset this encrypted vault
+              </label>
+              <input
+                id="reset-vault-confirmation"
+                value={resetConfirmation}
+                onChange={event => setResetConfirmation(event.target.value)}
+                className="w-full rounded-lg border border-red-300 px-3 py-2 font-mono text-sm text-red-950 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                placeholder="RESET"
+              />
+              <button
+                type="button"
+                onClick={handleResetVault}
+                disabled={isBusy || resetConfirmation !== 'RESET'}
+                className="rounded-lg bg-red-700 px-4 py-2 text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isBusy ? 'Resetting…' : 'Reset and create new vault'}
+              </button>
+            </div>
+          )}
 
           {status && (
             <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">

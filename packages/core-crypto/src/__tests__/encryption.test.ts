@@ -95,6 +95,7 @@ const testStorage = new MemoryStorageAdapter();
 describe('KeyManager', () => {
   beforeEach(async () => {
     testStorage.clear();
+    KeyManager.setKeyNamespace(null);
     KeyManager.setStorageAdapter(testStorage);
     KeyManager.setUseSecureStorage(false);
     await KeyManager.clearMasterKey();
@@ -104,6 +105,7 @@ describe('KeyManager', () => {
     await KeyManager.clearMasterKey();
     testStorage.clear();
     KeyManager.setUseSecureStorage(true);
+    KeyManager.setKeyNamespace(null);
   });
 
   describe('storeMasterKey', () => {

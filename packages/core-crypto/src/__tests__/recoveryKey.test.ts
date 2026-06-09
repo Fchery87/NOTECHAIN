@@ -38,6 +38,7 @@ describe('KeyManager recovery key import/export', () => {
     KeyManager.setSecureStorageAdapter(new SecureMemoryStorage());
     KeyManager.setUseSecureStorage(true);
     await KeyManager.clearAll();
+    KeyManager.setKeyNamespace(null);
   });
 
   test('exports and restores a stored master key', async () => {
@@ -54,5 +55,22 @@ describe('KeyManager recovery key import/export', () => {
 
     expect(Array.from(restored)).toEqual(Array.from(masterKey));
     expect(Array.from(stored ?? [])).toEqual(Array.from(masterKey));
+  });
+
+  test('keeps browser-stored master keys scoped per account', async () => {
+    const userOneKey = new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1));
+    const userTwoKey = new Uint8Array(Array.from({ length: 32 }, (_, index) => 255 - index));
+
+    KeyManager.setKeyNamespace('user-one');
+    await KeyManager.storeMasterKey(userOneKey);
+
+    KeyManager.setKeyNamespace('user-two');
+    expect(await KeyManager.getMasterKey()).toBeNull();
+    await KeyManager.storeMasterKey(userTwoKey);
+
+    expect(Array.from((await KeyManager.getMasterKey()) ?? [])).toEqual(Array.from(userTwoKey));
+
+    KeyManager.setKeyNamespace('user-one');
+    expect(Array.from((await KeyManager.getMasterKey()) ?? [])).toEqual(Array.from(userOneKey));
   });
 });

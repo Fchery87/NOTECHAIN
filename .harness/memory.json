@@ -1,0 +1,110 @@
+[
+  {
+    "id": "ec338585-1639-43d6-8c57-f6ad9996a1c6",
+    "timestamp": 1780868152777,
+    "project": "NOTECHAIN",
+    "spec_tier": "",
+    "capability": "",
+    "pattern": "",
+    "correction": "why when i logged it i get hit with this encryption message: Encrypted vault locked\n\nEnter your recovery key\nNoteChain could not load the local encryption key. To avoid creating an incompatible key, sync and note loading are paused until you restore access.\n\nWhy this matters: creating a new key woul"
+  },
+  {
+    "id": "0b6b6017-4251-48a7-a9c9-e5dc027c9e63",
+    "timestamp": 1780868295394,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Investigate the NoteChain encryption error stack: decryptWithWrappingKey -> SecureIndexedDBStorage.getItem -> KeyManager.getMasterKey -> EncryptedSyncService.initialize. Locate the source files/symbols, explain what OperationError likely means in this code path, and identify likely triggers fo"
+  },
+  {
+    "id": "6bb4b02b-3fdc-4cf9-97f3-40ad83a8491d",
+    "timestamp": 1780870327417,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Implement a minimal robust fix for the NoteChain browser encryption lockout issue. Context: OperationError occurs in packages/core-crypto/src/secureStorage.ts decryptWithWrappingKey -> SecureIndexedDBStorage.getItem -> KeyManager.getMasterKey -> apps/web/src/lib/sync/encryptedSyncService.ts in"
+  },
+  {
+    "id": "c2b1187e-1ebc-46d7-b18b-490b477ff26a",
+    "timestamp": 1780874853093,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Investigate why a brand-new NoteChain account still gets the RecoveryRequiredPrompt / encrypted vault locked screen. Trace auth/signup and encryption initialization. Determine whether KeyManager/secureStorage is global not user-scoped, whether stale IndexedDB/localStorage from prior accounts c"
+  },
+  {
+    "id": "615eb949-8a1a-4e88-877e-27fcde9cf9e8",
+    "timestamp": 1780875972976,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Implement a Reset encrypted vault path for locked NoteChain accounts. Context: RecoveryRequiredPrompt currently only allows import recovery key/sign out. User wants a way to move forward when they do not have old recovery key. Requirements: add a clearly destructive reset flow in apps/web/src/"
+  },
+  {
+    "id": "bb72324c-f869-4e30-a31e-3154674615ab",
+    "timestamp": 1780894285698,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Investigate the `/meetings` flow in this repo. User reports: in `/meetings`, select New Meeting, then click Start Recording, UI shows \"A network error occurred. Please check your internet connection.\" Locate the components/services/API calls involved in starting a recording, identify where tha"
+  },
+  {
+    "id": "b0dcc1f0-7946-4668-bb8a-20aa9032449c",
+    "timestamp": 1780894710411,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "I've tried private mode, and i've got this error: Failed to load transcription model: Failed to download AI model. This may be blocked by your browser's privacy settings (Brave Shields, ad blockers). Try temporarily disabling shields or using Chrome/Edge instead."
+  },
+  {
+    "id": "8443ab90-4ab8-4711-8efa-0b4e3f0a3f62",
+    "timestamp": 1780895529928,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Fast read-only implementation reconnaissance for replacing NoteChain Private Mode meeting transcription model. Check installed @huggingface/transformers version, current HuggingFaceTranscriptionService/useHuggingFaceTranscription/MeetingTranscriber tests, and determine whether `onnx-community/"
+  },
+  {
+    "id": "750e0baf-c70d-4f01-bf36-363d2e191578",
+    "timestamp": 1780959873545,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "So finally was able to download, but not once i stop the recording I get an error and its very glitchy and flickering: Transcription failed: invalid data location: undefined for input \"input_values\""
+  },
+  {
+    "id": "61220a61-1ffb-4473-bbda-6b93e92c0444",
+    "timestamp": 1780966968179,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "So I recently made these changes but I still do not get any transcription when in /meetings - private mode. Not sure what else to do:  Summary\n\n  The bug: Private Mode transcription always returned an empty string, which surfaced as \"records, stop, nothing happens, no\n  error.\"\n\n  Root cause: huggin"
+  },
+  {
+    "id": "0e203e5b-2e2a-4475-8b1b-41f0fdee4d4a",
+    "timestamp": 1780966998926,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Read-only investigation: User reports that after recent fixes for /meetings Private Mode (Moonshine local model, ORT tensor location patch, resampling to 16k), they still get no transcription/no visible error. Map the current private-mode transcription flow and identify likely causes for an em"
+  },
+  {
+    "id": "6cc6d58b-e22a-4ddc-a17b-37d3165a6956",
+    "timestamp": 1780967126288,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Fast read-only recon: current /meetings Private Mode local HuggingFace/Moonshine transcription still produces no transcript after resampling fix. Inspect relevant files for empty transcript causes and return top hypotheses with file references. Do not edit.\n\n---\n**Output:** Write your findings"
+  }
+]

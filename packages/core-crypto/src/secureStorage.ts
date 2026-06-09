@@ -42,11 +42,25 @@ const DB_CONFIG = {
  */
 const WRAPPING_KEY_SEED_KEY = 'notechain_wrapping_key_seed';
 
+export class SecureStorageDecryptionError extends Error {
+  cause?: unknown;
+
+  constructor(key: string, cause?: unknown) {
+    super(
+      `Stored encrypted key "${key}" could not be decrypted. Import your recovery key to restore access.`
+    );
+    this.name = 'SecureStorageDecryptionError';
+    this.cause = cause;
+  }
+}
+
 /**
- * Generate a device-specific fingerprint
- * Combines multiple browser characteristics for uniqueness
+ * Generate the legacy browser fingerprint previously used for key wrapping.
+ * Kept only so existing entries can be decrypted once and migrated to the
+ * stable seed-only wrapping key. Do not use for newly stored data: these
+ * browser characteristics can change and lock web users out of local keys.
  */
-async function getDeviceFingerprint(): Promise<string> {
+async function getLegacyDeviceFingerprint(): Promise<string> {
   const components: string[] = [];
 
   // User agent
@@ -81,11 +95,29 @@ async function getDeviceFingerprint(): Promise<string> {
 }
 
 /**
- * Derive the wrapping key from device fingerprint and seed
- * This key is used to encrypt/decrypt stored keys
+ * Derive the current wrapping key from the stable local seed only.
+ *
+ * The previous implementation mixed mutable browser fingerprint values into
+ * this derivation. That made normal browser/profile/environment changes look
+ * like a wrong AES-GCM key and caused OperationError lockouts.
  */
 async function deriveWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
-  const fingerprint = await getDeviceFingerprint();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    seed.slice().buffer as ArrayBuffer,
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+
+  return deriveAesGcmWrappingKey(keyMaterial, 'notechain-key-wrapping-v2');
+}
+
+/**
+ * Derive the legacy fingerprint+seed wrapping key for one-time migration.
+ */
+async function deriveLegacyWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
+  const fingerprint = await getLegacyDeviceFingerprint();
   const fingerprintBytes = new TextEncoder().encode(fingerprint);
 
   // Combine fingerprint with seed
@@ -100,8 +132,15 @@ async function deriveWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
     'deriveKey',
   ]);
 
-  // Use a fixed salt derived from app identifier
-  const salt = new TextEncoder().encode('notechain-key-wrapping-v1');
+  return deriveAesGcmWrappingKey(keyMaterial, 'notechain-key-wrapping-v1');
+}
+
+async function deriveAesGcmWrappingKey(
+  keyMaterial: CryptoKey,
+  saltLabel: string
+): Promise<CryptoKey> {
+  // Use a fixed salt derived from app identifier and storage version
+  const salt = new TextEncoder().encode(saltLabel);
 
   // Derive the final wrapping key
   return crypto.subtle.deriveKey(
@@ -191,6 +230,7 @@ function openDatabase(): Promise<IDBDatabase> {
 export class SecureIndexedDBStorage implements SecureStorageAdapter {
   private db: IDBDatabase | null = null;
   private wrappingKey: CryptoKey | null = null;
+  private seed: Uint8Array | null = null;
   private initPromise: Promise<void> | null = null;
 
   /**
@@ -219,7 +259,9 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
         localStorage.setItem(WRAPPING_KEY_SEED_KEY, seedString);
       }
 
-      // Derive wrapping key
+      this.seed = seed;
+
+      // Derive the stable seed-only wrapping key used for all new writes.
       this.wrappingKey = await deriveWrappingKey(seed);
     })();
 
@@ -235,15 +277,13 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
     }
   }
 
-  /**
-   * Store encrypted data in IndexedDB
-   */
-  async setItem(key: string, value: Uint8Array): Promise<void> {
-    await this.init();
-    this.ensureInit();
-
+  private async writeEncryptedValue(
+    key: string,
+    value: Uint8Array,
+    wrappingKey: CryptoKey
+  ): Promise<void> {
     // Encrypt the data
-    const { ciphertext, iv } = await encryptWithWrappingKey(value, this.wrappingKey!);
+    const { ciphertext, iv } = await encryptWithWrappingKey(value, wrappingKey);
 
     // Combine IV and ciphertext for storage
     const combined = new Uint8Array(4 + iv.length + ciphertext.length);
@@ -268,6 +308,16 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
         resolve();
       };
     });
+  }
+
+  /**
+   * Store encrypted data in IndexedDB
+   */
+  async setItem(key: string, value: Uint8Array): Promise<void> {
+    await this.init();
+    this.ensureInit();
+
+    return this.writeEncryptedValue(key, value, this.wrappingKey!);
   }
 
   /**
@@ -308,8 +358,25 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
     const iv = combined.slice(4, 4 + ivLength);
     const ciphertext = combined.slice(4 + ivLength);
 
-    // Decrypt
-    return decryptWithWrappingKey(ciphertext, iv, this.wrappingKey!);
+    try {
+      return await decryptWithWrappingKey(ciphertext, iv, this.wrappingKey!);
+    } catch (primaryError) {
+      // Backwards compatibility: entries written before the v2 stable wrapping
+      // key used a mutable browser fingerprint. If that legacy key still works,
+      // return the value and immediately re-wrap it with the stable v2 key.
+      try {
+        if (!this.seed) {
+          throw primaryError;
+        }
+
+        const legacyWrappingKey = await deriveLegacyWrappingKey(this.seed);
+        const plaintext = await decryptWithWrappingKey(ciphertext, iv, legacyWrappingKey);
+        await this.writeEncryptedValue(key, plaintext, this.wrappingKey!);
+        return plaintext;
+      } catch {
+        throw new SecureStorageDecryptionError(key, primaryError);
+      }
+    }
   }
 
   /**
@@ -361,6 +428,7 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
 
     // Reset state
     this.wrappingKey = null;
+    this.seed = null;
     this.initPromise = null;
   }
 

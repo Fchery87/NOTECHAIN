@@ -16,6 +16,7 @@ export class KeyManager {
   private static storage: StorageAdapter = defaultStorage;
   private static secureStorage: SecureStorageAdapter = defaultSecureStorage;
   private static useSecureStorage: boolean = true;
+  private static keyNamespace: string | null = null;
 
   /**
    * Set a custom storage adapter (useful for testing or React Native)
@@ -40,16 +41,37 @@ export class KeyManager {
   }
 
   /**
+   * Scope the locally stored master key to a signed-in user/browser vault.
+   *
+   * Browser storage is shared by every account that signs in on the same
+   * origin. Without a namespace, stale key material from one account can lock
+   * a brand-new account into the recovery flow.
+   */
+  static setKeyNamespace(namespace: string | null | undefined): void {
+    const normalized = namespace?.trim();
+    this.keyNamespace = normalized || null;
+  }
+
+  private static getMasterKeyStorageKey(): string {
+    return this.keyNamespace
+      ? `${this.MASTER_KEY_STORAGE_KEY}:${this.keyNamespace}`
+      : this.MASTER_KEY_STORAGE_KEY;
+  }
+
+  /**
    * Stores the master key in secure storage
    * Uses IndexedDB with encryption at rest instead of localStorage
    * @param key The master key as Uint8Array
    */
   static async storeMasterKey(key: Uint8Array): Promise<void> {
+    const storageKey = this.getMasterKeyStorageKey();
+
     if (this.useSecureStorage) {
       // Store in secure IndexedDB storage (encrypted at rest)
-      await this.secureStorage.setItem(this.MASTER_KEY_STORAGE_KEY, key);
+      await this.secureStorage.setItem(storageKey, key);
       // Also clear any legacy localStorage entry for security
       try {
+        localStorage.removeItem(storageKey);
         localStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
       } catch {
         // Ignore if localStorage is not available
@@ -57,7 +79,7 @@ export class KeyManager {
     } else {
       // Legacy fallback for backward compatibility
       const keyString = Array.from(key).join(',');
-      await this.storage.setItem(this.MASTER_KEY_STORAGE_KEY, keyString);
+      await this.storage.setItem(storageKey, keyString);
     }
   }
 
@@ -67,21 +89,42 @@ export class KeyManager {
    * @returns The master key as Uint8Array, or null if not found
    */
   static async getMasterKey(): Promise<Uint8Array | null> {
+    const storageKey = this.getMasterKeyStorageKey();
+
     if (this.useSecureStorage) {
-      // Try secure storage first
-      const secureKey = await this.secureStorage.getItem(this.MASTER_KEY_STORAGE_KEY);
+      // Try the current user/browser-vault scoped secure storage first.
+      const secureKey = await this.secureStorage.getItem(storageKey);
       if (secureKey) {
         return secureKey;
       }
 
+      // Migration: if this is the first run after introducing user-scoped keys,
+      // a valid pre-existing global secure key can be moved into the namespace.
+      // If the old global key is corrupt/undecryptable, ignore it here so stale
+      // data from a previous account does not lock a brand-new account.
+      if (storageKey !== this.MASTER_KEY_STORAGE_KEY) {
+        try {
+          const legacySecureKey = await this.secureStorage.getItem(this.MASTER_KEY_STORAGE_KEY);
+          if (legacySecureKey) {
+            await this.secureStorage.setItem(storageKey, legacySecureKey);
+            await this.secureStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
+            return legacySecureKey;
+          }
+        } catch {
+          // Ignore stale legacy global secure storage for scoped accounts.
+        }
+      }
+
       // Migration: Check for legacy localStorage key and migrate
       try {
-        const legacyKeyString = localStorage.getItem(this.MASTER_KEY_STORAGE_KEY);
+        const legacyKeyString =
+          localStorage.getItem(storageKey) ?? localStorage.getItem(this.MASTER_KEY_STORAGE_KEY);
         if (legacyKeyString) {
           const legacyKey = new Uint8Array(legacyKeyString.split(',').map(Number));
           // Migrate to secure storage
-          await this.secureStorage.setItem(this.MASTER_KEY_STORAGE_KEY, legacyKey);
+          await this.secureStorage.setItem(storageKey, legacyKey);
           // Clear legacy storage
+          localStorage.removeItem(storageKey);
           localStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
           return legacyKey;
         }
@@ -93,7 +136,7 @@ export class KeyManager {
     }
 
     // Legacy fallback
-    const keyString = await this.storage.getItem(this.MASTER_KEY_STORAGE_KEY);
+    const keyString = await this.storage.getItem(storageKey);
     if (!keyString) {
       return null;
     }
@@ -150,16 +193,21 @@ export class KeyManager {
    * Clears both secure storage and any legacy localStorage entries
    */
   static async clearMasterKey(): Promise<void> {
+    const storageKey = this.getMasterKeyStorageKey();
+
     if (this.useSecureStorage) {
-      await this.secureStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
+      await this.secureStorage.removeItem(storageKey);
     }
     // Also clear legacy storage for complete cleanup
     try {
-      localStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
+      if (storageKey === this.MASTER_KEY_STORAGE_KEY) {
+        localStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
+      }
     } catch {
       // Ignore if localStorage is not available
     }
-    await this.storage.removeItem(this.MASTER_KEY_STORAGE_KEY);
+    await this.storage.removeItem(storageKey);
   }
 
   /**
@@ -167,19 +215,21 @@ export class KeyManager {
    * @returns True if the master key exists in storage
    */
   static async hasMasterKey(): Promise<boolean> {
+    const storageKey = this.getMasterKeyStorageKey();
+
     if (this.useSecureStorage) {
-      const secureKey = await this.secureStorage.getItem(this.MASTER_KEY_STORAGE_KEY);
+      const secureKey = await this.secureStorage.getItem(storageKey);
       if (secureKey) {
         return true;
       }
       // Check legacy storage for migration
       try {
-        return localStorage.getItem(this.MASTER_KEY_STORAGE_KEY) !== null;
+        return localStorage.getItem(storageKey) !== null;
       } catch {
         return false;
       }
     }
-    const key = await this.storage.getItem(this.MASTER_KEY_STORAGE_KEY);
+    const key = await this.storage.getItem(storageKey);
     return key !== null;
   }
 
@@ -192,9 +242,11 @@ export class KeyManager {
       await this.secureStorage.clear();
     }
     try {
+      localStorage.removeItem(this.getMasterKeyStorageKey());
       localStorage.removeItem(this.MASTER_KEY_STORAGE_KEY);
     } catch {
       // Ignore if localStorage is not available
     }
+    this.keyNamespace = null;
   }
 }

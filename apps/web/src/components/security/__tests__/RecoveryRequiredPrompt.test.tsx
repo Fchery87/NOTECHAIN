@@ -5,6 +5,7 @@ import RecoveryRequiredPrompt from '../RecoveryRequiredPrompt';
 const mockPush = vi.fn();
 const mockSignOut = vi.fn();
 const mockImportRecoveryKey = vi.fn();
+const mockResetEncryptedVault = vi.fn();
 const mockUseNotesSync = vi.fn();
 
 vi.mock('next/navigation', () => ({
@@ -25,6 +26,7 @@ describe('RecoveryRequiredPrompt', () => {
     mockUseNotesSync.mockReturnValue({
       encryptionError: 'Unable to load your encryption key',
       importRecoveryKey: mockImportRecoveryKey,
+      resetEncryptedVault: mockResetEncryptedVault,
       isEncryptionReady: false,
     });
   });
@@ -45,6 +47,7 @@ describe('RecoveryRequiredPrompt', () => {
     mockUseNotesSync.mockReturnValue({
       encryptionError: null,
       importRecoveryKey: mockImportRecoveryKey,
+      resetEncryptedVault: mockResetEncryptedVault,
       isEncryptionReady: true,
     });
 
@@ -76,6 +79,25 @@ describe('RecoveryRequiredPrompt', () => {
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalledTimes(1);
       expect(mockPush).toHaveBeenCalledWith('/auth/login');
+    });
+  });
+
+  it('requires typed confirmation before resetting the encrypted vault', async () => {
+    mockResetEncryptedVault.mockResolvedValue(undefined);
+    render(<RecoveryRequiredPrompt />);
+
+    fireEvent.click(screen.getByRole('button', { name: /i do not have this key/i }));
+
+    const resetButton = screen.getByRole('button', { name: /reset and create new vault/i });
+    expect(resetButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/type reset/i), {
+      target: { value: 'RESET' },
+    });
+    fireEvent.click(resetButton);
+
+    await waitFor(() => {
+      expect(mockResetEncryptedVault).toHaveBeenCalledTimes(1);
     });
   });
 });

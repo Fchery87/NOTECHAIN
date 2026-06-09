@@ -20,6 +20,7 @@ export class EncryptedSyncService {
   private static instance: EncryptedSyncService;
   private encryptionKey: Uint8Array | null = null;
   private isInitialized = false;
+  private userId: string | null = null;
 
   private constructor() {}
 
@@ -31,18 +32,40 @@ export class EncryptedSyncService {
   }
 
   /**
-   * Initialize encryption with a master key
-   * Generates a new key if none exists
+   * Initialize encryption with a master key.
+   *
+   * New vaults may generate a key. Existing remote vaults must not generate an
+   * incompatible key just because this browser has no usable local key.
    */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) return;
+  async initialize(
+    userId?: string,
+    options: { allowCreate?: boolean } = { allowCreate: true }
+  ): Promise<void> {
+    const namespace = userId ?? null;
+    const allowCreate = options.allowCreate !== false;
+
+    if (this.isInitialized && this.userId === namespace) return;
+
+    if (this.userId !== namespace) {
+      this.encryptionKey = null;
+      this.isInitialized = false;
+    }
+
+    KeyManager.setKeyNamespace(namespace);
+    this.userId = namespace;
 
     try {
-      // Try to get existing key
+      // Try to get existing key for this signed-in user's local browser vault.
       let masterKey = await KeyManager.getMasterKey();
 
       if (!masterKey) {
-        // Generate new master key for this device
+        if (!allowCreate) {
+          throw new EncryptionRecoveryRequiredError(
+            'No local encryption key was found for this existing encrypted vault. Enter your recovery key or start a new vault.'
+          );
+        }
+
+        // Generate new master key for a new local/user vault.
         masterKey = await EncryptionService.generateKey();
         await KeyManager.storeMasterKey(masterKey);
         console.log('Generated new encryption key');
@@ -55,6 +78,11 @@ export class EncryptedSyncService {
       console.error('[EncryptedSyncService] Failed to initialize:', error);
       this.encryptionKey = null;
       this.isInitialized = false;
+
+      if (error instanceof EncryptionRecoveryRequiredError) {
+        throw error;
+      }
+
       throw new EncryptionRecoveryRequiredError(
         'Unable to load your encryption key. Enter your recovery key to restore access instead of generating a new incompatible key.',
         error
@@ -223,12 +251,43 @@ export class EncryptedSyncService {
   }
 
   /**
-   * Clear encryption key (for logout)
+   * Destructively replace the signed-in user's local vault key with a new master key.
+   * This does not recover old encrypted data; callers must clear old local/remote sync data first.
    */
-  async clear(): Promise<void> {
-    await KeyManager.clearMasterKey();
+  async resetVault(userId: string): Promise<void> {
+    const namespace = userId.trim();
+    if (!namespace) {
+      throw new Error('No signed-in user available for encrypted vault reset');
+    }
+
     this.encryptionKey = null;
     this.isInitialized = false;
+    this.userId = namespace;
+    KeyManager.setKeyNamespace(namespace);
+
+    await KeyManager.clearMasterKey();
+
+    const masterKey = await EncryptionService.generateKey();
+    await KeyManager.storeMasterKey(masterKey);
+
+    this.encryptionKey = masterKey;
+    this.isInitialized = true;
+    console.log('Encrypted vault reset with a new master key');
+  }
+
+  /**
+   * Clear encryption key (for logout)
+   */
+  resetSession(): void {
+    this.encryptionKey = null;
+    this.isInitialized = false;
+    this.userId = null;
+    KeyManager.setKeyNamespace(null);
+  }
+
+  async clear(): Promise<void> {
+    await KeyManager.clearMasterKey();
+    this.resetSession();
     console.log('Encryption service cleared');
   }
 }

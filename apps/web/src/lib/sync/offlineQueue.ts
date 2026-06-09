@@ -99,6 +99,23 @@ export class OfflineQueue {
   }
 
   /**
+   * Clear all operations for a specific user.
+   * Used by encrypted vault reset so queued payloads from an old key are not replayed.
+   */
+  async clearForUser(userId: string): Promise<void> {
+    if (!userId) return;
+
+    const queued = await db.operations.toArray();
+    const idsToDelete = queued
+      .filter(item => item.operation.userId === userId)
+      .map(item => item.id);
+
+    if (idsToDelete.length > 0) {
+      await db.operations.bulkDelete(idsToDelete);
+    }
+  }
+
+  /**
    * Clear all operations (e.g., after successful bulk sync)
    */
   async clear(): Promise<void> {

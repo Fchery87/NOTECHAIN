@@ -227,6 +227,45 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
   }
 
   /**
+   * Check whether this user already has encrypted remote data.
+   * Used before encryption initialization so existing vaults do not silently
+   * generate a new incompatible key when this browser lacks the old key.
+   */
+  async hasEncryptedDataForUser(
+    userId: string
+  ): Promise<{ success: boolean; hasData: boolean; error?: string }> {
+    if (!this.supabase) {
+      return { success: true, hasData: false };
+    }
+
+    const { data: syncRows, error: syncError } = await this.supabase
+      .from('sync_operations')
+      .select('entity_id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (syncError) {
+      return { success: false, hasData: false, error: syncError.message };
+    }
+
+    if ((syncRows?.length ?? 0) > 0) {
+      return { success: true, hasData: true };
+    }
+
+    const { data: blobRows, error: blobError } = await this.supabase
+      .from('encrypted_blobs')
+      .select('blob_uuid')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (blobError) {
+      return { success: false, hasData: false, error: blobError.message };
+    }
+
+    return { success: true, hasData: (blobRows?.length ?? 0) > 0 };
+  }
+
+  /**
    * Fetch all note-type blobs for a user (for loading notes on mount)
    */
   async fetchUserNotes(userId: string): Promise<
@@ -321,6 +360,54 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
     console.log(
       `[SupabaseSyncAdapter] Sync metadata updated for ${userId}: version ${lastSyncVersion}`
     );
+  }
+
+  /**
+   * Permanently delete all encrypted note/sync data for a user.
+   * Used by the explicit encrypted vault reset path when the user does not
+   * have the old recovery key and accepts that old encrypted notes are lost.
+   */
+  async deleteAllEncryptedDataForUser(
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.supabase) {
+      console.warn('[SupabaseSyncAdapter] Cannot reset vault - client not initialized');
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    try {
+      const errors: string[] = [];
+
+      const { error: syncOperationsError } = await this.supabase
+        .from('sync_operations')
+        .delete()
+        .eq('user_id', userId);
+
+      if (syncOperationsError) {
+        errors.push(`sync_operations: ${syncOperationsError.message}`);
+      }
+
+      const { error: encryptedBlobsError } = await this.supabase
+        .from('encrypted_blobs')
+        .delete()
+        .eq('user_id', userId);
+
+      if (encryptedBlobsError) {
+        errors.push(`encrypted_blobs: ${encryptedBlobsError.message}`);
+      }
+
+      if (errors.length > 0) {
+        const error = errors.join('; ');
+        console.error('[SupabaseSyncAdapter] Failed to reset encrypted vault:', error);
+        return { success: false, error };
+      }
+
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[SupabaseSyncAdapter] Exception resetting encrypted vault:', errorMessage);
+      return { success: false, error: errorMessage };
+    }
   }
 
   /**

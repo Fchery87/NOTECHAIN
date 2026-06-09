@@ -8,11 +8,14 @@ import { encryptedSyncService } from './encryptedSyncService';
 import { offlineQueue } from './offlineQueue';
 import { SupabaseSyncAdapter } from '@/lib/supabase/syncAdapter';
 import {
+  clearLocalNoteOperations,
+  clearLocalSyncCursor,
   listLocalNoteOperations,
   setLocalSyncCursor,
   upsertLocalNoteOperation,
 } from './noteSyncLocalStore';
 import {
+  clearRecoveryBackupState,
   getRecoveryBackupState,
   isRecoveryBackupSatisfied,
   markRecoveryBackupBypassed,
@@ -53,21 +56,51 @@ export function useNotesSync() {
     return adapterRef.current;
   }, []);
 
-  // Initialize encryption on mount
+  // Initialize encryption after auth is known. The local master key is scoped
+  // by user ID so stale key material from a previous account cannot lock a
+  // brand-new account into the recovery flow.
   useEffect(() => {
-    encryptedSyncService
-      .initialize()
-      .then(() => {
+    if (!user?.id) {
+      encryptedSyncService.resetSession();
+      setEncryptionError(null);
+      setLoadError(null);
+      setIsEncryptionReady(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    (async () => {
+      try {
+        const adapter = getAdapter();
+        const remoteVaultState = await adapter.hasEncryptedDataForUser(user.id);
+        if (!remoteVaultState.success) {
+          throw new Error(
+            `Could not check existing encrypted vault data: ${remoteVaultState.error}`
+          );
+        }
+
+        await encryptedSyncService.initialize(user.id, {
+          allowCreate: !remoteVaultState.hasData,
+        });
+
+        if (isCancelled) return;
         setEncryptionError(null);
+        setLoadError(null);
         setIsEncryptionReady(true);
-      })
-      .catch(error => {
+      } catch (error) {
+        if (isCancelled) return;
         const message = error instanceof Error ? error.message : 'Encryption recovery required';
         setEncryptionError(message);
         setLoadError(message);
         setIsEncryptionReady(false);
-      });
-  }, []);
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, getAdapter]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -405,6 +438,37 @@ export function useNotesSync() {
   );
 
   /**
+   * Destructively reset the current user's encrypted vault.
+   *
+   * This is only for users who do not have the old recovery key. Existing
+   * encrypted notes are deleted/abandoned, a fresh local master key is created,
+   * and recovery-key onboarding will require backing up the new key.
+   */
+  const resetEncryptedVault = useCallback(async (): Promise<void> => {
+    if (!user?.id) {
+      throw new Error('No signed-in user available for vault reset');
+    }
+
+    const adapter = getAdapter();
+    const remoteReset = await adapter.deleteAllEncryptedDataForUser(user.id);
+    if (!remoteReset.success) {
+      throw new Error(remoteReset.error || 'Failed to delete old encrypted vault data');
+    }
+
+    await offlineQueue.clearForUser(user.id);
+    await clearLocalNoteOperations(user.id);
+    await clearLocalSyncCursor(user.id);
+    clearRecoveryBackupState(user.id);
+
+    await encryptedSyncService.resetVault(user.id);
+
+    setRecoveryBackupState({});
+    setEncryptionError(null);
+    setLoadError(null);
+    setIsEncryptionReady(true);
+  }, [user?.id, getAdapter]);
+
+  /**
    * Subscribe to decrypted note changes that arrive from another session/device.
    * The sync engine is intentionally storage-agnostic, so UI/local-store code
    * decides how to apply these changes.
@@ -462,6 +526,7 @@ export function useNotesSync() {
     syncDeleteNote,
     processOfflineQueue,
     deleteLockedNotes,
+    resetEncryptedVault,
     subscribeToRemoteNoteChanges,
     exportRecoveryKey: () => encryptedSyncService.exportRecoveryKey(),
     importRecoveryKey: async (recoveryKey: string) => {
