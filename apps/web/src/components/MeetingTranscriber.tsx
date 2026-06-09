@@ -30,6 +30,16 @@ function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+function getDefaultMeetingTitle(date: Date): string {
+  return `Meeting ${date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+}
+
 /**
  * Browser support warning component with fallback option
  */
@@ -149,11 +159,6 @@ export function MeetingTranscriber({
 
   // Handle save meeting
   const handleSave = useCallback(async () => {
-    if (!title.trim()) {
-      setError('Please enter a meeting title');
-      return;
-    }
-
     const finalTranscript = currentTranscript;
 
     if (!finalTranscript.trim()) {
@@ -165,6 +170,8 @@ export function MeetingTranscriber({
       setIsSaving(true);
       setError(null);
 
+      const meetingDate = new Date();
+      const meetingTitle = title.trim() || getDefaultMeetingTitle(meetingDate);
       const key = await getMeetingEncryptionKey();
 
       const confirmedActionItems: ActionItem[] = actionItems.map(item =>
@@ -180,8 +187,8 @@ export function MeetingTranscriber({
       );
 
       const meetingInput: MeetingInput = {
-        title: title.trim(),
-        date: new Date(),
+        title: meetingTitle,
+        date: meetingDate,
         duration: recordingDuration,
         transcript: finalTranscript,
         actionItems: confirmedActionItems,
@@ -215,8 +222,7 @@ export function MeetingTranscriber({
   }, [stopActiveRecording, onCancel]);
 
   // Check if save is enabled
-  const canSave =
-    title.trim() && currentTranscript.trim() && !isRecording && !isSaving && !isProcessing;
+  const canSave = currentTranscript.trim() && !isRecording && !isSaving && !isProcessing;
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-lg border border-stone-100 overflow-hidden">

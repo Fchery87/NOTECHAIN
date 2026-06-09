@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 export default function MeetingsPage() {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [meetingListVersion, setMeetingListVersion] = useState(0);
 
   // Handle opening the new meeting modal
   const handleNewMeeting = useCallback(() => {
@@ -29,7 +30,9 @@ export default function MeetingsPage() {
   // Handle meeting save
   const handleMeetingSave = useCallback(() => {
     setIsModalOpen(false);
-    // Refresh the page to show new meeting
+    // MeetingList loads client-side from IndexedDB on mount. Remount it after a
+    // local save so the newly saved meeting appears immediately.
+    setMeetingListVersion(version => version + 1);
     router.refresh();
   }, [router]);
 
@@ -66,7 +69,7 @@ export default function MeetingsPage() {
         <div className="mb-6">
           <p className="text-stone-600">Record and manage your meeting transcriptions</p>
         </div>
-        <MeetingList onMeetingSelect={handleMeetingSelect} />
+        <MeetingList key={meetingListVersion} onMeetingSelect={handleMeetingSelect} />
       </div>
 
       {/* Modal Overlay */}

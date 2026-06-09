@@ -342,4 +342,26 @@ describe('MeetingTranscriber - With Data', () => {
       expect(onSave).toHaveBeenCalled();
     });
   });
+
+  test('saves with a default title when transcript is present and title is blank', async () => {
+    const onSave = vi.fn();
+    render(<MeetingTranscriber {...defaultProps} onSave={onSave} />);
+
+    await selectRealTimeMode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /save meeting/i }));
+    });
+
+    await waitFor(() => {
+      expect(transcriberMocks.saveMeeting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: expect.stringMatching(/^Meeting /),
+          transcript: 'John will review the proposal. Complete the report.',
+        }),
+        expect.any(Uint8Array)
+      );
+      expect(onSave).toHaveBeenCalled();
+    });
+  });
 });

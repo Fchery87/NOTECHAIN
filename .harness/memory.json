@@ -106,5 +106,14 @@
     "capability": "",
     "pattern": "",
     "correction": "Task: Fast read-only recon: current /meetings Private Mode local HuggingFace/Moonshine transcription still produces no transcript after resampling fix. Inspect relevant files for empty transcript causes and return top hypotheses with file references. Do not edit.\n\n---\n**Output:** Write your findings"
+  },
+  {
+    "id": "6fb17bf9-7812-48a5-8f4c-9efa72a90c72",
+    "timestamp": 1780971366866,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Read-only investigation: In /meetings, after Private Mode audio transcribes successfully, user clicks Save Meeting but nothing appears to save / no visible action. Map MeetingTranscriber save flow, meetingStorage implementation, meetings page parent callbacks, encryption key retrieval, and tes"
   }
 ]
