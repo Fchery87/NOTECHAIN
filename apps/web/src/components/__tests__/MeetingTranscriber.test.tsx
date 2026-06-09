@@ -97,6 +97,8 @@ vi.mock('../../lib/ai/transcription/huggingfaceTranscriptionService', () => ({
   HuggingFaceTranscriptionService: {
     isSupported: vi.fn(() => true),
   },
+  DEFAULT_TRANSCRIPTION_MODEL: '/models/moonshine-tiny-ONNX',
+  TARGET_SAMPLE_RATE: 16000,
 }));
 
 vi.mock('../../lib/ai/transcription/actionItemExtractor', () => ({

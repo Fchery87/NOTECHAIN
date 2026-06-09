@@ -177,9 +177,10 @@ describe('useAudioCapture', () => {
 
     expect(mockGetUserMedia).toHaveBeenCalledWith({
       audio: {
+        channelCount: 1,
         echoCancellation: true,
         noiseSuppression: true,
-        sampleRate: 16000,
+        autoGainControl: true,
       },
     });
     expect(result.current.isRecording).toBe(true);

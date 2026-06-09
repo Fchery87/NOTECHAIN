@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAudioCapture } from './useAudioCapture';
 import { useHuggingFaceTranscription } from './useHuggingFaceTranscription';
 import { useWebSpeechTranscription } from './useWebSpeechTranscription';
-import { HuggingFaceTranscriptionService } from '../lib/ai/transcription/huggingfaceTranscriptionService';
+import {
+  DEFAULT_TRANSCRIPTION_MODEL,
+  HuggingFaceTranscriptionService,
+} from '../lib/ai/transcription/huggingfaceTranscriptionService';
 import { WebSpeechTranscriptionService } from '../lib/ai/transcription/webSpeechTranscriptionService';
 
 export type TranscriptionMode = 'webspeech' | 'huggingface' | null;
@@ -42,6 +45,26 @@ export function useMeetingTranscriptionController({
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingStartTimeRef = useRef<number | null>(null);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transcribedBlobRef = useRef<Blob | null>(null);
+  const onErrorRef = useRef(onError);
+  const onFinalTranscriptRef = useRef(onFinalTranscript);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+    onFinalTranscriptRef.current = onFinalTranscript;
+  }, [onError, onFinalTranscript]);
+
+  const handleError = useCallback((error: string) => {
+    onErrorRef.current(error);
+  }, []);
+
+  const handleWebSpeechTranscript = useCallback((newTranscript: string, isFinal: boolean) => {
+    if (isFinal) onFinalTranscriptRef.current(newTranscript);
+  }, []);
+
+  const handleHuggingFaceTranscript = useCallback((text: string) => {
+    onFinalTranscriptRef.current(text);
+  }, []);
 
   const {
     isListening: isWebSpeechListening,
@@ -54,10 +77,8 @@ export function useMeetingTranscriptionController({
     language: 'en-US',
     continuous: true,
     interimResults: true,
-    onTranscript: (newTranscript, isFinal) => {
-      if (isFinal) onFinalTranscript(newTranscript);
-    },
-    onError,
+    onTranscript: handleWebSpeechTranscript,
+    onError: handleError,
   });
 
   const {
@@ -70,19 +91,17 @@ export function useMeetingTranscriptionController({
     transcribe: transcribeHf,
     resetTranscript: resetHf,
   } = useHuggingFaceTranscription({
-    model: 'onnx-community/whisper-tiny',
+    model: DEFAULT_TRANSCRIPTION_MODEL,
     language: 'en',
-    onTranscript: text => {
-      onFinalTranscript(text);
-    },
-    onError,
+    onTranscript: handleHuggingFaceTranscript,
+    onError: handleError,
   });
 
   const {
     isRecording: isAudioRecording,
     startRecording: startAudioRecording,
     stopRecording: stopAudioRecording,
-  } = useAudioCapture({ onError });
+  } = useAudioCapture({ onError: handleError });
 
   const isRecording = mode === 'webspeech' ? isWebSpeechListening : isAudioRecording;
   const isProcessing = mode === 'huggingface' && isHfTranscribing;
@@ -110,6 +129,11 @@ export function useMeetingTranscriptionController({
 
   useEffect(() => {
     if (mode === 'huggingface' && !isAudioRecording && audioBlob) {
+      if (transcribedBlobRef.current === audioBlob) {
+        return;
+      }
+
+      transcribedBlobRef.current = audioBlob;
       transcribeHf(audioBlob);
     }
   }, [isAudioRecording, audioBlob, mode, transcribeHf]);
@@ -123,6 +147,7 @@ export function useMeetingTranscriptionController({
   );
 
   const resetForNewRecording = useCallback(() => {
+    transcribedBlobRef.current = null;
     setAudioBlob(null);
     setRecordingDuration(0);
   }, []);

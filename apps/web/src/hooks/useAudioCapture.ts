@@ -82,12 +82,16 @@ export function useAudioCapture(options: UseAudioCaptureOptions = {}): UseAudioC
     audioChunksRef.current = [];
 
     try {
-      // Request microphone access with optimal settings
+      // Request microphone access with broadly compatible constraints. Do not force
+      // a 16 kHz capture rate here: some browser/device combinations ignore it or
+      // produce poor/silent MediaRecorder output. The transcription service decodes
+      // and resamples the finished recording to the model's required 16 kHz instead.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
+          channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 16000, // Whisper expects 16kHz
+          autoGainControl: true,
         },
       });
       streamRef.current = stream;

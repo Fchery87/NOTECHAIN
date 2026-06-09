@@ -53,8 +53,8 @@ function BrowserSupportWarning({ onUseFallback }: { onUseFallback?: () => void }
         <div className="flex-1">
           <p className="text-sm font-medium text-amber-900">Limited Browser Support</p>
           <p className="text-xs text-amber-800 mt-1">
-            Real-time speech recognition works best in Chrome, Edge, or Opera. Brave and other
-            browsers can use the fallback mode (slower but private).
+            Real-time speech recognition works best in Chrome, Edge, or Opera. Private Mode uses a
+            local model after its one-time download/cache warm-up.
           </p>
           {onUseFallback && (
             <button
@@ -309,9 +309,14 @@ export function MeetingTranscriber({
                   <span className="font-medium text-stone-900">Private Mode</span>
                 </div>
                 <p className="text-xs text-stone-600">
-                  Works in all browsers including Brave. Audio stays on your device.
+                  Uses a lightweight local Moonshine model. First use downloads and caches the
+                  model; audio stays on your device.
                 </p>
-                {isHfLoading && <p className="text-xs text-amber-600 mt-2">Loading AI model...</p>}
+                {isHfLoading && (
+                  <p className="text-xs text-amber-600 mt-2">
+                    Downloading/loading local AI model...
+                  </p>
+                )}
               </button>
             </div>
           </div>
@@ -325,7 +330,9 @@ export function MeetingTranscriber({
         {/* Model Loading Progress for Hugging Face */}
         {mode === 'huggingface' && isHfLoading && (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900 mb-2">Loading AI model (one-time)...</p>
+            <p className="text-sm text-blue-900 mb-2">
+              Downloading/loading lightweight local AI model (one-time)...
+            </p>
             <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-600 transition-all duration-300"

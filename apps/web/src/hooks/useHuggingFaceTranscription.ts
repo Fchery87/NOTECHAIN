@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
+  DEFAULT_TRANSCRIPTION_MODEL,
   HuggingFaceTranscriptionService,
   type HuggingFaceTranscriptionOptions,
 } from '../lib/ai/transcription/huggingfaceTranscriptionService';
@@ -36,7 +37,7 @@ export function useHuggingFaceTranscription(
   options: UseHuggingFaceTranscriptionOptions = {}
 ): UseHuggingFaceTranscriptionReturn {
   const {
-    model = 'onnx-community/whisper-tiny',
+    model = DEFAULT_TRANSCRIPTION_MODEL,
     language = 'en',
     onTranscript,
     onError,
