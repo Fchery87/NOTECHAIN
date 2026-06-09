@@ -25,11 +25,13 @@ export function VoiceInputButton({ editor }: VoiceInputButtonProps) {
     [editor]
   );
 
-  const { isListening, isSupported, startListening, stopListening, error } = useVoiceInput({
-    onTranscript: handleTranscript,
-    continuous: false,
-    interimResults: true,
-  });
+  const { isListening, isSupported, startListening, stopListening, error, isProcessing, progress } =
+    useVoiceInput({
+      onTranscript: handleTranscript,
+      continuous: false,
+      interimResults: true,
+      backend: 'local',
+    });
 
   const handleClick = () => {
     if (isListening) {
@@ -44,14 +46,20 @@ export function VoiceInputButton({ editor }: VoiceInputButtonProps) {
       <button
         type="button"
         onClick={handleClick}
-        disabled={!isSupported}
-        title={isSupported ? 'Voice input' : 'Voice input not supported'}
-        aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+        disabled={!isSupported || isProcessing}
+        title={isSupported ? 'Private voice input' : 'Voice input not supported'}
+        aria-label={
+          isProcessing
+            ? 'Processing voice input'
+            : isListening
+              ? 'Stop voice input'
+              : 'Start voice input'
+        }
         aria-pressed={isListening}
         className={`
           p-2 rounded-lg transition-all duration-200 relative
           ${
-            isListening
+            isListening || isProcessing
               ? 'bg-amber-100 text-amber-600'
               : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
           }
@@ -75,7 +83,7 @@ export function VoiceInputButton({ editor }: VoiceInputButtonProps) {
         </svg>
 
         {/* Animated pulse indicator when listening */}
-        {isListening && (
+        {(isListening || isProcessing) && (
           <span className="absolute top-0 right-0 flex h-2 w-2 -mt-0.5 -mr-0.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -83,7 +91,12 @@ export function VoiceInputButton({ editor }: VoiceInputButtonProps) {
         )}
       </button>
 
-      {/* Error display */}
+      {/* Status and error display */}
+      {isProcessing && (
+        <span className="text-xs text-stone-500">
+          Transcribing{progress > 0 ? ` ${progress}%` : '...'}
+        </span>
+      )}
       {error && <span className="text-xs text-rose-500">{error.message}</span>}
     </div>
   );

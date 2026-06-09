@@ -17,6 +17,8 @@ const voiceInputButtonMocks = vi.hoisted(() => ({
     isSupported: true,
     transcript: '',
     error: null as { error: string; message: string } | null,
+    isProcessing: false,
+    progress: 0,
   },
 }));
 
@@ -43,6 +45,8 @@ const resetVoiceState = () => {
   mockState.isSupported = true;
   mockState.transcript = '';
   mockState.error = null;
+  mockState.isProcessing = false;
+  mockState.progress = 0;
   useVoiceInputMock.mockImplementation(() => ({
     isListening: mockState.isListening,
     isSupported: mockState.isSupported,
@@ -51,6 +55,8 @@ const resetVoiceState = () => {
     stopListening: mockStopListening,
     resetTranscript: voiceInputButtonMocks.resetTranscript,
     error: mockState.error,
+    isProcessing: mockState.isProcessing,
+    progress: mockState.progress,
   }));
 };
 
@@ -84,7 +90,7 @@ describe('VoiceInputButton', () => {
   test('button renders with correct title', () => {
     render(<VoiceInputButton {...defaultProps} />);
 
-    expect(screen.getByRole('button')).toHaveAttribute('title', 'Voice input');
+    expect(screen.getByRole('button')).toHaveAttribute('title', 'Private voice input');
   });
 
   test('microphone icon is displayed', () => {
@@ -144,6 +150,7 @@ describe('VoiceInputButton', () => {
         onTranscript: expect.any(Function),
         continuous: false,
         interimResults: true,
+        backend: 'local',
       })
     );
   });
