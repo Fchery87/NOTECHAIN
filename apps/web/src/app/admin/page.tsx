@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AdminProtectedLayout from '@/components/AdminProtectedLayout';
+import { useUser } from '@/lib/supabase/UserProvider';
 import {
   AreaChart,
   Area,
@@ -21,7 +22,7 @@ import {
 interface User {
   id: string;
   email: string;
-  role: 'user' | 'admin' | 'moderator';
+  role: 'user' | 'moderator' | 'admin' | 'owner';
   plan: 'free' | 'pro' | 'enterprise';
   status: 'active' | 'suspended' | 'inactive';
   created_at: string;
@@ -161,9 +162,31 @@ const CHART_COLORS = {
   blue: '#3b82f6',
 };
 
+async function adminFetch(url: string, options: RequestInit = {}) {
+  const method = (options.method || 'GET').toString().toUpperCase();
+  const headers = new Headers(options.headers);
+
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !headers.has('x-csrf-token')) {
+    const tokenResponse = await fetch('/api/auth/csrf-token', { credentials: 'same-origin' });
+    if (tokenResponse.ok) {
+      const { token } = (await tokenResponse.json()) as { token?: string };
+      if (token) headers.set('x-csrf-token', token);
+    }
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: 'same-origin',
+  });
+}
+
 export default function AdminPage() {
+  const { role: currentRole } = useUser();
+  const canManageRoles = currentRole === 'owner';
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(false);
+  const [isOverviewLoading, setIsOverviewLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Data states
@@ -274,6 +297,18 @@ export default function AdminPage() {
     }
   }, [logsPagination.page, logsPagination.limit, logFilters]);
 
+  const fetchRecentAuditLogs = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ page: '1', limit: '5' });
+      const response = await fetch(`/api/admin/audit-logs?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch recent audit logs');
+      const data = await response.json();
+      setAuditLogs(data.logs || []);
+    } catch (err) {
+      console.error('Failed to load recent audit logs:', err);
+    }
+  }, []);
+
   const fetchAnalytics = useCallback(async () => {
     try {
       const [activityRes, storageRes, growthRes] = await Promise.all([
@@ -292,6 +327,15 @@ export default function AdminPage() {
       console.error('Failed to load analytics:', err);
     }
   }, []);
+
+  const fetchOverview = useCallback(async () => {
+    setIsOverviewLoading(true);
+    try {
+      await Promise.all([fetchStats(), fetchRecentAuditLogs(), fetchAnalytics()]);
+    } finally {
+      setIsOverviewLoading(false);
+    }
+  }, [fetchStats, fetchRecentAuditLogs, fetchAnalytics]);
 
   const fetchUserActivityDetails = async (userId: string) => {
     try {
@@ -325,7 +369,7 @@ export default function AdminPage() {
 
   const updateUserRole = async (userId: string, newRole: string, reason?: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/role`, {
+      const response = await adminFetch(`/api/admin/users/${userId}/role`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole, reason }),
@@ -347,7 +391,7 @@ export default function AdminPage() {
 
   const updateUserStatus = async (userId: string, newStatus: string, reason?: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/status`, {
+      const response = await adminFetch(`/api/admin/users/${userId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, reason }),
@@ -369,7 +413,7 @@ export default function AdminPage() {
 
   const revokeSession = async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}/revoke`, {
+      const response = await adminFetch(`/api/admin/sessions/${sessionId}/revoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Revoked by admin' }),
@@ -395,7 +439,7 @@ export default function AdminPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}/sessions/revoke-all`, {
+      const response = await adminFetch(`/api/admin/users/${userId}/sessions/revoke-all`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Security action by admin' }),
@@ -415,7 +459,7 @@ export default function AdminPage() {
 
     try {
       const promises = Array.from(selectedUsers).map(userId =>
-        fetch(`/api/admin/users/${userId}/role`, {
+        adminFetch(`/api/admin/users/${userId}/role`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ role: newRole, reason }),
@@ -435,7 +479,7 @@ export default function AdminPage() {
 
     try {
       const promises = Array.from(selectedUsers).map(userId =>
-        fetch(`/api/admin/users/${userId}/status`, {
+        adminFetch(`/api/admin/users/${userId}/status`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus, reason }),
@@ -530,26 +574,23 @@ export default function AdminPage() {
     if (selectAll) {
       setSelectedUsers(new Set());
     } else {
-      setSelectedUsers(new Set(users.map(u => u.id)));
+      setSelectedUsers(new Set(users.filter(u => u.role !== 'owner').map(u => u.id)));
     }
     setSelectAll(!selectAll);
   };
 
-  // Initial load
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
   // Tab change effects
   useEffect(() => {
-    if (activeTab === 'users') {
+    if (activeTab === 'overview') {
+      fetchOverview();
+    } else if (activeTab === 'users') {
       fetchUsers();
     } else if (activeTab === 'audit') {
       fetchAuditLogs();
     } else if (activeTab === 'analytics') {
       fetchAnalytics();
     }
-  }, [activeTab, fetchUsers, fetchAuditLogs, fetchAnalytics]);
+  }, [activeTab, fetchOverview, fetchUsers, fetchAuditLogs, fetchAnalytics]);
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -567,6 +608,8 @@ export default function AdminPage() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
+      case 'owner':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'admin':
         return 'bg-rose-100 text-rose-800 border-rose-200';
       case 'moderator':
@@ -749,6 +792,42 @@ export default function AdminPage() {
         )}
 
         {/* Overview Tab */}
+        {activeTab === 'overview' && isOverviewLoading && !stats && (
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-stone-200 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-stone-600">Loading admin overview...</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'overview' && !isOverviewLoading && !stats && (
+          <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-12 text-center">
+            <div className="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-rose-600">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"
+                />
+              </svg>
+            </div>
+            <h2 className="font-serif text-xl font-medium text-stone-900">
+              Unable to load admin overview
+            </h2>
+            <p className="mt-2 text-stone-500">
+              Check admin database migrations and API access, then try again.
+            </p>
+            <button
+              onClick={fetchOverview}
+              className="mt-6 px-5 py-2.5 bg-stone-900 text-stone-50 rounded-xl hover:bg-stone-800 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {activeTab === 'overview' && stats && (
           <div className="space-y-8 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1346,6 +1425,7 @@ export default function AdminPage() {
                     <option value="user">User</option>
                     <option value="moderator">Moderator</option>
                     <option value="admin">Admin</option>
+                    <option value="owner">Owner</option>
                   </select>
                   <select
                     value={userFilters.status}
@@ -1380,12 +1460,18 @@ export default function AdminPage() {
                     <>
                       <select
                         onChange={e => {
-                          if (e.target.value) {
+                          if (e.target.value && canManageRoles) {
                             bulkUpdateRole(e.target.value, 'Bulk role update');
                             e.target.value = '';
                           }
                         }}
-                        className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900"
+                        disabled={!canManageRoles}
+                        className="px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={
+                          canManageRoles
+                            ? 'Bulk update roles'
+                            : 'Only the owner can grant or revoke roles'
+                        }
                       >
                         <option value="">Change Role ({selectedUsers.size})</option>
                         <option value="user">User</option>
@@ -1479,7 +1565,8 @@ export default function AdminPage() {
                                 type="checkbox"
                                 checked={selectedUsers.has(user.id)}
                                 onChange={() => toggleUserSelection(user.id)}
-                                className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500"
+                                disabled={user.role === 'owner'}
+                                className="w-4 h-4 rounded border-stone-300 text-amber-600 focus:ring-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
                               />
                             </td>
                             <td className="px-6 py-4">
@@ -1496,17 +1583,31 @@ export default function AdminPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <select
-                                value={user.role}
-                                onChange={e =>
-                                  updateUserRole(user.id, e.target.value, 'Admin update')
-                                }
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${getRoleColor(user.role)} focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer`}
-                              >
-                                <option value="user">User</option>
-                                <option value="moderator">Moderator</option>
-                                <option value="admin">Admin</option>
-                              </select>
+                              {user.role === 'owner' ? (
+                                <span
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${getRoleColor(user.role)}`}
+                                >
+                                  Owner
+                                </span>
+                              ) : (
+                                <select
+                                  value={user.role}
+                                  onChange={e =>
+                                    updateUserRole(user.id, e.target.value, 'Owner update')
+                                  }
+                                  disabled={!canManageRoles}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${getRoleColor(user.role)} focus:outline-none focus:ring-2 focus:ring-amber-500/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60`}
+                                  title={
+                                    canManageRoles
+                                      ? 'Change role'
+                                      : 'Only the owner can grant or revoke roles'
+                                  }
+                                >
+                                  <option value="user">User</option>
+                                  <option value="moderator">Moderator</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                              )}
                             </td>
                             <td className="px-6 py-4">
                               <span

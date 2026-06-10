@@ -115,5 +115,50 @@
     "capability": "",
     "pattern": "",
     "correction": "Task: Read-only investigation: In /meetings, after Private Mode audio transcribes successfully, user clicks Save Meeting but nothing appears to save / no visible action. Map MeetingTranscriber save flow, meetingStorage implementation, meetings page parent callbacks, encryption key retrieval, and tes"
+  },
+  {
+    "id": "fe10f609-cda5-4970-aea0-33329ea3b4ae",
+    "timestamp": 1781047766774,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "fdfab137-630b-474b-9518-a6acbc6d064c",
+    "timestamp": 1781059196847,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "c9bce7f8-60f1-463b-9921-4119763a0f12",
+    "timestamp": 1781059197701,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "140295d0-35cc-4c78-9a8c-f9bfc3938588",
+    "timestamp": 1781059410213,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "5df67fc9-2ce0-4f28-97c5-af0218e22228",
+    "timestamp": 1781060632536,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
   }
 ]

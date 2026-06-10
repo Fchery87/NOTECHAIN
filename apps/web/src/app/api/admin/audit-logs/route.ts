@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (profileError || profile?.role !== 'admin') {
+  if (profileError || !['admin', 'owner'].includes(profile?.role || '')) {
     return ApiErrors.adminRequired();
   }
 

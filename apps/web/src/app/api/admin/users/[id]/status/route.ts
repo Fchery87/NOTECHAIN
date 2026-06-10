@@ -33,7 +33,7 @@ const handler = withCSRFWithParams(
       .eq('id', user.id)
       .single();
 
-    if (profileError || profile?.role !== 'admin') {
+    if (profileError || !['admin', 'owner'].includes(profile?.role || '')) {
       return ApiErrors.adminRequired();
     }
 

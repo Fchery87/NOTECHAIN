@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/lib/supabase/UserProvider';
@@ -296,7 +295,12 @@ export default function WorkspaceSidebar() {
 
       {/* User Footer */}
       <div className="shrink-0 p-4 border-t border-stone-800/60">
-        <div className="flex items-center gap-3 group hover:bg-white/5 px-2 py-2 rounded-lg transition-colors cursor-pointer">
+        <Link
+          href="/settings"
+          className={`flex items-center gap-3 group px-2 py-2 rounded-lg transition-colors ${
+            isActive('/settings') ? 'bg-white/10' : 'hover:bg-white/5'
+          }`}
+        >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-700 to-stone-900 border border-stone-700 flex items-center justify-center text-white text-xs font-medium shrink-0">
             {getInitials(userDisplayName)}
           </div>
@@ -304,8 +308,8 @@ export default function WorkspaceSidebar() {
             <span className="text-sm font-medium text-stone-200 truncate">{userDisplayName}</span>
             <span className="text-xs text-stone-500 truncate">{user?.email || 'Settings'}</span>
           </div>
-          <SettingsIcon className="w-4 h-4 text-stone-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+          <SettingsIcon className="w-4 h-4 text-stone-500 opacity-80 group-hover:text-stone-300 transition-colors" />
+        </Link>
         {isAdmin && (
           <Link
             href="/admin"

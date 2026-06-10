@@ -28,11 +28,12 @@ The admin dashboard provides comprehensive control over:
 
 ## User Roles
 
-Three roles are available:
+Four roles are available:
 
 1. **user** - Regular user with standard access
-2. **moderator** - Elevated permissions (can view all content, manage reports)
-3. **admin** - Full system access including admin dashboard
+2. **moderator** - Elevated permissions (can view reports or moderation surfaces when enabled)
+3. **admin** - Admin dashboard access and operational user management
+4. **owner** - Single root account with full access; the only role allowed to grant or revoke admin/moderator/user roles from the app
 
 ## Setup Instructions
 
@@ -44,18 +45,20 @@ Run the migration to add role support to your database:
 
 1. Go to your Supabase project dashboard
 2. Navigate to **SQL Editor** → **New Query**
-3. Copy and paste the contents of `apps/web/supabase/migrations/20240214000000_add_user_roles.sql`
+3. Copy and paste the relevant migration SQL from `supabase/migrations/013_fix_role_column_and_policies.sql`, `supabase/migrations/018_add_owner_role.sql`, and `supabase/migrations/019_owner_access_and_role_grants.sql` if you are applying manually
 4. Click **Run**
 
 **Option B: Using Supabase CLI**
 
 ```bash
-supabase migration up
+supabase db push
 ```
 
-### Step 2: Make Yourself an Admin
+### Step 2: Make Yourself the Owner/Admin
 
-Choose one of these methods:
+For the primary NoteChain owner account, the owner migration seeds `fchery87@gmail.com` as `owner`, `enterprise`, and `active`.
+
+Choose one of these methods if you need to grant access manually:
 
 #### Method 1: Supabase Dashboard (Recommended)
 
@@ -64,26 +67,42 @@ Choose one of these methods:
 3. Run this SQL (replace with your email):
 
 ```sql
-UPDATE profiles
-SET role = 'admin'
-WHERE id IN (
-    SELECT id
-    FROM auth.users
-    WHERE email = 'your-email@example.com'
-);
+UPDATE public.profiles AS p
+SET role = 'owner', plan = 'enterprise', status = 'active', updated_at = NOW()
+FROM auth.users AS u
+WHERE p.id = u.id
+  AND lower(u.email) = lower('fchery87@gmail.com');
 ```
 
-#### Method 2: Make First User Admin
+For a regular admin granted by the owner:
 
 ```sql
-UPDATE profiles SET role = 'admin' LIMIT 1;
+UPDATE public.profiles AS p
+SET role = 'admin', updated_at = NOW()
+FROM auth.users AS u
+WHERE p.id = u.id
+  AND lower(u.email) = lower('admin@example.com');
+```
+
+#### Method 2: Make First User Owner
+
+```sql
+UPDATE public.profiles
+SET role = 'owner', plan = 'enterprise', status = 'active', updated_at = NOW()
+WHERE id = (
+  SELECT p.id
+  FROM public.profiles p
+  JOIN auth.users u ON u.id = p.id
+  ORDER BY u.created_at ASC
+  LIMIT 1
+);
 ```
 
 #### Method 3: By User ID
 
 ```sql
-UPDATE profiles
-SET role = 'admin'
+UPDATE public.profiles
+SET role = 'owner', plan = 'enterprise', status = 'active', updated_at = NOW()
 WHERE id = 'your-user-uuid-here';
 ```
 
@@ -195,15 +214,17 @@ The migration creates Row Level Security policies:
 
 ## Making Other Users Admins
 
-You can promote other users to admin from the admin dashboard:
+Only the **owner** can promote other users to admin from the admin dashboard:
 
-1. Go to **Users** section
-2. Find the user you want to promote
-3. Click the edit icon
-4. Change their role to 'admin'
+1. Sign in as the owner account
+2. Go to **Users** section
+3. Find the user you want to promote
+4. Change their role to `admin`
 5. Save changes
 
-Or use SQL:
+Admins can use the dashboard for operational management, but cannot grant or revoke roles.
+
+Or use direct database SQL:
 
 ```sql
 UPDATE profiles

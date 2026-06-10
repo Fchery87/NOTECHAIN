@@ -129,7 +129,7 @@ export async function proxy(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'owner';
 
     if (!isAdmin) {
       // Redirect non-admin users to dashboard

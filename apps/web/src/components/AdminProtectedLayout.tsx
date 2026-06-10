@@ -10,25 +10,28 @@ interface AdminProtectedLayoutProps {
 }
 
 export default function AdminProtectedLayout({ children }: AdminProtectedLayoutProps) {
-  const { isAdmin, isLoading, user } = useUser();
+  const { isAdmin, isLoading, user, role } = useUser();
   const router = useRouter();
+  const isResolvingRole = Boolean(user) && role === null;
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading || isResolvingRole) return;
+
+    if (!user) {
       // Not logged in, redirect to login
       router.push('/auth/login?redirect=/admin');
-    } else if (!isLoading && !isAdmin) {
+    } else if (!isAdmin) {
       // Logged in but not admin, redirect to dashboard
       router.push('/dashboard');
     }
-  }, [isLoading, isAdmin, user, router]);
+  }, [isLoading, isResolvingRole, isAdmin, user, router]);
 
-  if (isLoading) {
+  if (isLoading || isResolvingRole) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-stone-200 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-stone-600">Loading admin panel...</p>
+          <p className="text-stone-600">Verifying admin access...</p>
         </div>
       </div>
     );

@@ -8,7 +8,7 @@ import { withRateLimitAndParams } from '@/lib/security/serverRateLimiter';
  * POST /api/admin/users/[id]/role
  * Updates a user's role with audit logging
  * Body: { role: 'user' | 'moderator' | 'admin', reason?: string }
- * Requires admin role
+ * Requires owner role
  * Rate limiting: 100 requests per minute (api limiter)
  */
 const handler = withCSRFWithParams(
@@ -26,15 +26,16 @@ const handler = withCSRFWithParams(
       return ApiErrors.unauthorized();
     }
 
-    // Check if user is admin
+    // Only the owner can grant/revoke app roles. Admins can manage operations,
+    // but cannot create other admins.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profileError || profile?.role !== 'admin') {
-      return ApiErrors.adminRequired();
+    if (profileError || profile?.role !== 'owner') {
+      return ApiErrors.forbidden('Only the owner can grant or revoke user roles');
     }
 
     // Parse request body

@@ -10,7 +10,7 @@ interface UserContextType {
   error: string | null;
   isAdmin: boolean;
   isModerator: boolean;
-  role: 'user' | 'admin' | 'moderator' | null;
+  role: 'user' | 'moderator' | 'admin' | 'owner' | null;
   signOut: () => Promise<void>;
 }
 
@@ -28,7 +28,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [_error] = useState<string | null>(null);
-  const [role, setRole] = useState<'user' | 'admin' | 'moderator' | null>(null);
+  const [role, setRole] = useState<'user' | 'moderator' | 'admin' | 'owner' | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -100,8 +100,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const isAdmin = role === 'admin';
-  const isModerator = role === 'moderator' || role === 'admin';
+  const isAdmin = role === 'admin' || role === 'owner';
+  const isModerator = role === 'moderator' || role === 'admin' || role === 'owner';
 
   // Debug logging
   useEffect(() => {
