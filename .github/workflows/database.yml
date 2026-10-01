@@ -1,0 +1,53 @@
+name: Database
+
+# Builds the schema from supabase/migrations on a clean PostgreSQL server and
+# runs the behavior checks (signup trigger, row-level security, sync RPC).
+# Runs for any pull request that touches the schema or the check itself, whatever
+# its base branch, so stacked PRs are covered too.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+      - '.github/workflows/database.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/db/**'
+      - '.github/workflows/database.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-db:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Keep in step with [db] major_version in supabase/config.toml.
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build schema from empty and run checks
+        run: bash scripts/db/verify-baseline.sh
