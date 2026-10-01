@@ -109,3 +109,10 @@ storybook-static
 .vercel
 .netlify
 .turbo
+
+# Local agent tooling scratch
+.apex-code/
+.pi-subagents/
+.harness/evolution/
+.harness/*.diff
+/inline
