@@ -6,13 +6,11 @@
  *
  * Security Features:
  * - Encryption at rest using AES-GCM via Web Crypto API
- * - Unique encryption key derived from device fingerprint + random seed
+ * - The wrapping key is a random non-extractable CryptoKey persisted in
+ *   IndexedDB, so its bytes are never available to JavaScript
  * - Keys are never stored in plaintext
  * - Automatic cleanup on logout
- * - Protection against XSS attacks (IndexedDB is origin-scoped)
  */
-
-import { randomBytes } from '@stablelib/random';
 
 /**
  * Interface for secure storage operations
@@ -38,9 +36,15 @@ const DB_CONFIG = {
 } as const;
 
 /**
- * Storage key for the wrapping key seed
+ * localStorage key of the legacy wrapping-key seed. Read only to migrate old
+ * entries, then deleted; never written.
  */
 const WRAPPING_KEY_SEED_KEY = 'notechain_wrapping_key_seed';
+
+/**
+ * Reserved record in the key store that holds the non-extractable wrapping key.
+ */
+const WRAPPING_KEY_RECORD = '__notechain_wrapping_key_v3__';
 
 export class SecureStorageDecryptionError extends Error {
   cause?: unknown;
@@ -57,7 +61,7 @@ export class SecureStorageDecryptionError extends Error {
 /**
  * Generate the legacy browser fingerprint previously used for key wrapping.
  * Kept only so existing entries can be decrypted once and migrated to the
- * stable seed-only wrapping key. Do not use for newly stored data: these
+ * current wrapping key. Do not use for newly stored data: these
  * browser characteristics can change and lock web users out of local keys.
  */
 async function getLegacyDeviceFingerprint(): Promise<string> {
@@ -95,13 +99,10 @@ async function getLegacyDeviceFingerprint(): Promise<string> {
 }
 
 /**
- * Derive the current wrapping key from the stable local seed only.
- *
- * The previous implementation mixed mutable browser fingerprint values into
- * this derivation. That made normal browser/profile/environment changes look
- * like a wrong AES-GCM key and caused OperationError lockouts.
+ * Derive the v2 seed-only wrapping key. Kept only to migrate entries written
+ * while the seed lived in localStorage.
  */
-async function deriveWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
+async function deriveLegacySeedWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     seed.slice().buffer as ArrayBuffer,
@@ -114,7 +115,7 @@ async function deriveWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
 }
 
 /**
- * Derive the legacy fingerprint+seed wrapping key for one-time migration.
+ * Derive the v1 fingerprint+seed wrapping key for one-time migration.
  */
 async function deriveLegacyWrappingKey(seed: Uint8Array): Promise<CryptoKey> {
   const fingerprint = await getLegacyDeviceFingerprint();
@@ -219,18 +220,43 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 /**
+ * Split a stored base64 payload into its IV and ciphertext.
+ */
+function decodeStoredValue(stored: string): { iv: Uint8Array; ciphertext: Uint8Array } {
+  const combined = new Uint8Array(
+    atob(stored)
+      .split('')
+      .map(c => c.charCodeAt(0))
+  );
+  const ivLength = new DataView(combined.buffer).getUint32(0, true);
+
+  return {
+    iv: combined.slice(4, 4 + ivLength),
+    ciphertext: combined.slice(4 + ivLength),
+  };
+}
+
+function requestResult<T>(request: IDBRequest<T>, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onerror = () => reject(new Error(message));
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+/**
  * Secure IndexedDB storage adapter with encryption at rest
  *
  * This implementation:
  * 1. Uses IndexedDB instead of localStorage (origin-scoped, not accessible to other origins)
  * 2. Encrypts all stored data with AES-GCM before writing to storage
- * 3. Derives encryption key from device fingerprint + random seed
- * 4. Stores the seed in localStorage (less sensitive, but needed for key derivation)
+ * 3. Wraps with a random non-extractable CryptoKey persisted in the same
+ *    IndexedDB database, so no key bytes are ever kept in web storage
+ * 4. On first use, re-wraps entries written under the legacy localStorage seed
+ *    and deletes the seed once every entry has migrated
  */
 export class SecureIndexedDBStorage implements SecureStorageAdapter {
   private db: IDBDatabase | null = null;
   private wrappingKey: CryptoKey | null = null;
-  private seed: Uint8Array | null = null;
   private initPromise: Promise<void> | null = null;
 
   /**
@@ -242,30 +268,133 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
     }
 
     this.initPromise = (async () => {
-      // Open IndexedDB
       this.db = await openDatabase();
-
-      // Get or create wrapping key seed
-      let seedString = localStorage.getItem(WRAPPING_KEY_SEED_KEY);
-      let seed: Uint8Array;
-
-      if (seedString) {
-        // Parse existing seed
-        seed = new Uint8Array(seedString.split(',').map(Number));
-      } else {
-        // Generate new seed
-        seed = randomBytes(32);
-        seedString = Array.from(seed).join(',');
-        localStorage.setItem(WRAPPING_KEY_SEED_KEY, seedString);
-      }
-
-      this.seed = seed;
-
-      // Derive the stable seed-only wrapping key used for all new writes.
-      this.wrappingKey = await deriveWrappingKey(seed);
+      this.wrappingKey = await this.loadOrCreateWrappingKey();
+      await this.migrateLegacyEntries();
     })();
 
     return this.initPromise;
+  }
+
+  /**
+   * Return the persisted wrapping key, creating it if this is the first run.
+   * Creation uses add-if-absent so concurrent tabs converge on a single key
+   * instead of each wrapping data with a key the other overwrites.
+   */
+  private async loadOrCreateWrappingKey(): Promise<CryptoKey> {
+    const readExisting = () =>
+      requestResult<CryptoKey | undefined>(
+        this.db!.transaction(DB_CONFIG.storeName, 'readonly')
+          .objectStore(DB_CONFIG.storeName)
+          .get(WRAPPING_KEY_RECORD),
+        'Failed to read wrapping key'
+      );
+
+    const existing = await readExisting();
+    if (existing) {
+      return existing;
+    }
+
+    const candidate = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+      'encrypt',
+      'decrypt',
+    ]);
+
+    try {
+      await requestResult(
+        this.db!.transaction(DB_CONFIG.storeName, 'readwrite')
+          .objectStore(DB_CONFIG.storeName)
+          .add(candidate, WRAPPING_KEY_RECORD),
+        'Failed to store wrapping key'
+      );
+      return candidate;
+    } catch (error) {
+      const winner = await readExisting();
+      if (!winner) {
+        throw error;
+      }
+      return winner;
+    }
+  }
+
+  /**
+   * Re-wrap entries written under the legacy seed-derived keys with the
+   * current wrapping key. The legacy seed is deleted only when no entry is
+   * left that it might still be needed for, so a failed migration never
+   * destroys the ability to retry.
+   */
+  private async migrateLegacyEntries(): Promise<void> {
+    const seedString = localStorage.getItem(WRAPPING_KEY_SEED_KEY);
+    if (!seedString) {
+      return;
+    }
+
+    const seed = new Uint8Array(seedString.split(',').map(Number));
+    const legacyKeys: CryptoKey[] = [];
+    try {
+      legacyKeys.push(await deriveLegacySeedWrappingKey(seed));
+      legacyKeys.push(await deriveLegacyWrappingKey(seed));
+    } catch {
+      // Fall through with whatever legacy keys could be derived.
+    }
+
+    const keys = await requestResult(
+      this.db!.transaction(DB_CONFIG.storeName, 'readonly')
+        .objectStore(DB_CONFIG.storeName)
+        .getAllKeys(),
+      'Failed to list stored keys'
+    );
+
+    let allMigrated = true;
+    for (const key of keys) {
+      if (key === WRAPPING_KEY_RECORD || typeof key !== 'string') {
+        continue;
+      }
+
+      const stored = await requestResult<string | undefined>(
+        this.db!.transaction(DB_CONFIG.storeName, 'readonly')
+          .objectStore(DB_CONFIG.storeName)
+          .get(key),
+        `Failed to retrieve item: ${key}`
+      );
+      if (typeof stored !== 'string') {
+        continue;
+      }
+
+      const { iv, ciphertext } = decodeStoredValue(stored);
+      const plaintext = await this.decryptWithAny(ciphertext, iv, [
+        this.wrappingKey!,
+        ...legacyKeys,
+      ]);
+
+      if (!plaintext) {
+        allMigrated = false;
+      } else if (plaintext.usedKey !== this.wrappingKey) {
+        await this.writeEncryptedValue(key, plaintext.value, this.wrappingKey!);
+      }
+    }
+
+    if (allMigrated) {
+      localStorage.removeItem(WRAPPING_KEY_SEED_KEY);
+    }
+  }
+
+  private async decryptWithAny(
+    ciphertext: Uint8Array,
+    iv: Uint8Array,
+    candidates: CryptoKey[]
+  ): Promise<{ value: Uint8Array; usedKey: CryptoKey } | null> {
+    for (const candidate of candidates) {
+      try {
+        return {
+          value: await decryptWithWrappingKey(ciphertext, iv, candidate),
+          usedKey: candidate,
+        };
+      } catch {
+        // Try the next candidate key.
+      }
+    }
+    return null;
   }
 
   /**
@@ -345,37 +474,12 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
       return null;
     }
 
-    // Decode from base64
-    const combined = new Uint8Array(
-      atob(stored)
-        .split('')
-        .map(c => c.charCodeAt(0))
-    );
-
-    // Extract IV and ciphertext
-    const view = new DataView(combined.buffer);
-    const ivLength = view.getUint32(0, true);
-    const iv = combined.slice(4, 4 + ivLength);
-    const ciphertext = combined.slice(4 + ivLength);
+    const { iv, ciphertext } = decodeStoredValue(stored);
 
     try {
       return await decryptWithWrappingKey(ciphertext, iv, this.wrappingKey!);
-    } catch (primaryError) {
-      // Backwards compatibility: entries written before the v2 stable wrapping
-      // key used a mutable browser fingerprint. If that legacy key still works,
-      // return the value and immediately re-wrap it with the stable v2 key.
-      try {
-        if (!this.seed) {
-          throw primaryError;
-        }
-
-        const legacyWrappingKey = await deriveLegacyWrappingKey(this.seed);
-        const plaintext = await decryptWithWrappingKey(ciphertext, iv, legacyWrappingKey);
-        await this.writeEncryptedValue(key, plaintext, this.wrappingKey!);
-        return plaintext;
-      } catch {
-        throw new SecureStorageDecryptionError(key, primaryError);
-      }
+    } catch (error) {
+      throw new SecureStorageDecryptionError(key, error);
     }
   }
 
@@ -423,12 +527,11 @@ export class SecureIndexedDBStorage implements SecureStorageAdapter {
       };
     });
 
-    // Remove wrapping key seed
+    // Remove any legacy wrapping key seed
     localStorage.removeItem(WRAPPING_KEY_SEED_KEY);
 
     // Reset state
     this.wrappingKey = null;
-    this.seed = null;
     this.initPromise = null;
   }
 
