@@ -64,7 +64,7 @@ This will install dependencies for:
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
    # Neon Database
-   NEXT_PUBLIC_NEON_DATABASE_URL=postgresql://user:password@host/notechain
+   NEON_DATABASE_URL=postgresql://user:password@host/notechain
    NEON_PRIVATE_KEY=your-private-key
 
    # OAuth Providers (optional for local development)

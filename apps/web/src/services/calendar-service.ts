@@ -145,16 +145,15 @@ export class CalendarService {
         params.set('endDateTime', options.endDateTime.toISOString());
       }
 
-      const endpoint = options?.calendarId
-        ? `${this.OUTLOOK_GRAPH_API}/me/calendars/${options.calendarId}/events`
-        : `${this.OUTLOOK_GRAPH_API}/me/calendar/events`;
-
-      const response = await fetch(`${endpoint}?${params}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `${this.getOutlookEventsUrl(options?.calendarId ?? 'primary')}?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (!response.ok) {
         throw await this.handleApiError(response, 'outlook');
@@ -235,7 +234,7 @@ export class CalendarService {
           url = `${this.GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
           break;
         case 'outlook':
-          url = `${this.OUTLOOK_GRAPH_API}/me/calendars/${calendarId}/events/${eventId}`;
+          url = `${this.getOutlookEventsUrl(calendarId)}/${eventId}`;
           break;
         default:
           throw new CalendarError(`Delete not supported for ${provider}`, provider, 'unknown');
@@ -412,12 +411,7 @@ export class CalendarService {
       reminderMinutesBeforeStart: 15,
     };
 
-    const endpoint =
-      calendarId === 'primary'
-        ? `${this.OUTLOOK_GRAPH_API}/me/calendar/events`
-        : `${this.OUTLOOK_GRAPH_API}/me/calendars/${calendarId}/events`;
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(this.getOutlookEventsUrl(calendarId), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -432,6 +426,12 @@ export class CalendarService {
 
     const data = await response.json();
     return data.id;
+  }
+
+  private static getOutlookEventsUrl(calendarId: string): string {
+    return calendarId === 'primary'
+      ? `${this.OUTLOOK_GRAPH_API}/me/calendar/events`
+      : `${this.OUTLOOK_GRAPH_API}/me/calendars/${encodeURIComponent(calendarId)}/events`;
   }
 
   /**

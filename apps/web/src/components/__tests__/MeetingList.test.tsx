@@ -6,30 +6,20 @@ import type { Meeting } from '../../lib/storage/meetingStorage';
 import type { MeetingListProps } from '../MeetingList';
 
 const meetingListMocks = vi.hoisted(() => ({
-  getAllMeetings: vi.fn(),
+  listMeetings: vi.fn(),
   deleteMeeting: vi.fn(),
-  getMeetingEncryptionKey: vi.fn(),
-  meetingKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
 }));
 
-vi.mock('../../lib/storage/meetingStorage', () => ({
-  MeetingStorage: vi.fn().mockImplementation(() => ({
-    getAllMeetings: meetingListMocks.getAllMeetings,
+vi.mock('../../lib/meetings/meetingAccess', () => ({
+  createMeetingAccess: vi.fn(() => ({
+    listMeetings: meetingListMocks.listMeetings,
     deleteMeeting: meetingListMocks.deleteMeeting,
   })),
-  createMeetingStorage: vi.fn(() => ({
-    getAllMeetings: meetingListMocks.getAllMeetings,
-    deleteMeeting: meetingListMocks.deleteMeeting,
-  })),
-}));
-
-vi.mock('../../lib/storage/meetingEncryptionKey', () => ({
-  getMeetingEncryptionKey: meetingListMocks.getMeetingEncryptionKey,
 }));
 
 import { MeetingList } from '../MeetingList';
 
-const mockGetAllMeetings = meetingListMocks.getAllMeetings;
+const mockGetAllMeetings = meetingListMocks.listMeetings;
 const mockDeleteMeeting = meetingListMocks.deleteMeeting;
 
 // Mock window.confirm
@@ -95,7 +85,6 @@ describe('MeetingList', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    meetingListMocks.getMeetingEncryptionKey.mockResolvedValue(meetingListMocks.meetingKey);
     mockGetAllMeetings.mockResolvedValue(mockMeetings);
     mockConfirm.mockReturnValue(true);
   });

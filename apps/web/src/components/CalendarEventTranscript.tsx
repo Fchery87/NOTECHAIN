@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
-import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
+import { createMeetingAccess, type Meeting } from '../lib/meetings/meetingAccess';
 import { MeetingTranscriber } from './MeetingTranscriber';
 
 /**
@@ -58,7 +57,7 @@ export function CalendarEventTranscript({
   const [error, setError] = useState<string | null>(null);
 
   // Refs
-  const meetingStorageRef = useRef(createMeetingStorage());
+  const meetingAccessRef = useRef(createMeetingAccess());
 
   /**
    * Load meeting data for this calendar event
@@ -68,10 +67,8 @@ export function CalendarEventTranscript({
       setIsLoading(true);
       setError(null);
 
-      const storage = meetingStorageRef.current;
-      const key = await getMeetingEncryptionKey();
-
-      const meetings = await storage.getMeetingsByCalendarEvent(eventId, key);
+      const meetingAccess = meetingAccessRef.current;
+      const meetings = await meetingAccess.getMeetingsByCalendarEvent(eventId);
 
       // Use the most recent meeting if multiple exist
       if (meetings.length > 0) {

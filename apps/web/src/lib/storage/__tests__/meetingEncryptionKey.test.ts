@@ -2,19 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const keyMocks = vi.hoisted(() => ({
   getMasterKey: vi.fn(),
-  storeMasterKey: vi.fn(),
   deriveDeviceKey: vi.fn(),
-  generateKey: vi.fn(),
 }));
 
 vi.mock('@notechain/core-crypto', () => ({
   KeyManager: {
     getMasterKey: keyMocks.getMasterKey,
-    storeMasterKey: keyMocks.storeMasterKey,
     deriveDeviceKey: keyMocks.deriveDeviceKey,
-  },
-  EncryptionService: {
-    generateKey: keyMocks.generateKey,
   },
 }));
 
@@ -34,8 +28,6 @@ describe('getMeetingEncryptionKey', () => {
 
     const key = await getMeetingEncryptionKey();
 
-    expect(keyMocks.generateKey).not.toHaveBeenCalled();
-    expect(keyMocks.storeMasterKey).not.toHaveBeenCalled();
     expect(keyMocks.deriveDeviceKey).toHaveBeenCalledWith(
       'notechain-meeting-storage-v1',
       masterKey
@@ -43,18 +35,12 @@ describe('getMeetingEncryptionKey', () => {
     expect(Array.from(key)).toEqual(Array.from(new Uint8Array(32).fill(248)));
   });
 
-  it('creates and stores a master key before deriving when none exists', async () => {
-    const generatedMasterKey = new Uint8Array(32).fill(3);
+  it('requires an existing master key instead of creating a new one implicitly', async () => {
     keyMocks.getMasterKey.mockResolvedValue(null);
-    keyMocks.generateKey.mockResolvedValue(generatedMasterKey);
 
-    await getMeetingEncryptionKey();
-
-    expect(keyMocks.generateKey).toHaveBeenCalledTimes(1);
-    expect(keyMocks.storeMasterKey).toHaveBeenCalledWith(generatedMasterKey);
-    expect(keyMocks.deriveDeviceKey).toHaveBeenCalledWith(
-      'notechain-meeting-storage-v1',
-      generatedMasterKey
+    await expect(getMeetingEncryptionKey()).rejects.toThrow(
+      'No local encryption key was found for this existing encrypted vault. Enter your recovery key or start a new vault.'
     );
+    expect(keyMocks.deriveDeviceKey).not.toHaveBeenCalled();
   });
 });

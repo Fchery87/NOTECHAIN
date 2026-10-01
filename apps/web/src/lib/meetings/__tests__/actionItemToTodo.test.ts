@@ -3,7 +3,7 @@ import { createTodoInputFromMeetingActionItem } from '../actionItemToTodo';
 import type { ActionItem } from '../../ai/transcription/actionItemExtractor';
 
 describe('createTodoInputFromMeetingActionItem', () => {
-  it('creates a meeting-linked todo input with transcript provenance', () => {
+  it('creates a meeting-linked task input with transcript provenance', () => {
     const actionItem: ActionItem = {
       text: 'Prepare the launch slides',
       assignee: 'John',

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
-import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
+import { createMeetingAccess, type Meeting } from '../lib/meetings/meetingAccess';
 
 export interface MeetingListProps {
   /** Callback when a meeting is selected */
@@ -47,10 +46,8 @@ export function MeetingList({ onMeetingSelect, onDelete, className = '' }: Meeti
   useEffect(() => {
     const loadMeetings = async () => {
       try {
-        const storage = createMeetingStorage();
-        const key = await getMeetingEncryptionKey();
-
-        const allMeetings = await storage.getAllMeetings(key);
+        const meetingAccess = createMeetingAccess();
+        const allMeetings = await meetingAccess.listMeetings();
         setMeetings(allMeetings);
       } catch (error) {
         console.error('Failed to load meetings:', error);
@@ -89,8 +86,8 @@ export function MeetingList({ onMeetingSelect, onDelete, className = '' }: Meeti
 
       if (window.confirm('Are you sure you want to delete this meeting?')) {
         try {
-          const storage = createMeetingStorage();
-          await storage.deleteMeeting(meetingId);
+          const meetingAccess = createMeetingAccess();
+          await meetingAccess.deleteMeeting(meetingId);
           setMeetings(prev => prev.filter(m => m.id !== meetingId));
           onDelete?.(meetingId);
         } catch (error) {

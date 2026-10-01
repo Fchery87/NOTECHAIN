@@ -63,9 +63,23 @@ export const STORAGE_KEYS = {
   DEVICE_ID: '@notechain/deviceId',
 } as const;
 
-// Feature flags (can be overridden via environment)
+// Feature flags (can be overridden via environment).
+// Prototype surfaces are disabled by default and must be explicitly enabled.
 export const FEATURES = {
   ENABLE_AI_FEATURES: process.env.NEXT_PUBLIC_ENABLE_AI_FEATURES === 'true',
   ENABLE_PDF_SIGNING: process.env.NEXT_PUBLIC_ENABLE_PDF_SIGNING === 'true',
   ENABLE_CALENDAR_SYNC: process.env.NEXT_PUBLIC_ENABLE_CALENDAR_SYNC === 'true',
+  ENABLE_PRD_BUILDER_EXTERNAL_AI: process.env.NEXT_PUBLIC_ENABLE_PRD_BUILDER_EXTERNAL_AI === 'true',
+  ENABLE_PRD_BUILDER_WEB_RESEARCH:
+    process.env.NEXT_PUBLIC_ENABLE_PRD_BUILDER_WEB_RESEARCH === 'true',
+  // Prototype surfaces — disabled by default for release until feature-complete.
+  ENABLE_REAL_TIME_COLLABORATION: process.env.NEXT_PUBLIC_ENABLE_REAL_TIME_COLLABORATION === 'true',
+  ENABLE_TEAMS: process.env.NEXT_PUBLIC_ENABLE_TEAMS === 'true',
+  ENABLE_OUTLOOK_CALENDAR: process.env.NEXT_PUBLIC_ENABLE_OUTLOOK_CALENDAR === 'true',
+  ENABLE_APPLE_CALENDAR: process.env.NEXT_PUBLIC_ENABLE_APPLE_CALENDAR === 'true',
+} as const;
+
+export const PRD_BUILDER_PUBLIC_CONFIG = {
+  enableExternalAi: FEATURES.ENABLE_PRD_BUILDER_EXTERNAL_AI,
+  enableWebResearch: FEATURES.ENABLE_PRD_BUILDER_WEB_RESEARCH,
 } as const;

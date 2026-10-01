@@ -24,17 +24,22 @@ export class OutlookCalendarService {
    * @param accessToken Microsoft Graph access token
    * @returns Array of calendar events
    */
-  static async syncFromOutlook(accessToken: string): Promise<OutlookCalendarEvent[]> {
+  static async syncFromOutlook(
+    accessToken: string,
+    calendarId: string = 'primary'
+  ): Promise<OutlookCalendarEvent[]> {
     try {
-      const response = await fetch(
-        `${this.BASE_URL}/calendar/events?$top=100&$orderby=start/dateTime`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const endpoint =
+        calendarId === 'primary'
+          ? `${this.BASE_URL}/calendar/events`
+          : `${this.BASE_URL}/calendars/${encodeURIComponent(calendarId)}/events`;
+
+      const response = await fetch(`${endpoint}?$top=100&$orderby=start/dateTime`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
         if (response.status === 401) {

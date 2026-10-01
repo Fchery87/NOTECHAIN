@@ -13,6 +13,7 @@ import { CollaborationPresence } from './CollaborationPresence';
 import { CollaborationCursors } from './CollaborationCursors';
 import { useCollaboration, CRDTOperationType, type CRDTOperation } from '../hooks/useCollaboration';
 import { VoiceInputButton } from './VoiceInputButton';
+import { FEATURES } from '../lib/constants';
 
 /**
  * Props for CollaborativeEditor component
@@ -333,12 +334,16 @@ export function CollaborativeEditor({
     <div className="flex flex-col gap-3">
       {/* Header with presence and status */}
       <div className="flex items-center justify-between">
-        <CollaborationPresence
-          users={collaboration.connectedUsers}
-          localUser={collaboration.localPresence}
-          isConnected={collaboration.isConnected}
-          showStatus
-        />
+        {FEATURES.ENABLE_REAL_TIME_COLLABORATION ? (
+          <CollaborationPresence
+            users={collaboration.connectedUsers}
+            localUser={collaboration.localPresence}
+            isConnected={collaboration.isConnected}
+            showStatus
+          />
+        ) : (
+          <div className="text-sm text-stone-500">Solo editing</div>
+        )}
 
         <div className="flex items-center gap-3">
           <PermissionBadge level={permissionLevel} />
@@ -493,9 +498,12 @@ export function CollaborativeEditor({
           <ToolbarSeparator />
 
           {/* Voice Input */}
-          <VoiceInputButton editor={editor} />
-
-          <ToolbarSeparator />
+          {FEATURES.ENABLE_REAL_TIME_COLLABORATION && (
+            <>
+              <VoiceInputButton editor={editor} />
+              <ToolbarSeparator />
+            </>
+          )}
 
           {/* Undo/Redo */}
           <ToolbarButton
@@ -537,11 +545,13 @@ export function CollaborativeEditor({
         style={{ minHeight, maxHeight }}
       >
         {/* Remote cursors */}
-        <CollaborationCursors
-          users={collaboration.connectedUsers}
-          editorRef={editorRef}
-          showLabels
-        />
+        {FEATURES.ENABLE_REAL_TIME_COLLABORATION && (
+          <CollaborationCursors
+            users={collaboration.connectedUsers}
+            editorRef={editorRef}
+            showLabels
+          />
+        )}
 
         {/* Editor content */}
         <EditorContent

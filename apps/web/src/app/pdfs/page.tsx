@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { PDFDocument, PDFAnnotation } from '@notechain/data-models';
 import AppLayout from '@/components/AppLayout';
 import { PDFViewer } from '@/components/PDFViewer';
+import { FEATURES } from '@/lib/constants';
 
 // Mock PDF data matching the actual interface
 const mockPDFs: PDFDocument[] = [
@@ -150,7 +151,7 @@ export default function PDFsPage() {
     }).format(date);
   };
 
-  const headerActions = (
+  const headerActions = FEATURES.ENABLE_PDF_SIGNING ? (
     <label className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors cursor-pointer">
       {isUploading ? 'Uploading...' : '+ Upload PDF'}
       <input
@@ -161,7 +162,37 @@ export default function PDFsPage() {
         disabled={isUploading}
       />
     </label>
-  );
+  ) : null;
+
+  if (!FEATURES.ENABLE_PDF_SIGNING) {
+    return (
+      <AppLayout pageTitle="PDFs" actions={null}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg
+                className="w-8 h-8 text-amber-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-stone-900 mb-2">Coming Soon</h2>
+            <p className="text-stone-600">
+              PDF viewing and signing will be available in a future update. Check back soon.
+            </p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout pageTitle="PDFs" actions={headerActions}>

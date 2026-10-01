@@ -282,18 +282,16 @@ export class TodoService {
     const todo = await this.todoRepository.getById(todoId);
     if (!todo || !todo.dueDate) return null;
 
-    const { CalendarService } = await import('./calendar-service');
+    const { createCalendarAccess } = await import('../lib/calendar/calendarAccess');
 
-    const eventId = await CalendarService.pushToExternalCalendar(
-      {
-        id: todo.id,
-        title: todo.title,
-        dueDate: todo.dueDate,
-      },
-      calendarId,
+    const eventId = await createCalendarAccess().pushTaskToProvider({
+      id: todo.id,
+      title: todo.title,
+      dueDate: todo.dueDate,
       provider,
-      accessToken
-    );
+      accessToken,
+      calendarId,
+    });
 
     // Store calendar event reference
     await this.todoRepository.update(todoId, {
