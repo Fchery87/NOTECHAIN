@@ -9,8 +9,8 @@ supabase/
 ├── config.toml              # Supabase CLI configuration
 ├── migrations/
 │   ├── README.md            # Migration documentation
-│   ├── 001_initial_schema.sql  # Core database schema
-│   └── 002_storage_buckets.sql # Storage bucket configuration
+│   ├── 001_baseline_schema.sql # Base schema for a fresh database
+│   └── 005_...020_*.sql        # Incremental changes (admin, audit, sync hardening)
 ├── functions/
 │   └── README.md            # Edge Functions documentation
 └── deploy.md                # Deployment guide
@@ -40,6 +40,10 @@ supabase db push
 # or reset and re-apply
 supabase db reset
 ```
+
+To prove a fresh database builds and behaves correctly without Docker, run
+`bun run verify:db` from the repo root. It needs the PostgreSQL server binaries
+(or a reachable server through `PGHOST`).
 
 ### 4. Generate Types
 

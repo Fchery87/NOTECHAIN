@@ -7,9 +7,11 @@ current state read `CONTEXT.md` and `PRODUCTION_READINESS_AUDIT.md`.
 
 - `scripts/` ad-hoc SQL and shell fixes applied by hand early on. They are not a
   schema source.
-
-Not archived on purpose: `supabase/migrations/*.sql.bak` and
-`complete_database_setup.sql` at the repo root. Together they are the only
-definition of the base schema (`notes`, `todos`, `devices`, the signup trigger,
-and the sync RPC). The numbered migrations from `005` on assume that base
-already exists, so a fresh database cannot be built from them alone.
+- `supabase-migrations-bak/` early schema drafts (`001` to `004`). They defined
+  `notes`, `todos`, `notebooks`, `devices`, `pdf_*` tables and storage buckets that
+  the app never queried, so `supabase/migrations/001_baseline_schema.sql` does not
+  carry them forward.
+- `scripts/complete_database_setup.sql` the bootstrap that was pasted into the
+  Supabase SQL editor by hand. `001_baseline_schema.sql` reproduces it (checked by
+  diffing the resulting schemas) and is safe to run on existing databases; this
+  script is not, because it replaces the hardened `insert_sync_operation`.

@@ -142,7 +142,10 @@ In Supabase Dashboard → **Project Settings**:
 ```bash
 # Ensure you have database migrations ready
 ls supabase/migrations/
-# Should see: 001_initial_schema.sql
+# Should see: 001_baseline_schema.sql, then 005 onward
+
+# Existing production database: mark the baseline applied first (it is a no-op there)
+# supabase migration repair --status applied 001
 
 # Push migrations to production
 supabase db push
@@ -869,7 +872,7 @@ Connection Pooling:
 
 #### Index Optimization
 
-All critical queries already indexed in schema (see `001_initial_schema.sql`):
+All critical queries already indexed in schema (see `001_baseline_schema.sql` and later migrations):
 
 ```sql
 -- Verify indexes are being used
@@ -1025,7 +1028,7 @@ supabase db diff
 supabase db reset
 
 # 3. Manually run migration
-supabase db execute --file supabase/migrations/001_initial_schema.sql
+supabase db execute --file supabase/migrations/001_baseline_schema.sql
 ```
 
 ### Issue 2: RLS Policy Blocking Access

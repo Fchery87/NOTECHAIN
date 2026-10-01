@@ -68,12 +68,13 @@ bun run dev:marketing                          # marketing site on http://localh
 
 Minimum environment for local development: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. In production, `CSRF_SECRET` is also required. OAuth setup is in [`OAUTH_SETUP.md`](OAUTH_SETUP.md).
 
-**Database setup has a known gap.** The numbered migrations from `005` onward assume a base schema that only exists in `supabase/migrations/*.sql.bak` and `complete_database_setup.sql`. A fresh database cannot be built from the migrations alone yet. Read [`supabase/README.md`](supabase/README.md) and expect to apply the base schema by hand.
+**Database.** `supabase db reset` (or `supabase db push`) builds the full schema from `supabase/migrations/`, starting at `001_baseline_schema.sql`. Existing databases need `supabase migration repair --status applied 001` first; see [`supabase/migrations/README.md`](supabase/migrations/README.md). `bun run verify:db` proves a fresh build works without Docker.
 
 ## Verification
 
 ```bash
 bun run verify:launch        # meeting-to-knowledge smoke tests plus web typecheck
+bun run verify:db            # builds the schema from empty on PostgreSQL and checks RLS and sync RPC
 bun run verify:privacy       # derived-metadata privacy gate
 bun run verify:route-seams   # tasks, calendar, graph, meeting detail seams
 bun run verify:sync          # web sync tests plus sync-engine tests
