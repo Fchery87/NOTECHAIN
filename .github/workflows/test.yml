@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check singleton packages resolve once
+        run: bun run verify:lock
+
       - name: Build packages
         # The web app resolves @notechain/* from each package's dist output, so a
         # clean checkout cannot typecheck until the packages are built.
