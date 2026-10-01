@@ -38,7 +38,8 @@ for f in "$migrations"/[0-9]*_*.sql; do
 done
 
 echo "== behavior assertions"
-psql -d "$db" -o /dev/null -f "$here/baseline_assertions.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p' | sed 's/^/     /'
+psql -d "$db" -v migrations_dir="$migrations" -o /dev/null -f "$here/baseline_assertions.sql" 2>&1 \
+  | sed -n -e 's/^.*NOTICE:  /     /p' -e '/ERROR:/p'
 
 echo "== baseline is a no-op on a migrated database"
 snap() { pg_dump -d "$db" --schema-only --no-owner | grep -v '^\\\(un\)\?restrict' ; }

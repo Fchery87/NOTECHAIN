@@ -17,10 +17,11 @@ supabase db push
 
 ## Migration Files
 
-| File                      | Description                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| `001_baseline_schema.sql` | Base schema: profiles, encrypted_blobs, sync_operations view, sync RPC, signup trigger, role |
-| `005`–`020` `_*.sql`      | Incremental changes: admin dashboard, audit logs, sessions, owner role, sync RPC hardening   |
+| File                                     | Description                                                                                                                   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `001_baseline_schema.sql`                | Base schema: profiles, encrypted_blobs, sync_operations view, sync RPC, signup trigger, role                                  |
+| `005`–`020` `_*.sql`                     | Incremental changes: admin dashboard, audit logs, sessions, owner role, sync RPC hardening                                    |
+| `021_harden_signup_profile_creation.sql` | Signup works without an email; raw emails in `email_hash` re-hashed; missing profiles backfilled; `CHECK` keeps plaintext out |
 
 Numbers `002` to `004` are intentionally unused. The early drafts that held them
 (`notes`, `todos`, `notebooks`, `devices`, `pdf_*` tables and storage buckets) are

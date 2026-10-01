@@ -80,5 +80,60 @@ END $$;
 RESET ROLE;
 SELECT pg_temp.check((SELECT role::text FROM public.profiles WHERE id = :'ua') = 'user', 'role unchanged after self-promotion attempt');
 
+-- Signup works for users with no email, and their hashes stay unique.
+INSERT INTO auth.users (id, email, aud, role, instance_id)
+VALUES ('33333333-3333-4333-8333-333333333331', NULL, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+       ('33333333-3333-4333-8333-333333333332', NULL, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+SELECT pg_temp.check((SELECT count(DISTINCT email_hash) FROM public.profiles
+                      WHERE id IN ('33333333-3333-4333-8333-333333333331', '33333333-3333-4333-8333-333333333332')) = 2,
+                     'two users without an email each get a profile with a distinct hash');
+
+-- A raw email can never be stored in email_hash.
+DO $$ BEGIN
+  UPDATE public.profiles SET email_hash = 'a@example.test' WHERE id = '11111111-1111-4111-8111-111111111111';
+  RAISE EXCEPTION 'plaintext email was accepted';
+EXCEPTION WHEN check_violation THEN NULL;
+END $$;
+SELECT pg_temp.check(true, 'email_hash rejects a raw email');
+
+-- Repair of drift left by hand-applied fixes. Reproduce it: the "simple" trigger
+-- function that stored the raw email and swallowed errors, a plaintext row, and an
+-- auth user that ended up with no profile. Then run 021 again over that state.
+ALTER TABLE public.profiles DROP CONSTRAINT profiles_email_hash_is_sha256;
+CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS TRIGGER AS $f$
+BEGIN
+  INSERT INTO public.profiles (id, email_hash, encrypted_profile) VALUES (NEW.id, NEW.email, '\x00')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END $f$ LANGUAGE plpgsql SECURITY DEFINER;
+
+INSERT INTO auth.users (id, email, aud, role, instance_id)
+VALUES ('44444444-4444-4444-8444-444444444441', 'legacy@example.test', 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000'),
+       ('44444444-4444-4444-8444-444444444442', NULL, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+SELECT pg_temp.check((SELECT email_hash FROM public.profiles WHERE id = '44444444-4444-4444-8444-444444444441') = 'legacy@example.test',
+                     'precondition: legacy trigger stored a raw email');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = '44444444-4444-4444-8444-444444444442'),
+                     'precondition: legacy trigger left a user without a profile');
+
+\set mig021 :migrations_dir /021_harden_signup_profile_creation.sql
+\i :mig021
+SELECT pg_temp.check((SELECT email_hash FROM public.profiles WHERE id = '44444444-4444-4444-8444-444444444441')
+                     = encode(digest('legacy@example.test', 'sha256'), 'hex'),
+                     '021 re-hashed the raw email');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.profiles WHERE id = '44444444-4444-4444-8444-444444444442'),
+                     '021 created the missing profile');
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.profiles WHERE email_hash !~ '^[0-9a-f]{64}$'),
+                     'no profile holds a non-hash email_hash after 021');
+INSERT INTO auth.users (id, email, aud, role, instance_id)
+VALUES ('44444444-4444-4444-8444-444444444443', NULL, 'authenticated', 'authenticated', '00000000-0000-0000-0000-000000000000');
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.profiles WHERE id = '44444444-4444-4444-8444-444444444443'),
+                     '021 replaced the trigger function (no-email signup works again)');
+SELECT md5(string_agg(id::text || email_hash, ',' ORDER BY id)) AS state_after_first FROM public.profiles \gset
+\i :mig021
+SELECT pg_temp.check((SELECT md5(string_agg(id::text || email_hash, ',' ORDER BY id)) FROM public.profiles) = :'state_after_first',
+                     '021 is idempotent');
+
 ROLLBACK;
 \echo ALL ASSERTIONS PASSED
