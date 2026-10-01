@@ -36,7 +36,7 @@ jobs:
         run: bun install
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate || true
+        run: npm audit --audit-level=moderate
 
       - name: Run CodeQL Analysis
         uses: github/codeql-action/init@v3
@@ -57,4 +57,3 @@ jobs:
           base: main
           head: HEAD
           extra_args: --debug --only-verified
-        continue-on-error: true

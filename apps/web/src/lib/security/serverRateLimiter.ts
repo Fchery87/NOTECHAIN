@@ -45,21 +45,23 @@ const globalStore = new HybridStore(process.env.REDIS_URL);
  * Uses X-Forwarded-For header (from proxy/load balancer) or falls back to IP
  */
 export function getClientIdentifier(req: NextRequest): string {
-  // Check for forwarded header (from nginx, cloudflare, etc.)
+  // Prefer the trusted reverse-proxy header (set by nginx, Cloudflare,
+  // or the platform proxy — not by the client). This is the primary
+  // unspoofable identity source when running behind a trusted proxy.
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  // Secondary: use the first entry in the forwarding chain.
+  // TRUST ASSUMPTION: the upstream proxy MUST strip any external
+  // x-forwarded-for header and append only trusted entries.
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
-    // Take the first IP in the chain (original client)
     return forwarded.split(',')[0].trim();
   }
 
-  // Fall back to the request IP
-  // Note: In Next.js, this may be available via req.ip or similar
-  const ip = req.headers.get('x-real-ip');
-  if (ip) {
-    return ip;
-  }
-
-  // Last resort: use a hash of available headers
+  // Last resort: use a hash of available headers (stable but not unique).
   const userAgent = req.headers.get('user-agent') || 'unknown';
   const acceptLanguage = req.headers.get('accept-language') || '';
   return `fallback:${userAgent}:${acceptLanguage}`.slice(0, 64);

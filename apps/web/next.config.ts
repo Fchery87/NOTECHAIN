@@ -20,10 +20,9 @@ const nextConfig: NextConfig = {
   // Keep transformer packages out of server bundles. Browser modules must avoid
   // importing server-oriented transformer entry points at module boundaries.
   serverExternalPackages: ['@xenova/transformers', '@huggingface/transformers'],
-  env: {
-    NEXT_PUBLIC_NEON_DATABASE_URL: process.env.NEXT_PUBLIC_NEON_DATABASE_URL,
-    NEON_PRIVATE_KEY: process.env.NEON_PRIVATE_KEY,
-  },
+  // Keep database credentials server-only. Do not inline any Neon credential
+  // into the browser bundle.
+  env: {},
   transpilePackages: ['@notechain/ui-components'],
   typescript: {
     ignoreBuildErrors: false,
