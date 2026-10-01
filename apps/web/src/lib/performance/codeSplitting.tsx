@@ -162,12 +162,6 @@ export const loadSignatureCapture = () =>
     default: mod.SignatureCapture,
   }));
 
-// Upgrade Prompt
-export const loadProUpgradePrompt = () =>
-  import('../../components/ProUpgradePrompt').then(mod => ({
-    default: mod.ProUpgradePrompt,
-  }));
-
 /**
  * Preload a component before it's needed
  * Call this on user interactions (hover, focus) for perceived performance
