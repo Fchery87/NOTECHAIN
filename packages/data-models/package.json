@@ -10,17 +10,12 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "generate:db-types": "bun scripts/generate-types.ts",
-    "generate": "neonctl gen types --project-id $NEON_PROJECT_ID > src/neon-types.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "prisma:migrate": "prisma migrate dev"
+    "generate": "neonctl gen types --project-id $NEON_PROJECT_ID > src/neon-types.ts"
   },
   "devDependencies": {
-    "prisma": "^6.3.0",
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@prisma/client": "^6.3.0",
     "@neondatabase/serverless": "^1.0.0"
   }
 }
