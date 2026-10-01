@@ -33,13 +33,15 @@ jobs:
         run: bun install
 
       - name: Build packages
-        run: bun run --filter='@notechain/*' build
+        run: bun run build:packages
 
       - name: Build web app
         run: bun run --filter='@notechain/web' build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Verification build only: placeholders let the build run when the secrets
+          # are not configured. Nothing deployed comes from this workflow.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -73,7 +75,7 @@ jobs:
         run: bun install
 
       - name: Build all packages
-        run: bun run --filter='@notechain/*' build
+        run: bun run build:packages
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
