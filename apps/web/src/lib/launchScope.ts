@@ -10,8 +10,7 @@ export type LaunchFeatureKey =
   | 'local_ai_models'
   | 'shared_spaces'
   | 'admin_analytics'
-  | 'custom_realtime_collaboration'
-  | 'blockchain_storage';
+  | 'custom_realtime_collaboration';
 
 export interface LaunchFeatureConfig {
   key: LaunchFeatureKey;
@@ -120,14 +119,6 @@ export const LAUNCH_FEATURES: Record<LaunchFeatureKey, LaunchFeatureConfig> = {
     experimental: true,
     rationale:
       'Requires database-backed authorization and durable operation history before launch.',
-  },
-  blockchain_storage: {
-    key: 'blockchain_storage',
-    label: 'Blockchain/decentralized storage',
-    defaultEnabled: false,
-    heavy: true,
-    experimental: true,
-    rationale: 'Outside focused privacy-first notes wedge.',
   },
 };
 
