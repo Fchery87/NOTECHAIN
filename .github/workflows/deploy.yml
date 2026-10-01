@@ -2,9 +2,9 @@ name: Deploy NoteChain
 
 on:
   push:
-    branches: [master, develop]
+    branches: [main, develop]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 env:
   NODE_VERSION: '20'
