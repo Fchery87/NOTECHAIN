@@ -52,7 +52,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@huggingface/transformers": "^3.8.1",
-        "@neondatabase/serverless": "^1.0.0",
         "@notechain/core-crypto": "workspace:*",
         "@notechain/data-models": "workspace:*",
         "@notechain/sync-engine": "workspace:*",
