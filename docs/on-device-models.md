@@ -1,20 +1,27 @@
 # On-device model hosting
 
-The notes embedding model (`Xenova/all-MiniLM-L6-v2`, quantized, about 23 MB of files) loads in the
-browser from exactly one place. It never falls back to a third-party CDN.
+Two on-device models load in the browser from exactly one place and never fall back to a third-party CDN.
 
-- `NEXT_PUBLIC_MODEL_HOST` unset: files load from `/models/` in `apps/web/public/`.
+| Model                                                           | Use                         | Files       |
+| --------------------------------------------------------------- | --------------------------- | ----------- |
+| `Xenova/all-MiniLM-L6-v2` (quantized)                           | Note embeddings             | about 23 MB |
+| `onnx-community/moonshine-tiny-ONNX` (fp32 encoder, q4 decoder) | Private Mode speech to text | about 75 MB |
+
+- `NEXT_PUBLIC_MODEL_HOST` unset: files load from `/models/<model id>/<file>` in `apps/web/public/`,
+  for example `public/models/onnx-community/moonshine-tiny-ONNX/config.json`. No model files are
+  bundled in the repo, so with the variable unset the models fail to load with a clear error.
 - `NEXT_PUBLIC_MODEL_HOST` set: files load from `<host>/<model id>/<file>`, for example
   `https://models.example.com/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx`. The host is also
   added to the CSP `connect-src`.
 
-The ONNX runtime loads from the vendored copy in `public/ort/`. Speech transcription already uses
-local files in `public/models/moonshine-tiny-ONNX/` and is unchanged.
+The ONNX runtime loads from the vendored copy in `public/ort/`. Serving models from your own origin
+instead of a bucket is limited by Cloudflare Workers and Pages to 25 MiB per static file, and the
+Moonshine encoder (29.5 MiB) and decoder (42.6 MiB) are over that.
 
 ## Hosting the files on Cloudflare R2
 
 R2's free tier includes 10 GB of storage, 1 million Class A and 10 million Class B operations a month,
-and free egress. The model files are about 23 MB. Cloudflare's community reports that R2 needs a payment
+and free egress. The model files are about 98 MB in total. Cloudflare's community reports that R2 needs a payment
 method on file, and Cloudflare's pricing page does not state a spending cap, so check your billing
 settings. These steps were run against a real bucket with wrangler 4.146.0.
 

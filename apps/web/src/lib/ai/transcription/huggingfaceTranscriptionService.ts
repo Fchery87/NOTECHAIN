@@ -24,10 +24,11 @@ import {
   type DataType,
   type DeviceType,
 } from '@huggingface/transformers';
+import { withOnDeviceRuntime } from '../onDeviceRuntime';
 
-export const LOCAL_TRANSCRIPTION_MODEL = '/models/moonshine-tiny-ONNX';
+export const MOONSHINE_TINY_MODEL_ID = 'onnx-community/moonshine-tiny-ONNX';
 export const LOCAL_ONNX_RUNTIME_PATH = '/ort/';
-export const DEFAULT_TRANSCRIPTION_MODEL = LOCAL_TRANSCRIPTION_MODEL;
+export const DEFAULT_TRANSCRIPTION_MODEL = MOONSHINE_TINY_MODEL_ID;
 
 // Moonshine/Whisper feature extractors expect 16 kHz mono audio. The browser
 // decodes recordings at the device's native rate (often 44.1/48 kHz), and
@@ -151,10 +152,9 @@ export class HuggingFaceTranscriptionService {
 
       const model = this.options.model ?? DEFAULT_TRANSCRIPTION_MODEL;
 
-      // Configure environment for browser usage. We self-host the default model and
-      // ONNX Runtime WASM files so Private Mode does not need Hugging Face/jsDelivr.
-      env.allowLocalModels = true;
-      env.allowRemoteModels = model !== LOCAL_TRANSCRIPTION_MODEL;
+      // Configure environment for browser usage. The model loads from /models/ or
+      // from NEXT_PUBLIC_MODEL_HOST (see withOnDeviceRuntime), and the ONNX Runtime
+      // WASM files are self-hosted, so Private Mode never needs Hugging Face or jsDelivr.
       env.useBrowserCache = true;
       env.useCustomCache = false;
       this.configureLocalOnnxRuntime();
@@ -163,35 +163,30 @@ export class HuggingFaceTranscriptionService {
       this.options.onProgress?.(0.2);
 
       const attempts = this.buildModelLoadAttempts(model);
-      let lastError: unknown = null;
 
-      for (const attempt of attempts) {
-        try {
-          this.options.onProgress?.(0.3);
-          this.pipeline = await createSpeechPipeline(
-            'automatic-speech-recognition',
-            attempt.model,
-            {
+      this.pipeline = await withOnDeviceRuntime(async () => {
+        let lastError: unknown = null;
+
+        for (const attempt of attempts) {
+          try {
+            this.options.onProgress?.(0.3);
+            return await createSpeechPipeline('automatic-speech-recognition', attempt.model, {
               dtype: attempt.dtype,
               device: attempt.device,
               local_files_only: attempt.local_files_only,
               progress_callback: progress => this.handlePipelineProgress(progress),
-            }
-          );
-          lastError = null;
-          break;
-        } catch (pipelineError) {
-          lastError = pipelineError;
-          console.warn(
-            `[HuggingFaceTranscriptionService] Failed to load ${attempt.model} on ${attempt.device}; trying next fallback...`,
-            pipelineError
-          );
+            });
+          } catch (pipelineError) {
+            lastError = pipelineError;
+            console.warn(
+              `[HuggingFaceTranscriptionService] Failed to load ${attempt.model} on ${attempt.device}; trying next fallback...`,
+              pipelineError
+            );
+          }
         }
-      }
 
-      if (!this.pipeline) {
         throw lastError instanceof Error ? lastError : new Error('No transcription model loaded');
-      }
+      });
 
       this.options.onProgress?.(0.8);
       this.modelLoaded = true;
@@ -212,7 +207,6 @@ export class HuggingFaceTranscriptionService {
 
   private buildModelLoadAttempts(model: string): Array<{ model: string } & SpeechPipelineOptions> {
     const supportsWebGpu = this.canUseWebGpu();
-    const localOnly = model === LOCAL_TRANSCRIPTION_MODEL;
     const attempts: Array<{ model: string } & SpeechPipelineOptions> = [];
 
     // Try WASM first. Some browsers (notably Brave/Chrome installs without a usable
@@ -222,7 +216,7 @@ export class HuggingFaceTranscriptionService {
     attempts.push({
       model,
       device: 'wasm',
-      local_files_only: localOnly,
+      local_files_only: false,
       // Moonshine is sensitive to encoder quantization. Use a full-precision
       // encoder and compact decoder, matching the known-good browser examples.
       dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
@@ -232,7 +226,7 @@ export class HuggingFaceTranscriptionService {
       attempts.push({
         model,
         device: 'webgpu',
-        local_files_only: localOnly,
+        local_files_only: false,
         // Keep the encoder full precision here too; Moonshine output quality is
         // sensitive to encoder quantization across both WASM and WebGPU.
         dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
@@ -324,7 +318,7 @@ export class HuggingFaceTranscriptionService {
   private isMoonshineModel(): boolean {
     return (
       this.getLoadedModelType() === 'moonshine' ||
-      (this.options.model ?? DEFAULT_TRANSCRIPTION_MODEL) === LOCAL_TRANSCRIPTION_MODEL
+      (this.options.model ?? DEFAULT_TRANSCRIPTION_MODEL) === MOONSHINE_TINY_MODEL_ID
     );
   }
 

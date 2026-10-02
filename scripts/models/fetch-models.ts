@@ -14,6 +14,16 @@ export const MODELS: Record<string, string[]> = {
     'special_tokens_map.json',
     'onnx/model_quantized.onnx',
   ],
+  'onnx-community/moonshine-tiny-ONNX': [
+    'config.json',
+    'generation_config.json',
+    'preprocessor_config.json',
+    'special_tokens_map.json',
+    'tokenizer_config.json',
+    'tokenizer.json',
+    'onnx/encoder_model.onnx',
+    'onnx/decoder_model_merged_q4.onnx',
+  ],
 };
 
 export function fileUrl(modelId: string, file: string): string {
