@@ -90,6 +90,11 @@ describe('extractPlainText entity decoding and script stripping', () => {
     expect(extractPlainText('a<script>steal()</script >b')).toBe('a b');
     expect(extractPlainText('a<style>p{}</style\t\n>b')).toBe('a b');
   });
+
+  it('removes script and style blocks whose closing tag carries attributes', () => {
+    expect(extractPlainText('a<script>steal()</script\t\n bar>b')).toBe('a b');
+    expect(extractPlainText('a<style>p{}</style x="1">b')).toBe('a b');
+  });
 });
 
 describe('PRD front matter title escaping', () => {

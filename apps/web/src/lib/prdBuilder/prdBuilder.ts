@@ -199,8 +199,8 @@ export function createPrdBuilderSession(
 
 export function extractPlainText(content: string): string {
   return content
-    .replace(/<style[\s\S]*?<\/style\s*>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script\s*>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style[^>]*>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script[^>]*>/gi, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>|<\/div>|<\/li>|<\/h[1-6]>/gi, '\n')
     .replace(/<[^>]*>/g, ' ')
