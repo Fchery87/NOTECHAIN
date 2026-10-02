@@ -28,7 +28,7 @@ jobs:
     services:
       postgres:
         # Keep in step with [db] major_version in supabase/config.toml.
-        image: postgres:15
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
         ports:
