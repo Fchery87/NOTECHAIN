@@ -18,8 +18,12 @@ export function escapeForPrompt(value: string): string {
     .trim();
 }
 
+export function escapeAttributeForPrompt(value: string): string {
+  return escapeForPrompt(value).replace(/"/g, '&quot;');
+}
+
 export function wrapUntrustedSource(input: { id: string; title: string; content: string }): string {
-  return `<source_note id="${escapeForPrompt(input.id)}">
+  return `<source_note id="${escapeAttributeForPrompt(input.id)}">
 <title>${escapeForPrompt(input.title || 'Untitled note')}</title>
 <content>
 ${escapeForPrompt(input.content)}
@@ -38,7 +42,7 @@ export function wrapUntrustedResearchBrief(input: {
 <citations>
 ${input.citations
   .map(
-    citation => `<citation id="${escapeForPrompt(citation.id)}">
+    citation => `<citation id="${escapeAttributeForPrompt(citation.id)}">
 <title>${escapeForPrompt(citation.title)}</title>
 <url>${escapeForPrompt(citation.url)}</url>
 <snippet>${escapeForPrompt(citation.snippet)}</snippet>

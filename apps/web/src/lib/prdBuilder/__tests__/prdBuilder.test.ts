@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPrdFilename,
+  extractPlainText,
   createPrdBuilderSession,
   generatePrdMarkdown,
   getReadinessLabel,
@@ -77,5 +78,34 @@ describe('prdBuilder', () => {
     expect(html).toContain('<h1>Title</h1>');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<script>');
+  });
+});
+
+describe('extractPlainText entity decoding and script stripping', () => {
+  it('decodes an escaped ampersand only once', () => {
+    expect(extractPlainText('<p>&amp;lt;b&amp;gt; &amp;amp;</p>')).toBe('&lt;b&gt; &amp;');
+  });
+
+  it('removes script and style blocks whose closing tag has trailing whitespace', () => {
+    expect(extractPlainText('a<script>steal()</script >b')).toBe('a b');
+    expect(extractPlainText('a<style>p{}</style\t\n>b')).toBe('a b');
+  });
+
+  it('removes script and style blocks whose closing tag carries attributes', () => {
+    expect(extractPlainText('a<script>steal()</script\t\n bar>b')).toBe('a b');
+    expect(extractPlainText('a<style>p{}</style x="1">b')).toBe('a b');
+  });
+});
+
+describe('PRD front matter title escaping', () => {
+  it('escapes backslashes and quotes so the title stays inside its YAML string', () => {
+    const session = createPrdBuilderSession(sourceNotes, new Date('2026-06-10T00:00:00Z'));
+    const markdown = generatePrdMarkdown({
+      session: { ...session, brief: { ...session.brief, projectName: 'C:\\dir "x" \\' } },
+      answers: [],
+      generatedAt: new Date('2026-06-10T00:00:00Z'),
+    });
+
+    expect(markdown).toContain('title: "PRD - C:\\\\dir \\"x\\" \\\\"\n');
   });
 });

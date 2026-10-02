@@ -1,6 +1,11 @@
 import type { GeneratePrdAiInput } from './types';
 import { compactForPrompt } from './sanitize';
-import { escapeForPrompt, wrapUntrustedResearchBrief, wrapUntrustedSource } from './security';
+import {
+  escapeAttributeForPrompt,
+  escapeForPrompt,
+  wrapUntrustedResearchBrief,
+  wrapUntrustedSource,
+} from './security';
 
 export const REQUIRED_PRD_HEADINGS = [
   '## 1. Summary',
@@ -49,7 +54,7 @@ export function buildPrdUserPrompt(input: GeneratePrdAiInput): string {
     .filter(answer => answer.status === 'answered' && answer.answer.trim())
     .map(
       answer =>
-        `<guided_answer id="${escapeForPrompt(answer.questionId)}">${escapeForPrompt(compactForPrompt(answer.answer, 1200))}</guided_answer>`
+        `<guided_answer id="${escapeAttributeForPrompt(answer.questionId)}">${escapeForPrompt(compactForPrompt(answer.answer, 1200))}</guided_answer>`
     )
     .join('\n');
 
@@ -57,7 +62,7 @@ export function buildPrdUserPrompt(input: GeneratePrdAiInput): string {
     .filter(answer => answer.status !== 'answered')
     .map(
       answer =>
-        `<guided_answer_status id="${escapeForPrompt(answer.questionId)}">${escapeForPrompt(answer.status)}</guided_answer_status>`
+        `<guided_answer_status id="${escapeAttributeForPrompt(answer.questionId)}">${escapeForPrompt(answer.status)}</guided_answer_status>`
     )
     .join('\n');
 
