@@ -3,13 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const keyMocks = vi.hoisted(() => ({
   getMasterKey: vi.fn(),
   deriveDeviceKey: vi.fn(),
+  setKeyNamespace: vi.fn(),
+  isSupabaseConfigured: vi.fn(() => false),
+  getSession: vi.fn(),
 }));
 
 vi.mock('@notechain/core-crypto', () => ({
   KeyManager: {
     getMasterKey: keyMocks.getMasterKey,
     deriveDeviceKey: keyMocks.deriveDeviceKey,
+    setKeyNamespace: keyMocks.setKeyNamespace,
   },
+}));
+
+vi.mock('../../supabase/client', () => ({
+  isSupabaseConfigured: keyMocks.isSupabaseConfigured,
+  createClient: () => ({ auth: { getSession: keyMocks.getSession } }),
 }));
 
 import { getMeetingEncryptionKey } from '../meetingEncryptionKey';
@@ -33,6 +42,19 @@ describe('getMeetingEncryptionKey', () => {
       masterKey
     );
     expect(Array.from(key)).toEqual(Array.from(new Uint8Array(32).fill(248)));
+  });
+
+  it("reads the signed-in user's vault, not the unscoped one, even when sync has not started", async () => {
+    keyMocks.isSupabaseConfigured.mockReturnValue(true);
+    keyMocks.getSession.mockResolvedValue({ data: { session: { user: { id: 'user-123' } } } });
+    keyMocks.getMasterKey.mockResolvedValue(new Uint8Array(32).fill(7));
+
+    await getMeetingEncryptionKey();
+
+    expect(keyMocks.setKeyNamespace).toHaveBeenCalledWith('user-123');
+    expect(keyMocks.setKeyNamespace.mock.invocationCallOrder[0]).toBeLessThan(
+      keyMocks.getMasterKey.mock.invocationCallOrder[0]
+    );
   });
 
   it('requires an existing master key instead of creating a new one implicitly', async () => {

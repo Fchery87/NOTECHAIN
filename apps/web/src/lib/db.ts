@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import { KeyManager } from '@notechain/core-crypto';
 import { encryptData, decryptData, type EncryptedData } from '@notechain/core-crypto';
+import { getScopedMasterKey } from './vault/scopedMasterKey';
 
 // Raw database record types (what's actually stored in IndexedDB)
 interface NoteRecord {
@@ -254,7 +255,7 @@ const DEVICE_ID = getDeviceId();
 
 // Get encryption key
 export async function getLocalDataEncryptionKey(): Promise<Uint8Array> {
-  const masterKey = await KeyManager.getMasterKey();
+  const masterKey = await getScopedMasterKey();
   if (!masterKey) {
     throw new Error('Master key not found. User must be logged in.');
   }

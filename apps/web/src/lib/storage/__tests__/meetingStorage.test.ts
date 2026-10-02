@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { decryptData } from '@notechain/core-crypto';
 import { MeetingStorage, type MeetingInput } from '../meetingStorage';
 import type { ActionItem } from '../../ai/transcription/actionItemExtractor';
 
@@ -166,6 +167,34 @@ describe('MeetingStorage', () => {
   });
 
   describe('getAllMeetings', () => {
+    it('should skip a meeting that cannot be decrypted instead of failing the whole list', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const readable = await storage.saveMeeting(
+        { ...sampleMeetingInput, title: 'Readable', transcript: 'readable transcript' },
+        mockKey
+      );
+      await storage.saveMeeting(
+        { ...sampleMeetingInput, title: 'Unreadable', transcript: 'UNREADABLE transcript' },
+        mockKey
+      );
+      const failForUnreadable = async (encrypted: { ciphertext: string }) => {
+        const text = Buffer.from(encrypted.ciphertext, 'base64').toString('utf-8');
+        if (text.includes('UNREADABLE')) {
+          throw new Error('Decryption failed - invalid key or corrupted data');
+        }
+        return text;
+      };
+      vi.mocked(decryptData)
+        .mockImplementationOnce(failForUnreadable)
+        .mockImplementationOnce(failForUnreadable);
+
+      const meetings = await storage.getAllMeetings(mockKey);
+
+      expect(meetings.map(m => m.id)).toEqual([readable.id]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('1 meeting'));
+      warn.mockRestore();
+    });
+
     it('should return all meetings sorted by date descending', async () => {
       const meeting1 = await storage.saveMeeting(
         {
