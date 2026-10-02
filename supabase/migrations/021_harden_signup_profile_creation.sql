@@ -22,7 +22,7 @@ BEGIN
     INSERT INTO public.profiles (id, email_hash, encrypted_profile)
     VALUES (
         NEW.id,
-        encode(digest(COALESCE(NEW.email, NEW.id::text), 'sha256'), 'hex'),
+        encode(extensions.digest(COALESCE(NEW.email, NEW.id::text), 'sha256'), 'hex'),
         '\x00'
     )
     ON CONFLICT (id) DO NOTHING;
@@ -36,11 +36,13 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- digest() is schema-qualified because the migration session's search_path does not
+-- include the extensions schema on hosted Supabase.
 -- 3. Repair existing data ------------------------------------------------------
 -- Auth users that never got a profile.
 INSERT INTO public.profiles (id, email_hash, encrypted_profile)
 SELECT u.id,
-       encode(digest(COALESCE(u.email, u.id::text), 'sha256'), 'hex'),
+       encode(extensions.digest(COALESCE(u.email, u.id::text), 'sha256'), 'hex'),
        '\x00'
 FROM auth.users u
 WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
@@ -48,7 +50,7 @@ WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
 -- Anything in email_hash that is not a SHA-256 hex digest (a raw email, an empty
 -- string, NULL) is recomputed from the authoritative auth user.
 UPDATE public.profiles p
-SET email_hash = encode(digest(COALESCE(u.email, u.id::text), 'sha256'), 'hex')
+SET email_hash = encode(extensions.digest(COALESCE(u.email, u.id::text), 'sha256'), 'hex')
 FROM auth.users u
 WHERE u.id = p.id
   AND (p.email_hash IS NULL OR p.email_hash !~ '^[0-9a-f]{64}$');
