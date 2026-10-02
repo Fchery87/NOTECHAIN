@@ -1,11 +1,12 @@
-import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
+import { pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
+import { withOnDeviceRuntime } from '../onDeviceRuntime';
 
 export interface EmbeddingConfig {
   modelId: string;
   dimensions?: number;
   maxLength?: number;
   normalize?: boolean;
-  device?: 'cpu' | 'webgpu';
+  device?: 'wasm' | 'webgpu';
 }
 
 export interface EmbeddingRequest {
@@ -54,7 +55,7 @@ const DEFAULT_CONFIG: Required<EmbeddingConfig> = {
   dimensions: 384,
   maxLength: 512,
   normalize: true,
-  device: 'cpu',
+  device: 'wasm',
 };
 
 type EmbeddingTensor = {
@@ -66,7 +67,7 @@ type FeaturePipelineFactory = (
   task: 'feature-extraction',
   model: string,
   options: {
-    device: 'cpu' | 'webgpu';
+    device: 'wasm' | 'webgpu';
     dtype: 'q8';
     progress_callback?: (progress: unknown) => void;
   }
@@ -103,22 +104,21 @@ export class EmbeddingService {
     this.isLoading = true;
 
     try {
-      env.allowLocalModels = false;
-      env.allowRemoteModels = true;
-
       this.reportProgress({
         state: 'downloading',
         progress: 0,
         message: 'Loading embedding model...',
       });
 
-      this.extractor = await createFeaturePipeline('feature-extraction', this.config.modelId, {
-        device: this.config.device,
-        dtype: 'q8',
-        progress_callback: (progress: unknown) => {
-          this.handleProgressCallback(progress);
-        },
-      });
+      this.extractor = await withOnDeviceRuntime(() =>
+        createFeaturePipeline('feature-extraction', this.config.modelId, {
+          device: this.config.device,
+          dtype: 'q8',
+          progress_callback: (progress: unknown) => {
+            this.handleProgressCallback(progress);
+          },
+        })
+      );
 
       this.reportProgress({
         state: 'ready',
