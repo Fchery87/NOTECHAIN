@@ -23,12 +23,38 @@ function ensureTensorLocation(): void {
   Object.defineProperty(prototype, 'location', { configurable: true, get: () => 'cpu' });
 }
 
-export function configureOnDeviceRuntime(): void {
-  Object.assign(env, modelEnvPatch(configuredModelHost()));
+const ENV_KEYS = [
+  'allowLocalModels',
+  'allowRemoteModels',
+  'localModelPath',
+  'remoteHost',
+  'remotePathTemplate',
+] as const;
 
-  const onnx = env.backends.onnx as { wasm?: { wasmPaths?: string } };
-  onnx.wasm ??= {};
-  onnx.wasm.wasmPaths = ONNX_RUNTIME_PATH;
+let loadQueue: Promise<unknown> = Promise.resolve();
 
-  ensureTensorLocation();
+/**
+ * Transformers.js keeps its model source in one global `env`. Apply ours only
+ * while a model loads and restore it afterwards, and run loads one at a time
+ * so a load that finishes cannot reset the settings under one still running.
+ */
+export function withOnDeviceRuntime<T>(load: () => Promise<T>): Promise<T> {
+  const run = loadQueue.then(async () => {
+    const previous = Object.fromEntries(ENV_KEYS.map(key => [key, env[key]]));
+    Object.assign(env, modelEnvPatch(configuredModelHost()));
+
+    const onnx = env.backends.onnx as { wasm?: { wasmPaths?: string } };
+    onnx.wasm ??= {};
+    onnx.wasm.wasmPaths = ONNX_RUNTIME_PATH;
+
+    ensureTensorLocation();
+
+    try {
+      return await load();
+    } finally {
+      Object.assign(env, previous);
+    }
+  });
+  loadQueue = run.catch(() => undefined);
+  return run;
 }

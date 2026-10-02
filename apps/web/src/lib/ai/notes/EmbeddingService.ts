@@ -1,5 +1,5 @@
 import { pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
-import { configureOnDeviceRuntime } from '../onDeviceRuntime';
+import { withOnDeviceRuntime } from '../onDeviceRuntime';
 
 export interface EmbeddingConfig {
   modelId: string;
@@ -104,21 +104,21 @@ export class EmbeddingService {
     this.isLoading = true;
 
     try {
-      configureOnDeviceRuntime();
-
       this.reportProgress({
         state: 'downloading',
         progress: 0,
         message: 'Loading embedding model...',
       });
 
-      this.extractor = await createFeaturePipeline('feature-extraction', this.config.modelId, {
-        device: this.config.device,
-        dtype: 'q8',
-        progress_callback: (progress: unknown) => {
-          this.handleProgressCallback(progress);
-        },
-      });
+      this.extractor = await withOnDeviceRuntime(() =>
+        createFeaturePipeline('feature-extraction', this.config.modelId, {
+          device: this.config.device,
+          dtype: 'q8',
+          progress_callback: (progress: unknown) => {
+            this.handleProgressCallback(progress);
+          },
+        })
+      );
 
       this.reportProgress({
         state: 'ready',
