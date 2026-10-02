@@ -1,3 +1,5 @@
+import { configuredModelHost } from '../ai/modelHost';
+
 /**
  * Content Security Policy (CSP) Configuration
  *
@@ -78,6 +80,11 @@ export interface CSPConfig {
   reportUri?: string;
 }
 
+function modelHostSources(): string[] {
+  const host = configuredModelHost();
+  return host ? [host] : [];
+}
+
 /**
  * Build strict CSP directives with nonce support
  * This is the production-ready CSP without unsafe-inline/unsafe-eval
@@ -105,6 +112,7 @@ export function buildStrictCSP(config: CSPConfig = {}): CSPDirectives {
       'https://api.openai.com',
       'https://huggingface.co',
       'https://cdn-lfs.huggingface.co',
+      ...modelHostSources(),
       'wss://*.supabase.co',
     ],
     'media-src': ["'self'", 'blob:'],
@@ -139,6 +147,7 @@ export function buildDevelopmentCSP(config: CSPConfig = {}): CSPDirectives {
       'https://api.openai.com',
       'https://huggingface.co',
       'https://cdn-lfs.huggingface.co',
+      ...modelHostSources(),
       'wss://*.supabase.co',
       'ws://localhost:3001',
       'ws://localhost:*',
