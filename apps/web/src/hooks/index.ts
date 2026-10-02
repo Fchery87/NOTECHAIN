@@ -10,9 +10,6 @@ export { useNoteAnalysis } from './useNoteAnalysis';
 export { useLinkSuggestions } from './useLinkSuggestions';
 export { useRelatedNotes } from './useRelatedNotes';
 
-// Re-export feature gate hook
-export { useFeatureGate } from './useFeatureGate';
-
 // Performance Hooks
 export {
   useIntersectionObserver,

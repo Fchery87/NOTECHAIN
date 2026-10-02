@@ -25,6 +25,7 @@
     "verify:sync-engine": "bun --filter='@notechain/sync-engine' run test:fast",
     "verify:sync-server": "bun --filter='@notechain/sync-engine' run test:server",
     "verify:sync": "bun run verify:sync:web && bun run verify:sync-engine",
+    "verify:db": "bash scripts/db/verify-baseline.sh",
     "verify:launch": "bun run smoke:meeting-to-knowledge && bun --filter='@notechain/web' run typecheck",
     "test:ci": "bun run test --coverage",
     "lint": "eslint . --ext .ts,.tsx",

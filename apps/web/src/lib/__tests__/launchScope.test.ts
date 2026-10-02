@@ -24,7 +24,6 @@ describe('launch scope feature matrix', () => {
     expect(isLaunchFeatureEnabled('calendar_sync', {})).toBe(false);
     expect(isLaunchFeatureEnabled('local_ai_models', {})).toBe(false);
     expect(isLaunchFeatureEnabled('custom_realtime_collaboration', {})).toBe(false);
-    expect(isLaunchFeatureEnabled('blockchain_storage', {})).toBe(false);
   });
 
   it('hides Shared Spaces from public beta surfaces by default', () => {

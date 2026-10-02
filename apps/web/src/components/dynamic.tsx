@@ -100,20 +100,6 @@ export const SignatureCapture = dynamic(
   }
 );
 
-// Upgrade Prompt
-export const ProUpgradePrompt = dynamic(
-  () => import('./ProUpgradePrompt').then(mod => mod.ProUpgradePrompt),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="p-6 bg-gradient-to-br from-amber-50 to-rose-50 rounded-2xl animate-pulse">
-        <div className="h-6 bg-stone-200 rounded w-1/2 mb-4" />
-        <div className="h-4 bg-stone-200 rounded w-3/4" />
-      </div>
-    ),
-  }
-);
-
 // Re-export types
 export type { NoteEditorProps } from './NoteEditor';
 export type { PDFViewerProps } from './PDFViewer';
