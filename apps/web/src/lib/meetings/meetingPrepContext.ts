@@ -1,4 +1,5 @@
-import { search, type SearchResult } from '../search';
+import { createContextGraphQuery } from '../graph/contextGraphQuery';
+import type { SearchResult } from '../search';
 
 export interface MeetingPrepContextInput {
   meetingTitle: string;
@@ -13,56 +14,31 @@ export interface MeetingPrepContext {
   relatedNotes: SearchResult[];
 }
 
-const STOP_WORDS = new Set([
-  'a',
-  'an',
-  'and',
-  'are',
-  'for',
-  'in',
-  'of',
-  'on',
-  'or',
-  'the',
-  'to',
-  'with',
-  'meeting',
-  'sync',
-  'standup',
-]);
-
-export function buildMeetingPrepQuery(meetingTitle: string): string {
-  const words = meetingTitle
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .map(word => word.trim())
-    .filter(word => word.length > 2 && !STOP_WORDS.has(word));
-
-  if (words.length === 0) {
-    return meetingTitle.trim();
-  }
-
-  return Array.from(new Set(words)).join(' ');
-}
+export { buildMeetingPrepQuery } from '../graph/contextGraphQuery';
 
 export async function getMeetingPrepContext({
   meetingTitle,
   calendarEventId,
   limit = 3,
 }: MeetingPrepContextInput): Promise<MeetingPrepContext> {
-  const query = buildMeetingPrepQuery(meetingTitle);
-  const relatedNotes = query
-    ? await search({
-        query,
-        types: ['note'],
-        limit,
-      })
-    : [];
+  const relatedContext = await createContextGraphQuery().getRelatedContextForMeeting({
+    meetingTitle,
+    calendarEventId,
+    limit,
+    types: ['note'],
+  });
 
   return {
-    source: calendarEventId ? 'calendar-event' : 'manual',
+    source: relatedContext.source,
     calendarEventId,
-    query,
-    relatedNotes,
+    query: relatedContext.query,
+    relatedNotes: relatedContext.results.map(result => ({
+      id: result.citation.id,
+      type: 'note',
+      title: result.title,
+      content: result.content,
+      score: result.score,
+      highlights: result.highlights,
+    })),
   };
 }

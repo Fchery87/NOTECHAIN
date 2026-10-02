@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import AppLayout from '@/components/AppLayout';
 import { NoteEditor } from '@/components/NoteEditor';
+import { PrdBuilderWizard } from '@/components/prdBuilder/PrdBuilderWizard';
 
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
@@ -13,6 +14,7 @@ import {
   removeIdFromSet,
 } from '@/lib/sync/remoteNoteApply';
 import { useUser } from '@/lib/supabase/UserProvider';
+import { markdownToNoteHtml } from '@/lib/prdBuilder/prdBuilder';
 
 interface Note {
   id: string;
@@ -45,6 +47,7 @@ export default function NotesPage() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [_showShareDialog, setShowShareDialog] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [prdBuilderNotes, setPrdBuilderNotes] = useState<Note[] | null>(null);
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -199,31 +202,38 @@ export default function NotesPage() {
     [selectedNote, syncUpdateNote, isSyncEnabled]
   );
 
+  const createNoteWithContent = useCallback(
+    async (title: string, content: string) => {
+      const noteId = uuidv4();
+      const newNote: Note = {
+        id: noteId,
+        title,
+        content,
+        updatedAt: new Date(),
+        ownerId: currentUser.id,
+        ownerName: currentUser.displayName,
+        collaborators: [],
+      };
+
+      setNotes(prev => [newNote, ...prev]);
+      setSelectedNoteId(newNote.id);
+
+      if (isSyncEnabled) {
+        await syncCreateNote(
+          {
+            title: newNote.title,
+            content: newNote.content,
+          },
+          noteId
+        );
+      }
+    },
+    [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName]
+  );
+
   const handleCreateNote = useCallback(async () => {
-    const noteId = uuidv4();
-    const newNote: Note = {
-      id: noteId,
-      title: 'New Note',
-      content: '',
-      updatedAt: new Date(),
-      ownerId: currentUser.id,
-      ownerName: currentUser.displayName,
-      collaborators: [],
-    };
-
-    setNotes(prev => [newNote, ...prev]);
-    setSelectedNoteId(newNote.id);
-
-    if (isSyncEnabled) {
-      await syncCreateNote(
-        {
-          title: newNote.title,
-          content: newNote.content,
-        },
-        noteId
-      );
-    }
-  }, [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName]);
+    await createNoteWithContent('New Note', '');
+  }, [createNoteWithContent]);
 
   // Single-note delete (from card action or editor header)
   const handleDeleteNote = useCallback(
@@ -306,6 +316,37 @@ export default function NotesPage() {
     setSelectedIds(new Set());
     setIsMultiSelectMode(false);
   }, []);
+
+  const getPrdBuilderSourceNotes = useCallback(() => {
+    const selectedNotes =
+      isMultiSelectMode && selectedIds.size > 0
+        ? notes.filter(note => selectedIds.has(note.id) && !lockedNoteIds.has(note.id))
+        : selectedNote && !lockedNoteIds.has(selectedNote.id)
+          ? [selectedNote]
+          : [];
+
+    return selectedNotes;
+  }, [isMultiSelectMode, selectedIds, notes, lockedNoteIds, selectedNote]);
+
+  const handleOpenPrdBuilder = useCallback(() => {
+    const sourceNotes = getPrdBuilderSourceNotes();
+
+    if (sourceNotes.length === 0) {
+      alert('Select at least one unlocked note before creating a PRD.');
+      return;
+    }
+
+    setPrdBuilderNotes(sourceNotes);
+  }, [getPrdBuilderSourceNotes]);
+
+  const handleSavePrdAsNote = useCallback(
+    async (title: string, markdown: string) => {
+      await createNoteWithContent(title, markdownToNoteHtml(markdown));
+      setIsMultiSelectMode(false);
+      setSelectedIds(new Set());
+    },
+    [createNoteWithContent]
+  );
 
   // Delete all locked/undecryptable notes
   const handleDeleteLockedNotes = useCallback(async () => {
@@ -395,6 +436,15 @@ export default function NotesPage() {
           {isMultiSelectMode ? 'Cancel' : 'Select'}
         </button>
       )}
+      {notes.length > 0 && (
+        <button
+          onClick={handleOpenPrdBuilder}
+          disabled={getPrdBuilderSourceNotes().length === 0}
+          className="px-3 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-medium hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Create PRD
+        </button>
+      )}
       <button
         onClick={handleCreateNote}
         className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
@@ -406,6 +456,13 @@ export default function NotesPage() {
 
   return (
     <AppLayout pageTitle="Notes" actions={headerActions}>
+      {prdBuilderNotes && (
+        <PrdBuilderWizard
+          sourceNotes={prdBuilderNotes}
+          onClose={() => setPrdBuilderNotes(null)}
+          onSaveAsNote={handleSavePrdAsNote}
+        />
+      )}
       <div className="py-6 max-w-[1600px] mx-auto h-[calc(100vh-64px)] flex flex-col">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
           <div className="lg:col-span-1 flex flex-col min-h-0">
@@ -423,13 +480,22 @@ export default function NotesPage() {
                       </button>
                       <span className="text-sm text-stone-400">{selectedIds.size} selected</span>
                     </div>
-                    <button
-                      onClick={handleBulkDelete}
-                      disabled={selectedIds.size === 0}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleOpenPrdBuilder}
+                        disabled={getPrdBuilderSourceNotes().length === 0}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Create PRD
+                      </button>
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={selectedIds.size === 0}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <input

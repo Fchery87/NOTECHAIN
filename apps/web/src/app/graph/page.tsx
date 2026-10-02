@@ -4,76 +4,29 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
-import { getKnowledgeGraphGenerator } from '@/lib/ai/notes';
-import { getLocalDataEncryptionKey, listNotes, listTodos } from '@/lib/db';
-import { buildContextGraph } from '@/lib/graph/contextGraph';
-import { createNoteRepository } from '@/lib/repositories';
-import { getMeetingEncryptionKey } from '@/lib/storage/meetingEncryptionKey';
-import { createMeetingStorage } from '@/lib/storage/meetingStorage';
-import { useUser } from '@/lib/supabase/UserProvider';
+import { createContextGraphQuery } from '@/lib/graph/contextGraphQuery';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
-import type { Note } from '@notechain/data-models';
 
 /**
  * Knowledge Graph Page
  *
- * Displays an interactive visualization of all notes and their connections.
+ * Displays an interactive visualization of local, source-cited connections.
  * Uses the KnowledgeGraphView component to render the graph with Cytoscape.js.
- *
- * Features:
- * - Loads all notes from the repository
- * - Generates graph data with tags and similarity connections
- * - Interactive node clicking to navigate to notes
- * - Loading and error states
- * - Tips section for users
  */
 export default function KnowledgeGraphPage() {
   const router = useRouter();
-  const { user, isLoading: isAuthLoading } = useUser();
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadGraph() {
-      if (isAuthLoading || !user) {
-        return;
-      }
-
       try {
         setIsLoading(true);
         setError(null);
 
-        const userId = user.id;
-        const encryptionKey = await getLocalDataEncryptionKey();
-
-        const noteRepository = createNoteRepository(userId, encryptionKey);
-        const notes: Note[] = await noteRepository.getAll();
-
-        // Generate graph data
-        const generator = getKnowledgeGraphGenerator();
-        const graphData = await generator.generateGraph(notes, {
-          includeTags: true,
-          includeSimilarity: true,
-          maxNodes: 200,
-        });
-
-        const meetingStorage = createMeetingStorage();
-        const meetingKey = await getMeetingEncryptionKey();
-        const [localNotes, meetings, todos] = await Promise.all([
-          listNotes(),
-          meetingStorage.getAllMeetings(meetingKey),
-          listTodos(),
-        ]);
-
-        setGraph(
-          buildContextGraph({
-            baseGraph: graphData,
-            notes: localNotes,
-            meetings,
-            todos,
-          })
-        );
+        const contextGraph = await createContextGraphQuery().getContextGraph();
+        setGraph(contextGraph);
       } catch (err) {
         console.error('Failed to load knowledge graph:', err);
         const errorMessage =
@@ -90,12 +43,9 @@ export default function KnowledgeGraphPage() {
       }
     }
 
-    loadGraph();
-  }, [user, isAuthLoading]);
+    void loadGraph();
+  }, []);
 
-  /**
-   * Handle node click - navigate to note detail page
-   */
   const handleNodeClick = (nodeId: string, nodeData: any) => {
     if (nodeData?.type === 'note') {
       router.push(`/notes/${nodeId}`);
@@ -125,12 +75,11 @@ export default function KnowledgeGraphPage() {
       <div className="py-6">
         <div className="mb-6">
           <p className="text-stone-600">
-            Visualize source-cited connections between notes, meetings, transcript segments, and
-            tasks.
+            Visualize local, source-cited connections between notes, meetings, transcript segments,
+            and tasks.
           </p>
         </div>
 
-        {/* Error State */}
         {error && (
           <div className="mb-6 p-6 bg-rose-50/50 border border-rose-100 rounded-3xl">
             <div className="flex items-start gap-3">
@@ -155,7 +104,6 @@ export default function KnowledgeGraphPage() {
           </div>
         )}
 
-        {/* Knowledge Map View */}
         <div className="bg-white rounded-3xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <KnowledgeGraphView
             graph={graph || { nodes: [], edges: [], clusters: [] }}
@@ -166,7 +114,6 @@ export default function KnowledgeGraphPage() {
           />
         </div>
 
-        {/* Tips Section */}
         <div className="mt-8 bg-stone-50/50 rounded-3xl p-8 border border-stone-100">
           <h2 className="font-serif text-xl font-medium text-stone-900 mb-4 tracking-tight">
             Tips
@@ -196,7 +143,7 @@ export default function KnowledgeGraphPage() {
               </span>
               <span>
                 <strong className="text-stone-900">Toggle node types</strong> to show or hide notes,
-                meetings, transcript segments, tasks, and tags.
+                meetings, transcript segments, and tasks.
               </span>
             </li>
             <li className="flex items-start gap-3">

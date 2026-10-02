@@ -104,7 +104,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx
 
 # Neon Database
-NEXT_PUBLIC_NEON_DATABASE_URL=postgresql://xxx
+NEON_DATABASE_URL=postgresql://xxx
 NEON_PRIVATE_KEY=xxx
 
 # OAuth

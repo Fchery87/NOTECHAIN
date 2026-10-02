@@ -34,12 +34,21 @@ const CSRF_CONFIG = {
   headerName: 'x-csrf-token',
   /** Token expiry in seconds (24 hours) */
   tokenExpiry: 86400,
-  /** Secret for signing tokens (should be from env in production) */
-  secret:
-    process.env.CSRF_SECRET ||
-    process.env.NEXT_PUBLIC_JWT_SECRET ||
-    'csrf-secret-change-in-production',
 };
+
+function getCSRFSecret(): string {
+  const secret = process.env.CSRF_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CSRF_SECRET is required in production');
+    }
+
+    return 'csrf-secret-change-in-development-only';
+  }
+
+  return secret;
+}
 
 /**
  * Generate a cryptographically secure CSRF token
@@ -48,8 +57,10 @@ const CSRF_CONFIG = {
 export function generateCSRFToken(): string {
   const token = randomBytes(CSRF_CONFIG.tokenLength);
   const timestamp = Date.now().toString(36);
+  const tokenPart = token.toString('base64url');
+  const secret = getCSRFSecret();
   const signature = createHash('sha256')
-    .update(`${token.toString('base64')}${timestamp}${CSRF_CONFIG.secret}`)
+    .update(`${tokenPart}.${timestamp}.${secret}`)
     .digest('base64url');
 
   return `${token.toString('base64url')}.${timestamp}.${signature}`;
@@ -69,9 +80,10 @@ export function verifyCSRFToken(token: string): boolean {
 
     const [tokenPart, timestamp, signature] = parts;
 
-    // Verify signature
+    // Verify signature using the exact same canonical payload that was signed.
+    const secret = getCSRFSecret();
     const expectedSignature = createHash('sha256')
-      .update(`${tokenPart}.${timestamp}.${CSRF_CONFIG.secret}`)
+      .update(`${tokenPart}.${timestamp}.${secret}`)
       .digest('base64url');
 
     if (signature !== expectedSignature) {
@@ -220,7 +232,7 @@ export async function getCSRFToken(): Promise<string> {
     console.error('Failed to fetch CSRF token:', error);
   }
 
-  // Fallback: generate a client-side token (less secure)
+  // Fallback: generate a client-side token (development only; production should be configured)
   return generateCSRFToken();
 }
 

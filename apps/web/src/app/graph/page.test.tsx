@@ -1,28 +1,8 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
-
-// Mock data defined first
-const mockNotes = [
-  {
-    id: 'note-1',
-    title: 'Test Note 1',
-    content: 'Test content 1',
-    userId: 'user-1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    tags: ['work'],
-    backlinks: [],
-    attachments: [],
-    wordCount: 100,
-    notebookId: 'nb-1',
-    encryptionKeyId: 'key-1',
-    contentHash: 'hash-1',
-    syncVersion: 1,
-  },
-];
 
 const mockGraphData: KnowledgeGraph = {
   nodes: [
@@ -46,24 +26,13 @@ const mockGraphData: KnowledgeGraph = {
 
 const graphMocks = vi.hoisted(() => ({
   push: vi.fn(),
-  generateGraph: vi.fn(),
-  getAll: vi.fn(),
-  createNoteRepository: vi.fn(),
-  getLocalDataEncryptionKey: vi.fn(),
-  listNotes: vi.fn(),
-  listTodos: vi.fn(),
-  getAllMeetings: vi.fn(),
-  localDataEncryptionKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
+  getContextGraph: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: graphMocks.push,
   }),
-}));
-
-vi.mock('@/lib/supabase/UserProvider', () => ({
-  useUser: () => ({ user: { id: 'user-1' }, isLoading: false }),
 }));
 
 vi.mock('@/components/AppLayout', () => ({
@@ -75,29 +44,12 @@ vi.mock('@/components/AppLayout', () => ({
   ),
 }));
 
-vi.mock('@/lib/ai/notes', () => ({
-  getKnowledgeGraphGenerator: () => ({
-    generateGraph: graphMocks.generateGraph,
+vi.mock('@/lib/graph/contextGraphQuery', () => ({
+  createContextGraphQuery: () => ({
+    getContextGraph: graphMocks.getContextGraph,
   }),
 }));
 
-vi.mock('@/lib/repositories', () => ({
-  createNoteRepository: graphMocks.createNoteRepository,
-}));
-
-vi.mock('@/lib/db', () => ({
-  getLocalDataEncryptionKey: graphMocks.getLocalDataEncryptionKey,
-  listNotes: graphMocks.listNotes,
-  listTodos: graphMocks.listTodos,
-}));
-
-vi.mock('@/lib/storage/meetingStorage', () => ({
-  createMeetingStorage: () => ({
-    getAllMeetings: graphMocks.getAllMeetings,
-  }),
-}));
-
-// Mock cytoscape to avoid initialization errors
 vi.mock('cytoscape', () => ({
   __esModule: true,
   default: () => ({
@@ -119,15 +71,7 @@ import KnowledgeGraphPage from './page';
 describe('KnowledgeGraphPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    graphMocks.generateGraph.mockImplementation(async () => mockGraphData);
-    graphMocks.getAll.mockImplementation(async () => mockNotes);
-    graphMocks.createNoteRepository.mockImplementation(() => ({
-      getAll: graphMocks.getAll,
-    }));
-    graphMocks.getLocalDataEncryptionKey.mockResolvedValue(graphMocks.localDataEncryptionKey);
-    graphMocks.listNotes.mockImplementation(async () => []);
-    graphMocks.listTodos.mockImplementation(async () => []);
-    graphMocks.getAllMeetings.mockImplementation(async () => []);
+    graphMocks.getContextGraph.mockResolvedValue(mockGraphData);
   });
 
   test('renders page title', async () => {
@@ -135,23 +79,22 @@ describe('KnowledgeGraphPage', () => {
 
     expect(screen.getByText('Knowledge Map')).toBeDefined();
     await waitFor(() => {
-      expect(graphMocks.generateGraph).toHaveBeenCalled();
+      expect(graphMocks.getContextGraph).toHaveBeenCalled();
     });
   });
 
   test('renders subtitle/description', async () => {
     render(<KnowledgeGraphPage />);
 
-    expect(screen.getByText(/Visualize source-cited connections/)).toBeDefined();
+    expect(screen.getByText(/Visualize local, source-cited connections/)).toBeDefined();
     await waitFor(() => {
-      expect(graphMocks.generateGraph).toHaveBeenCalled();
+      expect(graphMocks.getContextGraph).toHaveBeenCalled();
     });
   });
 
   test('shows loading state initially', async () => {
     render(<KnowledgeGraphPage />);
 
-    // The KnowledgeGraphView component shows loading state with data-testid="graph-loading-container"
     expect(screen.getByTestId('graph-loading-container')).toBeDefined();
     expect(screen.getByText(/loading.*graph/i)).toBeDefined();
     await waitFor(() => {
@@ -159,54 +102,24 @@ describe('KnowledgeGraphPage', () => {
     });
   });
 
-  test('loads notes on mount', async () => {
+  test('builds the page graph entirely through the context graph query seam', async () => {
     render(<KnowledgeGraphPage />);
 
     await waitFor(() => {
-      expect(graphMocks.getAll).toHaveBeenCalled();
-    });
-  });
-
-  test('uses the local data encryption key for repository-backed notes', async () => {
-    render(<KnowledgeGraphPage />);
-
-    await waitFor(() => {
-      expect(graphMocks.getLocalDataEncryptionKey).toHaveBeenCalled();
-      expect(graphMocks.createNoteRepository).toHaveBeenCalledWith(
-        'user-1',
-        graphMocks.localDataEncryptionKey
-      );
-    });
-  });
-
-  test('generates graph with correct options', async () => {
-    render(<KnowledgeGraphPage />);
-
-    await waitFor(() => {
-      expect(graphMocks.generateGraph).toHaveBeenCalledWith(
-        mockNotes,
-        expect.objectContaining({
-          includeTags: true,
-          includeSimilarity: true,
-          maxNodes: 200,
-        })
-      );
+      expect(graphMocks.getContextGraph).toHaveBeenCalledWith();
     });
   });
 
   test('renders graph view after loading', async () => {
     render(<KnowledgeGraphPage />);
 
-    // Wait for loading to complete and graph to render
     await waitFor(
       () => {
-        // After loading, the graph container should be rendered
         expect(screen.queryByTestId('graph-loading-container')).toBeNull();
       },
       { timeout: 3000 }
     );
 
-    // The graph should show the toolbar with controls
     await waitFor(() => {
       expect(screen.getByTestId('graph-toolbar')).toBeDefined();
     });
@@ -217,17 +130,16 @@ describe('KnowledgeGraphPage', () => {
 
     expect(screen.getByText(/Tips/)).toBeDefined();
     await waitFor(() => {
-      expect(graphMocks.generateGraph).toHaveBeenCalled();
+      expect(graphMocks.getContextGraph).toHaveBeenCalled();
     });
   });
 
-  test('shows empty state when no notes exist', async () => {
-    graphMocks.getAll.mockImplementation(async () => []);
-    graphMocks.generateGraph.mockImplementation(async () => ({
+  test('shows empty state when no nodes exist', async () => {
+    graphMocks.getContextGraph.mockResolvedValue({
       nodes: [],
       edges: [],
       clusters: [],
-    }));
+    });
 
     render(<KnowledgeGraphPage />);
 
@@ -240,7 +152,7 @@ describe('KnowledgeGraphPage', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     try {
-      graphMocks.getAll.mockRejectedValue(new Error('Failed to load notes'));
+      graphMocks.getContextGraph.mockRejectedValue(new Error('Failed to load graph data'));
 
       render(<KnowledgeGraphPage />);
 

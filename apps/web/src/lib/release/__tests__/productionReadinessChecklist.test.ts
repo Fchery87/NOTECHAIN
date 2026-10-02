@@ -34,4 +34,29 @@ describe('production readiness checklist', () => {
     expect(checklist).toContain('heavy/experimental launch-scope features are disabled by default');
     expect(checklist).toContain('database migration rollback or mitigation notes exist');
   });
+
+  it('documents hardening gates from the production readiness audit', () => {
+    expect(checklist).toContain('no database connection string reaches the client bundle');
+    expect(checklist).toContain(
+      'CSRF token generation and verification use the same canonical payload'
+    );
+    expect(checklist).toContain('CSRF round-trip test passes');
+    expect(checklist).toContain(
+      'rate-limit identity sourced from trusted proxy header, not client-controlled'
+    );
+    expect(checklist).toContain('wrapping-key seed stored in sessionStorage, not localStorage');
+    expect(checklist).toContain(
+      'meeting save surfaces recovery prompt when vault key is not ready'
+    );
+    expect(checklist).toContain(
+      'prototype surfaces (PDF signing, real-time collaboration, Teams, Outlook/Apple calendar) are disabled by default'
+    );
+    expect(checklist).toContain(
+      'global error handlers are wired and errors are scrubbed of secrets'
+    );
+    expect(checklist).toContain('critical routes have route-level loading and error boundaries');
+    expect(checklist).toContain(
+      'CI dependency audit and secret scan fail the build at configured severity'
+    );
+  });
 });

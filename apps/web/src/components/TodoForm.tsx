@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { Todo } from '@notechain/data-models';
+import type { CreateTaskInput, Task } from '@/lib/tasks/taskAdapter';
 
 /**
  * Props for the TodoForm component
@@ -9,15 +9,8 @@ import type { Todo } from '@notechain/data-models';
 export interface TodoFormProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (todo: {
-    title: string;
-    description?: string;
-    dueDate?: Date;
-    priority: 'low' | 'medium' | 'high' | 'critical';
-    tags?: string[];
-    estimatedMinutes?: number;
-  }) => void;
-  initialData?: Partial<Todo>;
+  onSubmit: (todo: CreateTaskInput) => void;
+  initialData?: Partial<Task>;
   mode?: 'create' | 'edit';
 }
 
@@ -25,7 +18,7 @@ export interface TodoFormProps {
  * Priority options with labels
  */
 const priorityOptions: Array<{
-  value: Todo['priority'];
+  value: Task['priority'];
   label: string;
   description: string;
 }> = [
@@ -54,7 +47,7 @@ export function TodoForm({
   const [dueTime, setDueTime] = useState<string>(
     initialData?.dueDate ? new Date(initialData.dueDate).toTimeString().slice(0, 5) : ''
   );
-  const [priority, setPriority] = useState<Todo['priority']>(initialData?.priority ?? 'medium');
+  const [priority, setPriority] = useState<Task['priority']>(initialData?.priority ?? 'medium');
   const [tags, setTags] = useState<string>(initialData?.tags?.join(', ') ?? '');
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>(
     initialData?.estimatedMinutes?.toString() ?? ''

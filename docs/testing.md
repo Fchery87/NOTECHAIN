@@ -27,6 +27,7 @@ Available focused gates, not yet required by `verify:launch`:
 ```bash
 bun run smoke:public-beta
 bun run verify:privacy
+bun run verify:route-seams
 bun run verify:sync
 ```
 
@@ -46,6 +47,14 @@ bun run verify:build
 ```
 
 Add focused gates to `verify:launch` only when they are curated, deterministic, fast enough for routine agent use, and not just aliases for the full suite.
+
+### Route seam verification
+
+```bash
+bun run verify:route-seams
+```
+
+Runs the focused route and component tests that prove `/tasks`, `/calendar`, `/graph`, and meeting detail flow through the Task, Calendar, Context Graph, and Meeting seams without route-level storage/provider composition.
 
 ### Web targeted tests
 

@@ -4,11 +4,10 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useMeetingTranscriptionController } from '../hooks/useMeetingTranscriptionController';
 import { extractActionItems, type ActionItem } from '../lib/ai/transcription/actionItemExtractor';
 import {
-  createMeetingStorage,
+  createMeetingAccess,
   type Meeting,
   type MeetingInput,
-} from '../lib/storage/meetingStorage';
-import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
+} from '../lib/meetings/meetingAccess';
 
 export interface MeetingTranscriberProps {
   /** Optional calendar event ID to link the meeting */
@@ -99,7 +98,7 @@ export function MeetingTranscriber({
   const [isSaving, setIsSaving] = useState(false);
 
   // Refs
-  const meetingStorageRef = useRef(createMeetingStorage());
+  const meetingAccessRef = useRef(createMeetingAccess());
 
   const transcription = useMeetingTranscriptionController({
     onError: setError,
@@ -172,7 +171,6 @@ export function MeetingTranscriber({
 
       const meetingDate = new Date();
       const meetingTitle = title.trim() || getDefaultMeetingTitle(meetingDate);
-      const key = await getMeetingEncryptionKey();
 
       const confirmedActionItems: ActionItem[] = actionItems.map(item =>
         item.provenance
@@ -196,8 +194,8 @@ export function MeetingTranscriber({
         audioBlob: audioBlob || undefined,
       };
 
-      const meetingStorage = meetingStorageRef.current;
-      const savedMeeting = await meetingStorage.saveMeeting(meetingInput, key);
+      const meetingAccess = meetingAccessRef.current;
+      const savedMeeting = await meetingAccess.createMeeting(meetingInput);
 
       onSave?.(savedMeeting);
     } catch (err) {

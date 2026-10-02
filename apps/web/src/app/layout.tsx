@@ -5,6 +5,7 @@ import { AriaLiveRegion } from '../components/Accessibility/AriaLiveRegion';
 import { UserProvider } from '@/lib/supabase/UserProvider';
 import { SyncProvider } from '@/lib/sync/SyncProvider';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { GlobalErrorHandler } from '@/components/GlobalErrorHandler';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 export const metadata: Metadata = {
@@ -47,18 +48,20 @@ export default async function RootLayout({
       </head>
       <body className="antialiased bg-stone-50">
         <ErrorBoundary>
-          <UserProvider>
-            <SyncProvider>
-              {/* Accessibility: Skip to main content link */}
-              <SkipLink targetId="main-content" />
+          <GlobalErrorHandler>
+            <UserProvider>
+              <SyncProvider>
+                {/* Accessibility: Skip to main content link */}
+                <SkipLink targetId="main-content" />
 
-              {/* Accessibility: Live region for screen reader announcements */}
-              <AriaLiveRegion />
+                {/* Accessibility: Live region for screen reader announcements */}
+                <AriaLiveRegion />
 
-              <ServiceWorkerRegistrar />
-              {children}
-            </SyncProvider>
-          </UserProvider>
+                <ServiceWorkerRegistrar />
+                {children}
+              </SyncProvider>
+            </UserProvider>
+          </GlobalErrorHandler>
         </ErrorBoundary>
       </body>
     </html>

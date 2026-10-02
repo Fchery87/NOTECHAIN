@@ -92,3 +92,18 @@ Required:
 - database migration rollback or mitigation notes exist;
 - app rollback process is documented;
 - backup restoration path has been tested before release.
+
+## 10. Hardening gates (post-audit)
+
+Required:
+
+- no database connection string reaches the client bundle;
+- CSRF token generation and verification use the same canonical payload;
+- CSRF round-trip test passes;
+- rate-limit identity sourced from trusted proxy header, not client-controlled;
+- wrapping-key seed stored in sessionStorage, not localStorage;
+- meeting save surfaces recovery prompt when vault key is not ready (no silent no-op);
+- prototype surfaces (PDF signing, real-time collaboration, Teams, Outlook/Apple calendar) are disabled by default;
+- global error handlers are wired and errors are scrubbed of secrets;
+- critical routes have route-level loading and error boundaries;
+- CI dependency audit and secret scan fail the build at configured severity.

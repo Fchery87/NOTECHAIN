@@ -1,5 +1,5 @@
 import type { ActionItem } from '../ai/transcription/actionItemExtractor';
-import type { EncryptedTodo } from '../db';
+import type { CreateTaskInput } from '../tasks/taskAdapter';
 
 export interface MeetingActionItemTodoSource {
   meetingId: string;
@@ -7,14 +7,11 @@ export interface MeetingActionItemTodoSource {
   actionItem: ActionItem;
 }
 
-export type MeetingLinkedTodoInput = Omit<
-  EncryptedTodo,
-  'id' | 'ciphertext' | 'nonce' | 'authTag' | 'version'
->;
+export type MeetingLinkedTodoInput = CreateTaskInput;
 
 function mapActionPriorityToTodoPriority(
   priority: ActionItem['priority']
-): EncryptedTodo['priority'] {
+): CreateTaskInput['priority'] {
   if (priority === 'high') return 'high';
   if (priority === 'low') return 'low';
   return 'medium';
@@ -25,7 +22,6 @@ export function createTodoInputFromMeetingActionItem({
   meetingTitle,
   actionItem,
 }: MeetingActionItemTodoSource): MeetingLinkedTodoInput {
-  const now = new Date();
   const source = actionItem.provenance?.source;
   const sourceLabel = source
     ? `Source: ${meetingTitle} · ${source.segmentId}`
@@ -40,7 +36,5 @@ export function createTodoInputFromMeetingActionItem({
     sourceMeetingId: meetingId,
     sourceTranscriptSegmentId: source?.segmentId,
     sourceText: source?.text,
-    createdAt: now,
-    updatedAt: now,
   };
 }

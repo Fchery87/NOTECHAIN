@@ -15,7 +15,7 @@ vi.mock('@notechain/core-crypto', () => ({
   ),
 }));
 
-import { db, createNote } from '../../db';
+import { createCalendarEvent, createNote, db } from '../../db';
 import { buildMeetingPrepQuery, getMeetingPrepContext } from '../meetingPrepContext';
 
 describe('meetingPrepContext', () => {
@@ -53,13 +53,34 @@ describe('meetingPrepContext', () => {
     });
   });
 
-  it('marks prep context as calendar-event when a calendar event shell is linked', async () => {
+  it('uses the linked calendar event shell title for prep when available', async () => {
+    await createNote({
+      title: 'Quarterly Roadmap Notes',
+      content: 'Timeline, launch risks, and dependencies.',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const calendarEventId = await createCalendarEvent({
+      title: 'Quarterly Roadmap Review',
+      description: 'Discuss launch planning',
+      startDate: new Date('2024-01-15T10:00:00.000Z'),
+      endDate: new Date('2024-01-15T11:00:00.000Z'),
+      externalId: 'google-quarterly-review',
+      source: 'google',
+    });
+
     const context = await getMeetingPrepContext({
       meetingTitle: 'Team Standup',
-      calendarEventId: 'evt-123',
+      calendarEventId,
     });
 
     expect(context.source).toBe('calendar-event');
-    expect(context.calendarEventId).toBe('evt-123');
+    expect(context.calendarEventId).toBe(calendarEventId);
+    expect(context.query).toBe('quarterly roadmap review');
+    expect(context.relatedNotes[0]).toMatchObject({
+      type: 'note',
+      title: 'Quarterly Roadmap Notes',
+    });
   });
 });

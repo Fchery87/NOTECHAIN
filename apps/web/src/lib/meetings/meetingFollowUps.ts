@@ -1,12 +1,12 @@
-import { listTodos, type EncryptedTodo } from '../db';
+import { localTaskAdapter, type Task } from '../tasks/taskAdapter';
 
-export interface MeetingFollowUp extends EncryptedTodo {
+export interface MeetingFollowUp extends Task {
   sourceType: 'meeting';
   sourceMeetingId: string;
 }
 
 export async function listMeetingFollowUps(limit: number = 5): Promise<MeetingFollowUp[]> {
-  const todos = await listTodos({ sourceType: 'meeting' });
+  const todos = await localTaskAdapter.listTasks({ sourceType: 'meeting' });
 
   return todos
     .filter(

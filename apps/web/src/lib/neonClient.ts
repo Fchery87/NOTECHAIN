@@ -2,7 +2,9 @@
 import { neon } from '@neondatabase/serverless';
 
 // Create a serverless connection to Neon
-const connectionString = process.env.NEXT_PUBLIC_NEON_DATABASE_URL || '';
+// NOTE: This path must remain server-only. Do not expose database credentials
+// to browser bundles via NEXT_PUBLIC_* env vars.
+const connectionString = process.env.NEON_DATABASE_URL || '';
 
 /**
  * Result of a SELECT query that returns rows

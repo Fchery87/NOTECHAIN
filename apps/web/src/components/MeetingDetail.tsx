@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { createMeetingStorage, type Meeting } from '../lib/storage/meetingStorage';
-import { getMeetingEncryptionKey } from '../lib/storage/meetingEncryptionKey';
-import { createTodo } from '../lib/db';
-import { createTodoInputFromMeetingActionItem } from '../lib/meetings/actionItemToTodo';
-import { getMeetingPrepContext, type MeetingPrepContext } from '../lib/meetings/meetingPrepContext';
+import {
+  createMeetingAccess,
+  type Meeting,
+  type MeetingPrepContext,
+} from '../lib/meetings/meetingAccess';
 
 export interface MeetingDetailProps {
   /** Meeting ID to display */
@@ -54,10 +54,8 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
   useEffect(() => {
     const loadMeeting = async () => {
       try {
-        const storage = createMeetingStorage();
-        const key = await getMeetingEncryptionKey();
-
-        const loadedMeeting = await storage.getMeeting(meetingId, key);
+        const meetingAccess = createMeetingAccess();
+        const loadedMeeting = await meetingAccess.getMeeting(meetingId);
         setMeeting(loadedMeeting);
         if (loadedMeeting) {
           setEditedTitle(loadedMeeting.title);
@@ -83,7 +81,8 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
 
     const loadPrepContext = async () => {
       try {
-        const context = await getMeetingPrepContext({
+        const meetingAccess = createMeetingAccess();
+        const context = await meetingAccess.getPrepContext({
           meetingTitle: meeting.title,
           calendarEventId: meeting.calendarEventId,
         });
@@ -117,14 +116,10 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
   const handleTitleSave = useCallback(async () => {
     if (meeting && editedTitle.trim() && editedTitle !== meeting.title) {
       try {
-        const storage = createMeetingStorage();
-        const key = await getMeetingEncryptionKey();
-
-        const updatedMeeting = await storage.updateMeeting(
-          meeting.id,
-          { title: editedTitle.trim() },
-          key
-        );
+        const meetingAccess = createMeetingAccess();
+        const updatedMeeting = await meetingAccess.updateMeeting(meeting.id, {
+          title: editedTitle.trim(),
+        });
         setMeeting(updatedMeeting);
       } catch (error) {
         console.error('Failed to update title:', error);
@@ -139,18 +134,14 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
       if (!meeting) return;
 
       try {
-        const storage = createMeetingStorage();
-        const key = await getMeetingEncryptionKey();
-
+        const meetingAccess = createMeetingAccess();
         const updatedActionItems = meeting.actionItems.map((item, i) =>
           i === index ? { ...item, completed: !item.completed } : item
         );
 
-        const updatedMeeting = await storage.updateMeeting(
-          meeting.id,
-          { actionItems: updatedActionItems },
-          key
-        );
+        const updatedMeeting = await meetingAccess.updateMeeting(meeting.id, {
+          actionItems: updatedActionItems,
+        });
         setMeeting(updatedMeeting);
       } catch (error) {
         console.error('Failed to toggle action item:', error);
@@ -165,18 +156,12 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
       if (!meeting || createdTaskIds[index]) return;
 
       try {
-        const actionItem = meeting.actionItems[index];
-        if (!actionItem) return;
+        const task = await createMeetingAccess().promoteActionItemToTask({
+          meetingId: meeting.id,
+          actionItemIndex: index,
+        });
 
-        const todoId = await createTodo(
-          createTodoInputFromMeetingActionItem({
-            meetingId: meeting.id,
-            meetingTitle: meeting.title,
-            actionItem,
-          })
-        );
-
-        setCreatedTaskIds(prev => ({ ...prev, [index]: todoId }));
+        setCreatedTaskIds(prev => ({ ...prev, [index]: task.id }));
       } catch (error) {
         console.error('Failed to create task from meeting action item:', error);
       }
@@ -227,8 +212,8 @@ export function MeetingDetail({ meetingId, onBack, onDelete }: MeetingDetailProp
 
     if (window.confirm('Are you sure you want to delete this meeting?')) {
       try {
-        const storage = createMeetingStorage();
-        await storage.deleteMeeting(meeting.id);
+        const meetingAccess = createMeetingAccess();
+        await meetingAccess.deleteMeeting(meeting.id);
         onDelete?.(meeting.id);
       } catch (error) {
         console.error('Failed to delete meeting:', error);

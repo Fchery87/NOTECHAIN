@@ -15,7 +15,8 @@ vi.mock('@notechain/core-crypto', () => ({
   ),
 }));
 
-import { createTodo, db, listTodos } from '../../db';
+import { db } from '../../db';
+import { localTaskAdapter } from '../../tasks/taskAdapter';
 import { listMeetingFollowUps } from '../meetingFollowUps';
 
 describe('meetingFollowUps', () => {
@@ -30,7 +31,7 @@ describe('meetingFollowUps', () => {
   });
 
   it('lists pending meeting-linked todos only', async () => {
-    await createTodo({
+    await localTaskAdapter.createTask({
       title: 'Follow up with Alice',
       priority: 'high',
       status: 'pending',
@@ -38,27 +39,21 @@ describe('meetingFollowUps', () => {
       sourceMeetingId: 'meeting-1',
       sourceTranscriptSegmentId: 'transcript-segment-1',
       sourceText: 'Alice will send the launch notes',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    await createTodo({
+    await localTaskAdapter.createTask({
       title: 'Completed meeting task',
       priority: 'medium',
       status: 'completed',
       sourceType: 'meeting',
       sourceMeetingId: 'meeting-2',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    await createTodo({
+    await localTaskAdapter.createTask({
       title: 'Note-linked task',
       priority: 'medium',
       status: 'pending',
       linkedNoteId: 'note-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     const followUps = await listMeetingFollowUps();
@@ -73,25 +68,24 @@ describe('meetingFollowUps', () => {
   });
 
   it('supports filtering todos by meeting source fields', async () => {
-    await createTodo({
+    await localTaskAdapter.createTask({
       title: 'Meeting one task',
       status: 'pending',
       sourceType: 'meeting',
       sourceMeetingId: 'meeting-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    await createTodo({
+    await localTaskAdapter.createTask({
       title: 'Meeting two task',
       status: 'pending',
       sourceType: 'meeting',
       sourceMeetingId: 'meeting-2',
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    const todos = await listTodos({ sourceType: 'meeting', sourceMeetingId: 'meeting-2' });
+    const todos = await localTaskAdapter.listTasks({
+      sourceType: 'meeting',
+      sourceMeetingId: 'meeting-2',
+    });
 
     expect(todos).toHaveLength(1);
     expect(todos[0].title).toBe('Meeting two task');

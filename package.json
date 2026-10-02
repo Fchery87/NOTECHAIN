@@ -20,6 +20,7 @@
     "smoke:public-beta": "bun --filter='@notechain/web' run test:smoke:public-beta",
     "verify:lock": "bun test scripts/check-lock-singletons.test.ts && bun scripts/check-lock-singletons.ts",
     "verify:privacy": "bun --filter='@notechain/web' run test:verify:privacy",
+    "verify:route-seams": "bun --filter='@notechain/web' run test:verify:route-seams",
     "verify:sync:web": "bun --filter='@notechain/web' run test:verify:sync",
     "verify:sync-engine": "bun --filter='@notechain/sync-engine' run test:fast",
     "verify:sync-server": "bun --filter='@notechain/sync-engine' run test:server",

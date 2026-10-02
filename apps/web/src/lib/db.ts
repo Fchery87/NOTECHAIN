@@ -98,15 +98,19 @@ export interface EncryptedTodo {
   id?: string;
   title: string;
   description?: string;
-  priority?: 'high' | 'medium' | 'low';
-  status?: 'pending' | 'completed';
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  tags?: string[];
   linkedNoteId?: string;
   sourceType?: 'note' | 'meeting';
   sourceMeetingId?: string;
   sourceTranscriptSegmentId?: string;
   sourceText?: string;
   dueDate?: Date;
+  completedAt?: Date;
   projectId?: string;
+  estimatedMinutes?: number;
+  actualMinutes?: number;
   ciphertext: string;
   nonce: string;
   authTag: string;
@@ -128,14 +132,18 @@ interface EncryptedPDF {
   updatedAt: Date;
 }
 
-interface EncryptedCalendarEvent {
-  id?: string;
+export interface CalendarEventInput {
   title: string;
   description?: string;
   startDate: Date;
   endDate: Date;
   externalId?: string;
   source?: 'google' | 'outlook' | 'apple';
+  calendarId?: string;
+}
+
+interface EncryptedCalendarEvent extends CalendarEventInput {
+  id?: string;
   ciphertext: string;
   nonce: string;
   authTag: string;
@@ -383,13 +391,17 @@ export async function createTodo(
     description: todo.description,
     priority: todo.priority,
     status: todo.status,
+    tags: todo.tags,
     linkedNoteId: todo.linkedNoteId,
     sourceType: todo.sourceType,
     sourceMeetingId: todo.sourceMeetingId,
     sourceTranscriptSegmentId: todo.sourceTranscriptSegmentId,
     sourceText: todo.sourceText,
     dueDate: todo.dueDate,
+    completedAt: todo.completedAt,
     projectId: todo.projectId,
+    estimatedMinutes: todo.estimatedMinutes,
+    actualMinutes: todo.actualMinutes,
   });
 
   const id = generateId();
@@ -430,21 +442,33 @@ export async function getTodo(id: string): Promise<EncryptedTodo | undefined> {
 }
 
 export async function updateTodo(id: string, updates: Partial<EncryptedTodo>): Promise<void> {
-  const existing = await db.todos.get(id);
+  const existing = await getTodo(id);
   if (!existing) throw new Error('Todo not found');
 
+  const pick = <K extends keyof EncryptedTodo>(key: K): EncryptedTodo[K] => {
+    if (Object.prototype.hasOwnProperty.call(updates, key)) {
+      return updates[key] as EncryptedTodo[K];
+    }
+
+    return existing[key];
+  };
+
   const encrypted = await encryptObject({
-    title: updates.title,
-    description: updates.description,
-    priority: updates.priority,
-    status: updates.status,
-    linkedNoteId: updates.linkedNoteId,
-    sourceType: updates.sourceType,
-    sourceMeetingId: updates.sourceMeetingId,
-    sourceTranscriptSegmentId: updates.sourceTranscriptSegmentId,
-    sourceText: updates.sourceText,
-    dueDate: updates.dueDate,
-    projectId: updates.projectId,
+    title: pick('title'),
+    description: pick('description'),
+    priority: pick('priority'),
+    status: pick('status'),
+    tags: pick('tags'),
+    linkedNoteId: pick('linkedNoteId'),
+    sourceType: pick('sourceType'),
+    sourceMeetingId: pick('sourceMeetingId'),
+    sourceTranscriptSegmentId: pick('sourceTranscriptSegmentId'),
+    sourceText: pick('sourceText'),
+    dueDate: pick('dueDate'),
+    completedAt: pick('completedAt'),
+    projectId: pick('projectId'),
+    estimatedMinutes: pick('estimatedMinutes'),
+    actualMinutes: pick('actualMinutes'),
   });
 
   await db.todos.update(id, {
@@ -572,9 +596,7 @@ export async function deletePDF(id: string): Promise<void> {
 }
 
 // Calendar event operations
-export async function createCalendarEvent(
-  event: Omit<EncryptedCalendarEvent, 'id'>
-): Promise<string> {
+export async function createCalendarEvent(event: CalendarEventInput): Promise<string> {
   const encrypted = await encryptObject({
     title: event.title,
     description: event.description,
@@ -582,6 +604,7 @@ export async function createCalendarEvent(
     endDate: event.endDate,
     externalId: event.externalId,
     source: event.source,
+    calendarId: event.calendarId,
   });
 
   const id = generateId();
@@ -619,6 +642,37 @@ export async function getCalendarEvent(id: string): Promise<EncryptedCalendarEve
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+export async function updateCalendarEvent(
+  id: string,
+  updates: Partial<EncryptedCalendarEvent>
+): Promise<void> {
+  const existing = await getCalendarEvent(id);
+  if (!existing) throw new Error('Calendar event not found');
+
+  const pick = <K extends keyof CalendarEventInput>(key: K): CalendarEventInput[K] => {
+    if (Object.prototype.hasOwnProperty.call(updates, key)) {
+      return updates[key] as CalendarEventInput[K];
+    }
+
+    return existing[key] as CalendarEventInput[K];
+  };
+
+  const encrypted = await encryptObject({
+    title: pick('title'),
+    description: pick('description'),
+    startDate: pick('startDate'),
+    endDate: pick('endDate'),
+    externalId: pick('externalId'),
+    source: pick('source'),
+    calendarId: pick('calendarId'),
+  });
+
+  await db.calendarEvents.update(id, {
+    ...encrypted,
+    updatedAt: new Date(),
+  });
 }
 
 export async function listCalendarEvents(

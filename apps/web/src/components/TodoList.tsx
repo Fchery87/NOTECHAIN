@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import type { Todo } from '@notechain/data-models';
+import type { Task } from '@/lib/tasks/taskAdapter';
 
 /**
  * Props for the TodoList component
  */
 export interface TodoListProps {
-  todos: Todo[];
+  todos: Task[];
   onToggle: (id: string) => void;
-  onPress: (todo: Todo) => void;
+  onPress: (todo: Task) => void;
   onDelete?: (id: string) => void;
-  onEdit?: (todo: Todo) => void;
+  onEdit?: (todo: Task) => void;
   isLoading?: boolean;
 }
 
 /**
  * Priority color mapping
  */
-const priorityColors: Record<Todo['priority'], string> = {
+const priorityColors: Record<Task['priority'], string> = {
   low: 'bg-green-100 text-green-800 border-green-200',
   medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   high: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -28,7 +28,7 @@ const priorityColors: Record<Todo['priority'], string> = {
 /**
  * Priority badge component
  */
-function PriorityBadge({ priority }: { priority: Todo['priority'] }) {
+function PriorityBadge({ priority }: { priority: Task['priority'] }) {
   return (
     <span
       className={`px-2 py-0.5 text-xs font-medium rounded-full border ${priorityColors[priority]}`}
@@ -41,15 +41,15 @@ function PriorityBadge({ priority }: { priority: Todo['priority'] }) {
 /**
  * Status indicator component
  */
-function StatusIndicator({ status }: { status: Todo['status'] }) {
-  const statusStyles: Record<Todo['status'], string> = {
+function StatusIndicator({ status }: { status: Task['status'] }) {
+  const statusStyles: Record<Task['status'], string> = {
     pending: 'bg-stone-200',
     in_progress: 'bg-blue-500',
     completed: 'bg-green-500',
     cancelled: 'bg-stone-400',
   };
 
-  const statusLabels: Record<Todo['status'], string> = {
+  const statusLabels: Record<Task['status'], string> = {
     pending: 'Pending',
     in_progress: 'In Progress',
     completed: 'Completed',
@@ -145,7 +145,7 @@ export function TodoList({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, todo: Todo) => {
+    (e: React.KeyboardEvent, todo: Task) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onPress(todo);

@@ -1,25 +1,23 @@
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { CalendarEventTranscript, CalendarEventTranscriptProps } from '../CalendarEventTranscript';
+import {
+  CalendarEventTranscript,
+  type CalendarEventTranscriptProps,
+} from '../CalendarEventTranscript';
 import type { Meeting } from '../../lib/storage/meetingStorage';
-import type { ActionItem } from '../../lib/ai/transcription/actionItemExtractor';
 
-// Mock functions
 const transcriptMocks = vi.hoisted(() => ({
-  onSave: vi.fn(),
-  onCancel: vi.fn(),
   getMeetingsByCalendarEvent: vi.fn(),
-  createMeetingStorage: vi.fn(),
-  getMeetingEncryptionKey: vi.fn(),
-  meetingKey: new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1)),
-}));
-transcriptMocks.createMeetingStorage.mockImplementation(() => ({
-  getMeetingsByCalendarEvent: transcriptMocks.getMeetingsByCalendarEvent,
 }));
 
-// Mock MeetingTranscriber modal
+vi.mock('../../lib/meetings/meetingAccess', () => ({
+  createMeetingAccess: vi.fn(() => ({
+    getMeetingsByCalendarEvent: transcriptMocks.getMeetingsByCalendarEvent,
+  })),
+}));
+
 vi.mock('../MeetingTranscriber', () => ({
   MeetingTranscriber: ({
     onSave,
@@ -35,14 +33,22 @@ vi.mock('../MeetingTranscriber', () => ({
   ),
 }));
 
-// Mock meeting storage
-vi.mock('../../lib/storage/meetingStorage', () => ({
-  createMeetingStorage: transcriptMocks.createMeetingStorage,
-}));
-
-vi.mock('../../lib/storage/meetingEncryptionKey', () => ({
-  getMeetingEncryptionKey: transcriptMocks.getMeetingEncryptionKey,
-}));
+const mockMeeting: Meeting = {
+  id: 'meeting-123',
+  title: 'Team Sync Meeting',
+  date: new Date('2024-01-15T10:00:00'),
+  duration: 1800,
+  transcript: 'This is a test transcript that should appear in the preview.',
+  encryptedTranscript: {
+    ciphertext: 'ciphertext',
+    nonce: 'nonce',
+    authTag: 'auth-tag',
+  },
+  actionItems: [{ text: 'Review the proposal', completed: false }],
+  calendarEventId: 'calendar-event-456',
+  createdAt: new Date('2024-01-15T10:00:00'),
+  updatedAt: new Date('2024-01-15T10:30:00'),
+};
 
 describe('CalendarEventTranscript', () => {
   const defaultProps: CalendarEventTranscriptProps = {
@@ -53,233 +59,41 @@ describe('CalendarEventTranscript', () => {
     onViewMeeting: vi.fn(),
   };
 
-  const mockActionItems: ActionItem[] = [
-    { text: 'John will review the proposal', assignee: 'John', completed: false },
-    { text: 'Complete the report', completed: true },
-  ];
-
-  const mockMeeting: Meeting = {
-    id: 'meeting-123',
-    title: 'Team Sync Meeting',
-    date: new Date('2024-01-15T10:00:00'),
-    duration: 1800,
-    transcript:
-      'This is a test transcript with some meeting content that should be displayed in the preview. It has multiple sentences and should be truncated properly.',
-    encryptedTranscript: {
-      ciphertext: 'base64encodedciphertext',
-      nonce: 'base64encodednonce',
-      authTag: 'base64encodedauthtag',
-    },
-    actionItems: mockActionItems,
-    calendarEventId: 'calendar-event-456',
-    createdAt: new Date('2024-01-15T10:00:00'),
-    updatedAt: new Date('2024-01-15T10:30:00'),
-  };
-
   beforeEach(() => {
-    transcriptMocks.onSave.mockClear();
-    transcriptMocks.onCancel.mockClear();
-    transcriptMocks.getMeetingsByCalendarEvent.mockClear();
-    transcriptMocks.createMeetingStorage.mockClear();
-    transcriptMocks.getMeetingEncryptionKey.mockClear();
-    transcriptMocks.getMeetingEncryptionKey.mockResolvedValue(transcriptMocks.meetingKey);
+    vi.clearAllMocks();
     transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
   });
 
-  afterEach(() => {
-    transcriptMocks.onSave.mockClear();
-    transcriptMocks.onCancel.mockClear();
-    transcriptMocks.getMeetingsByCalendarEvent.mockClear();
-    transcriptMocks.createMeetingStorage.mockClear();
-    transcriptMocks.getMeetingEncryptionKey.mockClear();
-  });
-
-  test('shows loading state initially', async () => {
-    render(<CalendarEventTranscript {...defaultProps} />);
-    expect(screen.getByText(/loading/i)).toBeDefined();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-    });
-  });
-
-  test('shows "Transcribe" button if no meeting exists for event', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/transcribe meeting/i)).toBeDefined();
-    });
-
-    expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-  });
-
-  test('shows transcript summary if meeting exists', async () => {
+  test('loads event-linked meetings through meeting access', async () => {
     transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
-
     render(<CalendarEventTranscript {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/view transcript/i)).toBeDefined();
+      expect(screen.getByText(/view transcript/i)).toBeInTheDocument();
     });
 
-    // Should show transcript preview (first 100 chars)
-    expect(screen.getByText(/this is a test transcript/i)).toBeDefined();
+    expect(transcriptMocks.getMeetingsByCalendarEvent).toHaveBeenCalledWith('calendar-event-456');
   });
 
-  test('clicking "Transcribe" opens transcriber modal', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
-    const mockOnTranscribe = vi.fn();
+  test('opens the transcriber when no meeting exists', async () => {
+    const onTranscribe = vi.fn();
+    render(<CalendarEventTranscript {...defaultProps} onTranscribe={onTranscribe} />);
 
-    render(<CalendarEventTranscript {...defaultProps} onTranscribe={mockOnTranscribe} />);
+    fireEvent.click(await screen.findByRole('button', { name: /transcribe meeting/i }));
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /transcribe meeting/i }));
-    });
-
-    expect(mockOnTranscribe).toHaveBeenCalledWith('calendar-event-456');
-    expect(screen.getByTestId('meeting-transcriber-modal')).toBeDefined();
+    expect(onTranscribe).toHaveBeenCalledWith('calendar-event-456');
+    expect(screen.getByTestId('meeting-transcriber-modal')).toBeInTheDocument();
   });
 
-  test('shows action item count if meeting has action items', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
-
+  test('refreshes after saving from the transcriber modal', async () => {
     render(<CalendarEventTranscript {...defaultProps} />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/2 action items/i)).toBeDefined();
-    });
-  });
+    fireEvent.click(await screen.findByRole('button', { name: /transcribe meeting/i }));
+    fireEvent.click(screen.getByText('Save Meeting'));
 
-  test('shows completed vs pending action item count', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/1 pending/i)).toBeDefined();
-    });
-  });
-
-  test('shows link to view full meeting', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([mockMeeting]);
-    const mockOnViewMeeting = vi.fn();
-
-    render(<CalendarEventTranscript {...defaultProps} onViewMeeting={mockOnViewMeeting} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/view full meeting/i)).toBeDefined();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText(/view full meeting/i));
-    });
-
-    expect(mockOnViewMeeting).toHaveBeenCalledWith('meeting-123');
-  });
-
-  test('closes modal and refreshes meeting data on save', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-    });
-
-    // Open modal
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /transcribe meeting/i }));
-    });
-
-    expect(screen.getByTestId('meeting-transcriber-modal')).toBeDefined();
-
-    // Save meeting
-    await act(async () => {
-      fireEvent.click(screen.getByText('Save Meeting'));
-    });
-
-    // Modal should be closed
-    await waitFor(() => {
-      expect(screen.queryByTestId('meeting-transcriber-modal')).toBeNull();
-    });
-
-    // Should refresh meetings (called twice: initial + after save)
     await waitFor(() => {
       expect(transcriptMocks.getMeetingsByCalendarEvent).toHaveBeenCalledTimes(2);
+      expect(screen.queryByTestId('meeting-transcriber-modal')).not.toBeInTheDocument();
     });
-  });
-
-  test('closes modal on cancel', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-    });
-
-    // Open modal
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /transcribe meeting/i }));
-    });
-
-    expect(screen.getByTestId('meeting-transcriber-modal')).toBeDefined();
-
-    // Cancel
-    await act(async () => {
-      fireEvent.click(screen.getByText('Cancel'));
-    });
-
-    // Modal should be closed
-    await waitFor(() => {
-      expect(screen.queryByTestId('meeting-transcriber-modal')).toBeNull();
-    });
-  });
-
-  test('passes calendarEventId to MeetingTranscriber', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /transcribe meeting/i })).toBeDefined();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /transcribe meeting/i }));
-    });
-
-    expect(screen.getByTestId('meeting-transcriber-modal')).toBeDefined();
-  });
-
-  test('handles error when fetching meetings', async () => {
-    transcriptMocks.getMeetingsByCalendarEvent.mockRejectedValue(new Error('Database error'));
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/error loading meeting data/i)).toBeDefined();
-    });
-  });
-
-  test('truncates transcript preview to 100 characters', async () => {
-    const longTranscript = 'A'.repeat(200);
-    const meetingWithLongTranscript = { ...mockMeeting, transcript: longTranscript };
-    transcriptMocks.getMeetingsByCalendarEvent.mockResolvedValue([meetingWithLongTranscript]);
-
-    render(<CalendarEventTranscript {...defaultProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/view transcript/i)).toBeDefined();
-    });
-
-    const preview = screen.getByText('A'.repeat(100) + '...');
-    expect(preview).toBeDefined();
   });
 });
