@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { env } from '@huggingface/transformers';
 import {
   HuggingFaceTranscriptionService,
   MOONSHINE_CHUNK_SECONDS,
@@ -109,7 +110,7 @@ describe('HuggingFaceTranscriptionService audio resampling', () => {
 
     // The model received the resampled 16 kHz audio, NOT the native-rate audio.
     const audioArg = mocks.pipelineInstance.mock.calls[0][0] as Float32Array;
-    expect(audioArg).toBe(resampledChannel);
+    expect(audioArg).toEqual(resampledChannel);
     expect(audioArg.length).toBe(TARGET_SAMPLE_RATE);
     expect(audioArg.length).not.toBe(NATIVE_SAMPLES);
 
@@ -194,6 +195,81 @@ describe('HuggingFaceTranscriptionService audio resampling', () => {
 
     expect((globalThis as any).OfflineAudioContext).not.toHaveBeenCalled();
     const audioArg = mocks.pipelineInstance.mock.calls[0][0] as Float32Array;
-    expect(audioArg).toBe(resampledChannel);
+    expect(audioArg).toEqual(resampledChannel);
+  });
+});
+
+describe('HuggingFaceTranscriptionService model source', () => {
+  const ENV_KEYS = [
+    'allowLocalModels',
+    'allowRemoteModels',
+    'localModelPath',
+    'remoteHost',
+    'remotePathTemplate',
+  ] as const;
+  const loaderEnv = env as unknown as Record<string, unknown>;
+  const pickEnv = () => Object.fromEntries(ENV_KEYS.map(key => [key, loaderEnv[key]]));
+  const INITIAL_ENV = {
+    allowLocalModels: true,
+    allowRemoteModels: false,
+    localModelPath: '/models/',
+    remoteHost: 'https://huggingface.co/',
+    remotePathTemplate: '{model}/resolve/{revision}/',
+  };
+  let seenEnv: Array<Record<string, unknown>>;
+
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    Object.assign(loaderEnv, INITIAL_ENV);
+    seenEnv = [];
+    mocks.pipeline.mockImplementation(async () => {
+      seenEnv.push(pickEnv());
+      return mocks.pipelineInstance;
+    });
+  });
+
+  it('loads the default Moonshine model by id, so its files can come from a model host', async () => {
+    await new HuggingFaceTranscriptionService().initialize();
+
+    expect(mocks.pipeline).toHaveBeenCalledWith(
+      'automatic-speech-recognition',
+      'onnx-community/moonshine-tiny-ONNX',
+      expect.objectContaining({
+        device: 'wasm',
+        local_files_only: false,
+        dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' },
+      })
+    );
+  });
+
+  it('loads only from /models/ while loading when no model host is configured', async () => {
+    await new HuggingFaceTranscriptionService().initialize();
+
+    expect(seenEnv[0]).toMatchObject({
+      allowLocalModels: true,
+      allowRemoteModels: false,
+      localModelPath: '/models/',
+    });
+  });
+
+  it('loads only from the configured model host while loading', async () => {
+    vi.stubEnv('NEXT_PUBLIC_MODEL_HOST', 'https://models.example.com');
+
+    await new HuggingFaceTranscriptionService().initialize();
+
+    expect(seenEnv[0]).toMatchObject({
+      allowLocalModels: false,
+      allowRemoteModels: true,
+      remoteHost: 'https://models.example.com/',
+      remotePathTemplate: '{model}/',
+    });
+  });
+
+  it('restores the shared loader settings once the model has loaded', async () => {
+    vi.stubEnv('NEXT_PUBLIC_MODEL_HOST', 'https://models.example.com');
+
+    await new HuggingFaceTranscriptionService().initialize();
+
+    expect(pickEnv()).toEqual(INITIAL_ENV);
   });
 });
