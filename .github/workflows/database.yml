@@ -49,5 +49,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install PostgreSQL 17 client tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
       - name: Build schema from empty and run checks
         run: bash scripts/db/verify-baseline.sh
