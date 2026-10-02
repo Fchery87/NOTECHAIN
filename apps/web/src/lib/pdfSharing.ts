@@ -1,5 +1,5 @@
 import { encryptData, decryptData } from '@notechain/core-crypto';
-import { KeyManager } from '@notechain/core-crypto';
+import { getScopedMasterKey } from './vault/scopedMasterKey';
 
 /**
  * Browser-compatible Uint8Array to base64 string
@@ -84,7 +84,7 @@ export class PDFSharingService {
       const _encrypted = await encryptData(new TextDecoder().decode(pdfEncrypted), shareKey);
 
       // Encrypt share key with master key for storage
-      const masterKey = await KeyManager.getMasterKey();
+      const masterKey = await getScopedMasterKey();
       if (!masterKey) {
         throw new Error('Master key not found');
       }
@@ -151,7 +151,7 @@ export class PDFSharingService {
       }
 
       // Decrypt share key
-      const masterKey = await KeyManager.getMasterKey();
+      const masterKey = await getScopedMasterKey();
       if (!masterKey) {
         throw new Error('Master key not found');
       }

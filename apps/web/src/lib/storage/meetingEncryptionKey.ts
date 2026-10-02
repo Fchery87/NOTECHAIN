@@ -1,4 +1,5 @@
 import { KeyManager } from '@notechain/core-crypto';
+import { getScopedMasterKey } from '../vault/scopedMasterKey';
 
 const MEETING_STORAGE_KEY_CONTEXT = 'notechain-meeting-storage-v1';
 const RECOVERY_REQUIRED_MESSAGE =
@@ -14,7 +15,7 @@ const RECOVERY_REQUIRED_MESSAGE =
  * incompatible on this device.
  */
 export async function getMeetingEncryptionKey(): Promise<Uint8Array> {
-  const masterKey = await KeyManager.getMasterKey();
+  const masterKey = await getScopedMasterKey();
 
   if (!masterKey) {
     throw new Error(RECOVERY_REQUIRED_MESSAGE);

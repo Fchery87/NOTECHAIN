@@ -285,16 +285,25 @@ export class MeetingStorage {
   async getAllMeetings(key: Uint8Array): Promise<Meeting[]> {
     const storedMeetings = await this.db.getAllMeetings();
 
-    // Decrypt all transcripts and sort by date
-    const meetings: Meeting[] = await Promise.all(
-      storedMeetings.map(async stored => {
-        const transcript = await decryptData(stored.encryptedTranscript, key);
-        return {
-          ...stored,
-          transcript,
-        };
+    // Decrypt all transcripts and sort by date. A meeting written under a different
+    // key must not hide the ones that can still be read.
+    const decrypted = await Promise.all(
+      storedMeetings.map(async (stored): Promise<Meeting | null> => {
+        try {
+          const transcript = await decryptData(stored.encryptedTranscript, key);
+          return { ...stored, transcript };
+        } catch {
+          return null;
+        }
       })
     );
+    const meetings = decrypted.filter((meeting): meeting is Meeting => meeting !== null);
+    const skipped = decrypted.length - meetings.length;
+    if (skipped > 0) {
+      console.warn(
+        `[MeetingStorage] Skipped ${skipped} meeting${skipped === 1 ? '' : 's'} that could not be decrypted with the current key`
+      );
+    }
 
     // Sort by date descending (newest first)
     return meetings.sort((a, b) => b.date.getTime() - a.date.getTime());
