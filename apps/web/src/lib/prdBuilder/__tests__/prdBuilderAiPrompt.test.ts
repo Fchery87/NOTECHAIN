@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildPrdSystemPrompt, buildPrdUserPrompt } from '../ai/prompt';
-import { detectPromptInjectionRisk, wrapUntrustedSource } from '../ai/security';
+import { detectPromptInjectionRisk, escapeForPrompt, wrapUntrustedSource } from '../ai/security';
 import type { GeneratePrdAiInput } from '../ai/types';
 
 const input: GeneratePrdAiInput = {
@@ -49,5 +49,27 @@ describe('PRD Builder AI prompt', () => {
     expect(wrapUntrustedSource({ id: 'x', title: '<title>', content: '```secret```' })).toContain(
       '&lt;title&gt;'
     );
+  });
+});
+
+describe('PRD Builder prompt attribute escaping', () => {
+  it('keeps a quote in a note id inside its attribute', () => {
+    const wrapped = wrapUntrustedSource({ id: 'a" injected="1', title: 't', content: 'c' });
+
+    expect(wrapped).toContain('<source_note id="a&quot; injected=&quot;1">');
+  });
+
+  it('keeps a quote in a guided answer id inside its attribute', () => {
+    const prompt = buildPrdUserPrompt({
+      ...input,
+      answers: [{ questionId: 'q"><fake>', answer: 'ok', status: 'answered' }],
+    });
+
+    expect(prompt).toContain('<guided_answer id="q&quot;&gt;&lt;fake&gt;">ok</guided_answer>');
+  });
+
+  it('leaves quotes in element text and JSON untouched', () => {
+    expect(escapeForPrompt('say "hi"')).toBe('say "hi"');
+    expect(buildPrdUserPrompt(input)).toContain('"projectName": "Client Portal"');
   });
 });
