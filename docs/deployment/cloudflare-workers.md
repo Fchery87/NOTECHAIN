@@ -24,17 +24,35 @@ bun run preview:cloudflare                   # serves the Worker locally with wr
 - Largest static asset is the ONNX Runtime wasm at 20.6 MiB, under the 25 MiB per-file limit.
 - `proxy.ts` runs on Workers. Responses carry the nonce-based CSP, and protected routes redirect to `/auth/login`.
 
+## Verified on the deployed Worker
+
+Production runs at `https://notechain-web.myfixcredit.workers.dev`.
+
+- Google sign-in, the `/auth/callback` redirect, and Supabase sync work.
+- Private Mode loads the Moonshine model from the R2 model host and reports it loaded.
+- Cloudflare accepted the bundle, so global-scope startup is under the 1 second limit. The exact time has not been measured.
+
 ## Not verified
 
-- Supabase auth, sync and OAuth through the Worker.
-- `RedisRateLimiter` against a real Redis from Workers.
-- A real recording with the on-device speech model through this build.
-- Worker startup time. Cloudflare limits global-scope startup to 1 second, and this bundle has not been deployed to measure it.
-- Any deployment.
+- `RedisRateLimiter` against a real Redis from Workers. Without `REDIS_URL`, the PRD builder rate limiter rejects every request in production, and other rate limiting falls back to per-isolate memory.
+- A full recording and saved transcript on the deployed Worker. The model load is verified. Recording was verified on the local dev server.
+- Real-time Mode. It uses the browser's Web Speech API, and a `network` error from it comes from the browser's speech service, not from the Worker.
 
-## Deploying
+## Production deploy
 
-Set the same environment variables as the Node deployment (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `CSRF_SECRET`, `NEXT_PUBLIC_MODEL_HOST`). Add the Worker's origin to the R2 bucket CORS rule. Then run `bunx wrangler deploy` from `apps/web`.
+From `apps/web`, with `apps/web/.env.local` holding the real `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_MODEL_HOST`:
+
+1. Run `bun run build:packages` from the repo root, then `bun run build:cloudflare`.
+2. On the first deploy, pass `CSRF_SECRET` with `bunx wrangler deploy --secrets-file <file>`, where the file holds `CSRF_SECRET=<long random value>`. Later deploys run `bunx wrangler deploy` and keep the secret. Do not pass `--message` with spaces through this command, because Wrangler splits it into extra arguments.
+3. Add the Worker origin to the R2 bucket CORS rule.
+4. Add `https://<worker-host>/**` to Supabase redirect URLs, as described in the Preview runbook below.
+
+Two things the build depends on:
+
+- `/ort/*` is served by Workers Static Assets without running the Worker, so it misses the proxy's headers. `apps/web/public/_headers` gives it `Cross-Origin-Embedder-Policy: require-corp`. Without that, the cross-origin isolated pages refuse to start ONNX Runtime's worker threads and Private Mode stalls.
+- The production CSP allows `'wasm-unsafe-eval'` so the on-device models can compile WebAssembly.
+
+To take production down, run `bunx wrangler delete notechain-web`.
 
 ## Preview deploy runbook
 
