@@ -5,6 +5,10 @@ import type { NextConfig } from 'next';
 
 const workspaceRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
+const isCloudflareBuild = process.env.NOTECHAIN_TARGET === 'cloudflare';
+
+const serverStub = './src/server-stub.ts';
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -19,7 +23,23 @@ const nextConfig: NextConfig = {
   },
   // Keep transformer packages out of server bundles. Browser modules must avoid
   // importing server-oriented transformer entry points at module boundaries.
-  serverExternalPackages: ['@xenova/transformers', '@huggingface/transformers'],
+  ...(isCloudflareBuild
+    ? {
+        // Workers cannot load the Node entries or native binaries of these packages.
+        // The browser keeps the real modules and the server gets an inert stub.
+        turbopack: {
+          resolveAlias: {
+            '@huggingface/transformers': {
+              browser: '@huggingface/transformers',
+              default: serverStub,
+            },
+            '@xenova/transformers': { browser: '@xenova/transformers', default: serverStub },
+            'onnxruntime-node': { browser: 'onnxruntime-web', default: serverStub },
+            sharp: { browser: serverStub, default: serverStub },
+          },
+        },
+      }
+    : { serverExternalPackages: ['@xenova/transformers', '@huggingface/transformers'] }),
   // Keep database credentials server-only. Do not inline any Neon credential
   // into the browser bundle.
   env: {},

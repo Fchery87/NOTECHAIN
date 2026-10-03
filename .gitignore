@@ -116,3 +116,7 @@ storybook-static
 .harness/evolution/
 .harness/*.diff
 /inline
+
+# Cloudflare Workers build output
+.open-next
+.wrangler
