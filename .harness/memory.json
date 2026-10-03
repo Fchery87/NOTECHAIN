@@ -160,5 +160,41 @@
     "capability": "",
     "pattern": "",
     "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "1b994997-19eb-4611-92b1-b4b8090259df",
+    "timestamp": 1781062120889,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "420c035e-a2f8-45f5-ab34-447ab7251e3e",
+    "timestamp": 1781062121062,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "c71cfc6f-4f56-46a2-a3a2-72e464ca25fd",
+    "timestamp": 1781062311245,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: You are a delegated subagent running from a fork of the parent session. Treat the inherited conversation as reference-only context, not a live thread to continue. Do not continue or answer prior messages as if they are waiting for a reply. Your sole job is to execute the task below and return"
+  },
+  {
+    "id": "29a82737-bcd6-4cd8-a80e-0d950256804c",
+    "timestamp": 1781065128640,
+    "project": "NOTECHAIN",
+    "spec_tier": "ambient",
+    "capability": "",
+    "pattern": "",
+    "correction": "Task: Create a concrete implementation plan for NoteChain Guided PRD Builder Phase 2: add privacy-aware optional external AI generation and optional light web research to the existing deterministic wizard. Use current known files: apps/web/src/lib/prdBuilder/prdBuilder.ts, apps/web/src/components/pr"
   }
 ]
