@@ -54,6 +54,14 @@ Two things the build depends on:
 
 To take production down, run `bunx wrangler delete notechain-web`.
 
+## Deploys from GitHub
+
+`.github/workflows/deploy-cloudflare.yml` deploys `master` to the Worker. It starts after the `Test` workflow passes on a push to `master`, then waits for your approval on the `cloudflare-production` environment. You can also start it by hand from the Actions tab (Deploy Cloudflare Worker, Run workflow, branch `master`). It builds the bundle, deploys it, and requests `/auth/login` (expects 200) and `/dashboard` (expects a 307 to sign-in). If that check fails, it rolls the Worker back to the version that was live before.
+
+The environment holds the build inputs. All of them ship in the browser bundle, so they are variables and not secrets: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_MODEL_HOST`, `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_WORKER_URL`. The one secret is `CLOUDFLARE_API_TOKEN`. Create it in the Cloudflare dashboard under My Profile, API Tokens, with the "Edit Cloudflare Workers" template limited to this account, then add it as a secret on the `cloudflare-production` environment (Settings, Environments).
+
+The workflow has no `pull_request` trigger on purpose, because this repository is public and a deploy must never run from a fork. The environment only accepts `master`. If a deploy needs undoing, run `bunx wrangler rollback` from `apps/web`.
+
 ## Preview deploy runbook
 
 A Worker Preview is a separate deployment under the same Worker. It does not touch production. The Worker has no bindings besides static assets, so a Preview shares no data with anything.

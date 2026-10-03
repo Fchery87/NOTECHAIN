@@ -1,0 +1,107 @@
+name: Deploy Cloudflare Worker
+
+# Deploys apps/web to the notechain-web Worker after the Test workflow passes on
+# master. The deploy job waits for a reviewer to approve the
+# `cloudflare-production` environment, so nothing reaches live users unattended.
+# There is deliberately no pull_request trigger: this repo is public, and a
+# deploy must never run from a fork.
+
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push')
+    environment: cloudflare-production
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_MODEL_HOST: ${{ vars.NEXT_PUBLIC_MODEL_HOST }}
+      WORKER_URL: ${{ vars.CLOUDFLARE_WORKER_URL }}
+
+    steps:
+      - name: Require master
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/master'
+        run: |
+          echo "::error::Run this workflow from master."
+          exit 1
+
+      - name: Check required settings
+        run: |
+          missing=0
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY NEXT_PUBLIC_MODEL_HOST WORKER_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set on the cloudflare-production environment."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Checkout the commit that passed tests
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build packages
+        run: bun run build:packages
+
+      - name: Build the Worker bundle
+        run: bun --filter='@notechain/web' run build:cloudflare
+
+      - name: Remember the live version
+        id: previous
+        working-directory: apps/web
+        run: |
+          version=$(bunx wrangler deployments status --name notechain-web 2>/dev/null | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Live version before this deploy: ${version:-unknown}"
+
+      - name: Deploy
+        id: deploy
+        working-directory: apps/web
+        run: bunx wrangler deploy
+
+      - name: Smoke test the live Worker
+        run: |
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$WORKER_URL$1")
+            echo "$1 -> $code (want $2)"
+            [ "$code" = "$2" ]
+          }
+          # A public page renders, and a protected page still redirects to sign-in.
+          for attempt in 1 2 3; do
+            if check /auth/login 200 && check /dashboard 307; then exit 0; fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Roll back if the smoke test failed
+        if: failure() && steps.deploy.conclusion == 'success' && steps.previous.outputs.version != ''
+        working-directory: apps/web
+        run: bunx wrangler rollback "${{ steps.previous.outputs.version }}" --name notechain-web --yes --message smoke-test-failed
