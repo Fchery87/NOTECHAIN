@@ -35,3 +35,27 @@ bun run preview:cloudflare                   # serves the Worker locally with wr
 ## Deploying
 
 Set the same environment variables as the Node deployment (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `CSRF_SECRET`, `NEXT_PUBLIC_MODEL_HOST`). Add the Worker's origin to the R2 bucket CORS rule. Then run `bunx wrangler deploy` from `apps/web`.
+
+## Preview deploy runbook
+
+A Worker Preview is a separate deployment under the same Worker. It does not touch production. The Worker has no bindings besides static assets, so a Preview shares no data with anything.
+
+Before the first run, from `apps/web`:
+
+1. Log in with `bunx wrangler login` and check the account with `bunx wrangler whoami`.
+2. Build with the real public values. `NEXT_PUBLIC_*` values are inlined at build time, so `apps/web/.env.local` must hold `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_MODEL_HOST`. Run `bun run build:packages` from the repo root first.
+3. Deploy with `bun run deploy:preview -- --name <preview-name>`. It builds, then runs `wrangler preview`. The name defaults to the current Git branch.
+4. Set the server secret. `CSRF_SECRET` is required in production and the Worker runs with `NODE_ENV=production`. Run `bunx wrangler preview secret put CSRF_SECRET --name <preview-name>` and paste a long random value. Every secret put creates a new deployment.
+
+After the first deploy, `wrangler preview` prints a Preview URL. Then:
+
+- Add the Preview origin to the R2 bucket CORS rule, or the model downloads fail.
+- Add the Preview URL to Supabase Authentication, URL Configuration, redirect URLs. Google sign-in also needs the Supabase callback URL in the Google OAuth client, which does not change.
+- Treat the Preview URL as public. Anyone with the link can load the app. Add Cloudflare Access in front of it if that matters.
+
+Known behavior on a Preview:
+
+- Without `REDIS_URL`, the PRD builder rate limiter rejects every request in production. Other rate limiting falls back to per-isolate memory, which is not shared across requests served by different isolates.
+- `/auth/login` is the login route.
+
+To remove a Preview and its deployments, run `bunx wrangler preview delete --name <preview-name>`.
