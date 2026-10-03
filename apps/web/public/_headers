@@ -1,0 +1,6 @@
+# Cloudflare Workers Static Assets serve these files without running the Worker,
+# so they miss the proxy's headers. Pages are cross-origin isolated, and ONNX Runtime
+# starts its threads from this script, which a COEP page only allows when it sends COEP too.
+/ort/*
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
