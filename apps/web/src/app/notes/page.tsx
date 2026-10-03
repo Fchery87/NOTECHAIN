@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import AppLayout from '@/components/AppLayout';
 import { NoteEditor } from '@/components/NoteEditor';
 import { PrdBuilderWizard } from '@/components/prdBuilder/PrdBuilderWizard';
+import { noteHref, notePlainText } from '@/lib/notes/noteLinks';
+import { ArrowLeftIcon, LockIcon, PlusIcon, SearchIcon } from '@/components/appNav';
 
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
@@ -27,8 +30,32 @@ interface Note {
   version?: number;
 }
 
+function formatEdited(date: Date) {
+  const minutes = Math.round((Date.now() - new Date(date).getTime()) / 60000);
+  if (minutes < 1) return 'Edited just now';
+  if (minutes < 60) return `Edited ${minutes} min ago`;
+  return `Edited ${new Date(date).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })}`;
+}
+
 export default function NotesPage() {
+  return (
+    <Suspense fallback={null}>
+      <NotesWorkspace />
+    </Suspense>
+  );
+}
+
+function NotesWorkspace() {
   const { user } = useUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedNoteId = searchParams.get('id');
+  const wantsNewNote = searchParams.get('new') === '1';
   const {
     loadCachedNotes,
     loadNotes,
@@ -45,9 +72,12 @@ export default function NotesPage() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [_showShareDialog, setShowShareDialog] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [prdBuilderNotes, setPrdBuilderNotes] = useState<Note[] | null>(null);
+  const [query, setQuery] = useState('');
+  const [mobilePane, setMobilePane] = useState<'list' | 'editor'>('list');
+  const titleRef = useRef<HTMLInputElement>(null);
+  const focusTitleOnSelect = useRef(false);
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -63,16 +93,25 @@ export default function NotesPage() {
     avatarUrl: undefined,
   };
 
-  // Load cached notes first, then refresh from Supabase when encryption is ready.
+  const isMounted = useRef(true);
   useEffect(() => {
-    if (!isEncryptionReady || !user?.id || hasLoaded) return;
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
-    let cancelled = false;
+  // Load cached notes first, then refresh from Supabase when encryption is ready.
+  // A ref (not state) guards re-entry so this effect never cancels its own refresh.
+  const loadStarted = useRef(false);
+  useEffect(() => {
+    if (!isEncryptionReady || !user?.id || loadStarted.current) return;
+    loadStarted.current = true;
 
     const applyLoadedNotes = (
       loaded: Array<Omit<Note, 'ownerId' | 'ownerName' | 'collaborators'>>
     ) => {
-      if (cancelled) return;
+      if (!isMounted.current) return;
 
       // Identify locked notes (those with key mismatch placeholder)
       const lockedIds = new Set<string>();
@@ -105,23 +144,21 @@ export default function NotesPage() {
     };
 
     const load = async () => {
-      const cached = await loadCachedNotes();
-      if (cached.length > 0) {
-        applyLoadedNotes(cached);
+      try {
+        const cached = await loadCachedNotes();
+        if (cached.length > 0) {
+          applyLoadedNotes(cached);
+        }
+
+        const refreshed = await loadNotes();
+        applyLoadedNotes(refreshed);
+      } finally {
+        if (isMounted.current) setHasLoaded(true);
       }
-
-      setHasLoaded(true);
-
-      const refreshed = await loadNotes();
-      applyLoadedNotes(refreshed);
     };
 
     load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isEncryptionReady, hasLoaded, loadCachedNotes, loadNotes, user?.id, currentUser.displayName]);
+  }, [isEncryptionReady, loadCachedNotes, loadNotes, user?.id, currentUser.displayName]);
 
   // Apply note changes that arrive from another browser session/device.
   useEffect(() => {
@@ -168,11 +205,29 @@ export default function NotesPage() {
 
   const selectedNote = notes.find(n => n.id === selectedNoteId) || null;
 
+  const visibleNotes = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const sorted = [...notes].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    if (!q) return sorted;
+    return sorted.filter(
+      note =>
+        note.title.toLowerCase().includes(q) ||
+        notePlainText(note.content).toLowerCase().includes(q)
+    );
+  }, [notes, query]);
+
   // ── Handlers ──
 
-  const handleNoteSelect = useCallback((noteId: string) => {
-    setSelectedNoteId(noteId);
-  }, []);
+  const handleNoteSelect = useCallback(
+    (noteId: string) => {
+      setSelectedNoteId(noteId);
+      setMobilePane('editor');
+      router.replace(noteHref(noteId), { scroll: false });
+    },
+    [router]
+  );
 
   const handleContentChange = useCallback(
     async (content: string) => {
@@ -217,6 +272,9 @@ export default function NotesPage() {
 
       setNotes(prev => [newNote, ...prev]);
       setSelectedNoteId(newNote.id);
+      setMobilePane('editor');
+      setQuery('');
+      router.replace(noteHref(noteId), { scroll: false });
 
       if (isSyncEnabled) {
         await syncCreateNote(
@@ -228,12 +286,42 @@ export default function NotesPage() {
         );
       }
     },
-    [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName]
+    [syncCreateNote, isSyncEnabled, currentUser.id, currentUser.displayName, router]
   );
 
   const handleCreateNote = useCallback(async () => {
-    await createNoteWithContent('New Note', '');
+    focusTitleOnSelect.current = true;
+    await createNoteWithContent('', '');
   }, [createNoteWithContent]);
+
+  // `/notes?new=1` (sidebar, palette, `C` shortcut) opens a fresh note once notes have loaded.
+  const consumedNewNoteRequest = useRef(false);
+  useEffect(() => {
+    if (!wantsNewNote) {
+      consumedNewNoteRequest.current = false;
+      return;
+    }
+    if (hasLoaded && !consumedNewNoteRequest.current) {
+      consumedNewNoteRequest.current = true;
+      handleCreateNote();
+    }
+  }, [wantsNewNote, hasLoaded, handleCreateNote]);
+
+  // `/notes?id=…` (palette results, dashboard links) opens that note.
+  const requestedNoteExists = notes.some(note => note.id === requestedNoteId);
+  useEffect(() => {
+    if (requestedNoteId && requestedNoteExists) {
+      setSelectedNoteId(requestedNoteId);
+      setMobilePane('editor');
+    }
+  }, [requestedNoteId, requestedNoteExists]);
+
+  useEffect(() => {
+    if (focusTitleOnSelect.current && selectedNoteId) {
+      focusTitleOnSelect.current = false;
+      titleRef.current?.focus();
+    }
+  }, [selectedNoteId]);
 
   // Single-note delete (from card action or editor header)
   const handleDeleteNote = useCallback(
@@ -246,6 +334,7 @@ export default function NotesPage() {
         const remaining = prev.filter(n => n.id !== noteId);
         if (selectedNoteId === noteId) {
           setSelectedNoteId(remaining.length > 0 ? remaining[0].id : null);
+          setMobilePane('list');
         }
         return remaining;
       });
@@ -256,11 +345,6 @@ export default function NotesPage() {
     },
     [notes, selectedNoteId, syncDeleteNote, isSyncEnabled]
   );
-
-  // Edit from card — just select it
-  const handleEditNote = useCallback((noteId: string) => {
-    setSelectedNoteId(noteId);
-  }, []);
 
   // Multi-select toggle
   const handleToggleSelect = useCallback((noteId: string) => {
@@ -376,45 +460,21 @@ export default function NotesPage() {
     }
   }, [lockedNoteIds, deleteLockedNotes, selectedNoteId, notes]);
 
-  const handleShare = useCallback(() => {
-    setShowShareDialog(true);
-  }, []);
-
-  const _handleShareClose = useCallback(() => {
-    setShowShareDialog(false);
-  }, []);
-
   // ── Header actions ──
 
+  const quietButton =
+    'px-3 py-1.5 rounded-lg text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
   const headerActions = (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       {lockedNoteIds.size > 0 && (
         <button
           onClick={() => setShowLockedNotes(!showLockedNotes)}
-          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-            showLockedNotes
-              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-          }`}
+          className={`${quietButton} flex items-center gap-1.5 ${showLockedNotes ? 'bg-amber-50 text-amber-800' : ''}`}
           title={`${lockedNoteIds.size} locked note${lockedNoteIds.size > 1 ? 's' : ''} found`}
         >
-          <span className="flex items-center gap-1">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            {lockedNoteIds.size} Locked
-          </span>
+          <LockIcon className="h-4 w-4" />
+          {lockedNoteIds.size} locked
         </button>
       )}
       {notes.length > 0 && (
@@ -425,37 +485,258 @@ export default function NotesPage() {
             } else {
               setIsMultiSelectMode(true);
               setSelectedIds(new Set());
+              setMobilePane('list');
             }
           }}
-          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-            isMultiSelectMode
-              ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-              : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-          }`}
+          className={`${quietButton} hidden sm:block`}
         >
-          {isMultiSelectMode ? 'Cancel' : 'Select'}
+          {isMultiSelectMode ? 'Done' : 'Select'}
         </button>
       )}
       {notes.length > 0 && (
         <button
           onClick={handleOpenPrdBuilder}
           disabled={getPrdBuilderSourceNotes().length === 0}
-          className="px-3 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-medium hover:bg-amber-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className={`${quietButton} hidden sm:block`}
         >
           Create PRD
         </button>
       )}
       <button
         onClick={handleCreateNote}
-        className="px-4 py-2 bg-stone-900 text-stone-50 rounded-lg hover:bg-stone-800 transition-colors"
+        className="ml-1 flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-stone-50 transition-all duration-300 hover:bg-stone-800 hover:shadow-lg hover:shadow-stone-900/20"
       >
-        + New Note
+        <PlusIcon className="h-4 w-4" />
+        <span className="hidden sm:inline">New note</span>
       </button>
     </div>
   );
 
+  const listPane = (
+    <section
+      aria-label="Notes"
+      className={`${mobilePane === 'list' ? 'flex' : 'hidden'} min-h-0 w-full flex-col border-stone-200/80 bg-white lg:flex lg:w-80 lg:shrink-0 lg:border-r xl:w-96`}
+    >
+      <div className="border-b border-stone-200/70 p-3">
+        {isMultiSelectMode ? (
+          <div className="flex h-9 items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSelectAll}
+                className="text-sm font-medium text-amber-700 hover:text-amber-800"
+              >
+                {selectedIds.size === notes.length ? 'Deselect all' : 'Select all'}
+              </button>
+              <span className="text-sm text-stone-400">{selectedIds.size} selected</span>
+            </div>
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedIds.size === 0}
+              className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Delete
+            </button>
+          </div>
+        ) : (
+          <label className="relative block">
+            <span className="sr-only">Search notes</span>
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Escape' && setQuery('')}
+              placeholder="Search notes"
+              className="h-9 w-full rounded-lg border border-stone-200 bg-white pl-9 pr-3 text-sm text-stone-900 placeholder:text-stone-400 transition-all duration-200 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus-visible:outline-none"
+            />
+          </label>
+        )}
+      </div>
+
+      {showLockedNotes && lockedNoteIds.size > 0 && (
+        <div className="border-b border-stone-200 bg-amber-50/60 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-medium text-stone-700">
+              <LockIcon className="h-4 w-4 text-amber-600" />
+              {lockedNoteIds.size} locked note{lockedNoteIds.size > 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={handleDeleteLockedNotes}
+              className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+            >
+              Delete all
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-stone-500">
+            These notes were encrypted with a different key and cannot be decrypted.
+          </p>
+        </div>
+      )}
+
+      <div className="custom-scrollbar flex-1 overflow-y-auto">
+        {isLoading && notes.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-stone-300 border-t-amber-500" />
+            <p className="mt-3 text-sm text-stone-400">Decrypting notes…</p>
+          </div>
+        ) : loadError ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-red-600">{loadError}</p>
+          </div>
+        ) : notes.length === 0 ? (
+          <p className="p-8 text-center text-sm text-stone-400">No notes yet.</p>
+        ) : visibleNotes.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-stone-500">No notes match “{query}”.</p>
+            <button
+              onClick={() => setQuery('')}
+              className="mt-2 text-sm font-medium text-amber-700 hover:text-amber-800"
+            >
+              Clear search
+            </button>
+          </div>
+        ) : (
+          visibleNotes.map(note => (
+            <NoteCard
+              key={note.id}
+              id={note.id}
+              title={note.title}
+              content={note.content}
+              updatedAt={note.updatedAt}
+              ownerName={note.collaborators.length > 0 ? note.ownerName : undefined}
+              collaborators={note.collaborators}
+              currentUserId={currentUser.id}
+              onClick={handleNoteSelect}
+              isSelected={selectedNoteId === note.id}
+              onEdit={handleNoteSelect}
+              onDelete={handleDeleteNote}
+              isSelectable={isMultiSelectMode}
+              isChecked={selectedIds.has(note.id)}
+              onToggleSelect={handleToggleSelect}
+            />
+          ))
+        )}
+      </div>
+
+      {notes.length > 0 && (
+        <div className="border-t border-stone-200/70 px-4 py-2 text-xs text-stone-400">
+          {query ? `${visibleNotes.length} of ${notes.length}` : notes.length} note
+          {notes.length === 1 ? '' : 's'}
+        </div>
+      )}
+    </section>
+  );
+
+  const editorPane = (
+    <section
+      aria-label="Editor"
+      className={`${mobilePane === 'editor' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col bg-white lg:flex`}
+    >
+      {selectedNote ? (
+        <div className="custom-scrollbar flex-1 overflow-y-auto">
+          <article
+            key={selectedNote.id}
+            className="mx-auto max-w-3xl animate-fade-in px-5 py-6 sm:px-10 md:py-10"
+          >
+            <div className="mb-6 flex items-center justify-between gap-3 text-xs text-stone-400">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setMobilePane('list')}
+                  className="-ml-1.5 flex items-center gap-1 rounded-md p-1 text-sm text-stone-500 hover:bg-stone-100 lg:hidden"
+                >
+                  <ArrowLeftIcon className="h-4 w-4" />
+                  Notes
+                </button>
+                <span>{formatEdited(selectedNote.updatedAt)}</span>
+                <span className="hidden items-center gap-1 sm:flex">
+                  <LockIcon className="h-3.5 w-3.5 text-amber-600" />
+                  End-to-end encrypted
+                </span>
+              </div>
+              <button
+                onClick={() => handleDeleteNote(selectedNote.id)}
+                title="Delete note"
+                aria-label="Delete note"
+                className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-500"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            </div>
+
+            <input
+              ref={titleRef}
+              type="text"
+              value={selectedNote.title}
+              onChange={e => handleTitleChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  (document.querySelector('.ProseMirror') as HTMLElement | null)?.focus();
+                }
+              }}
+              placeholder="Untitled"
+              aria-label="Note title"
+              className="mb-2 w-full border-none bg-transparent font-serif text-3xl font-medium tracking-[-0.02em] text-stone-900 placeholder:text-stone-300 focus:outline-none focus-visible:outline-none md:text-4xl"
+            />
+
+            <NoteEditor
+              noteId={selectedNote.id}
+              content={selectedNote.content}
+              onChange={handleContentChange}
+              placeholder="Start writing. Everything is encrypted on this device before it syncs."
+              minHeight="40vh"
+              userId={currentUser.id}
+              displayName={currentUser.displayName}
+              collaborators={selectedNote.collaborators}
+            />
+          </article>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          {notes.length === 0 && !isLoading ? (
+            <div className="max-w-sm animate-fade-in">
+              <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                <LockIcon className="h-6 w-6" />
+              </div>
+              <h2 className="font-serif text-3xl text-stone-900">A quiet place to think</h2>
+              <p className="mt-3 leading-relaxed text-stone-500">
+                Notes are encrypted on this device before they sync. Only you hold the key.
+              </p>
+              <button
+                onClick={handleCreateNote}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-stone-900 px-5 py-2.5 font-medium text-stone-50 transition-all duration-300 hover:bg-stone-800 hover:shadow-lg hover:shadow-stone-900/20"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Write your first note
+              </button>
+              <p className="mt-4 text-xs text-stone-400">
+                Tip: press <kbd className="rounded border border-stone-200 px-1 font-mono">C</kbd>{' '}
+                anywhere to start a note
+              </p>
+            </div>
+          ) : (
+            <p className="text-stone-400">Select a note to start editing</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
   return (
-    <AppLayout pageTitle="Notes" actions={headerActions}>
+    <AppLayout pageTitle="Notes" actions={headerActions} fullWidth>
       {prdBuilderNotes && (
         <PrdBuilderWizard
           sourceNotes={prdBuilderNotes}
@@ -463,186 +744,9 @@ export default function NotesPage() {
           onSaveAsNote={handleSavePrdAsNote}
         />
       )}
-      <div className="py-6 max-w-[1600px] mx-auto h-[calc(100vh-64px)] flex flex-col">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
-          <div className="lg:col-span-1 flex flex-col min-h-0">
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
-              {/* Search + multi-select toolbar */}
-              <div className="p-4 border-b border-stone-200">
-                {isMultiSelectMode ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={handleSelectAll}
-                        className="text-sm text-amber-600 hover:text-amber-700 font-medium"
-                      >
-                        {selectedIds.size === notes.length ? 'Deselect all' : 'Select all'}
-                      </button>
-                      <span className="text-sm text-stone-400">{selectedIds.size} selected</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleOpenPrdBuilder}
-                        disabled={getPrdBuilderSourceNotes().length === 0}
-                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Create PRD
-                      </button>
-                      <button
-                        onClick={handleBulkDelete}
-                        disabled={selectedIds.size === 0}
-                        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Search notes..."
-                    className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                  />
-                )}
-              </div>
-
-              {/* Locked Notes Management Section */}
-              {showLockedNotes && lockedNoteIds.size > 0 && (
-                <div className="p-4 border-b border-stone-200 bg-amber-50/50">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-amber-600"
-                      >
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                      </svg>
-                      <span className="text-sm font-medium text-stone-700">
-                        {lockedNoteIds.size} locked note{lockedNoteIds.size > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleDeleteLockedNotes}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                    >
-                      Delete All
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-stone-500">
-                    These notes were encrypted with a different key and cannot be decrypted.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {isLoading ? (
-                  <div className="p-8 text-center">
-                    <div className="inline-block w-6 h-6 border-2 border-stone-300 border-t-amber-500 rounded-full animate-spin" />
-                    <p className="mt-3 text-sm text-stone-400">Decrypting notes…</p>
-                  </div>
-                ) : loadError ? (
-                  <div className="p-8 text-center">
-                    <p className="text-sm text-red-500">{loadError}</p>
-                  </div>
-                ) : notes.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className="text-sm text-stone-400">
-                      No notes yet. Create one to get started.
-                    </p>
-                  </div>
-                ) : (
-                  notes.map(note => (
-                    <NoteCard
-                      key={note.id}
-                      id={note.id}
-                      title={note.title}
-                      content={note.content}
-                      updatedAt={note.updatedAt}
-                      ownerName={note.ownerName}
-                      collaborators={note.collaborators}
-                      currentUserId={currentUser.id}
-                      onClick={handleNoteSelect}
-                      isSelected={selectedNoteId === note.id}
-                      onEdit={handleEditNote}
-                      onDelete={handleDeleteNote}
-                      isSelectable={isMultiSelectMode}
-                      isChecked={selectedIds.has(note.id)}
-                      onToggleSelect={handleToggleSelect}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 flex flex-col min-h-0">
-            {selectedNote ? (
-              <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-stone-100 flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div className="p-4 border-b border-stone-200 flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={selectedNote.title}
-                    onChange={e => handleTitleChange(e.target.value)}
-                    placeholder="Note title..."
-                    className="flex-1 text-xl font-medium bg-transparent border-none focus:outline-none placeholder:text-stone-400"
-                  />
-                  <button
-                    onClick={() => handleDeleteNote(selectedNote.id)}
-                    title="Delete note"
-                    className="shrink-0 p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
-                  <NoteEditor
-                    noteId={selectedNote.id}
-                    content={selectedNote.content}
-                    onChange={handleContentChange}
-                    placeholder="Start writing your encrypted note..."
-                    minHeight="500px"
-                    userId={currentUser.id}
-                    displayName={currentUser.displayName}
-                    collaborators={selectedNote.collaborators}
-                    onShare={handleShare}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-stone-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex-1 flex flex-col min-h-0 items-center justify-center">
-                <p className="text-stone-400">
-                  {notes.length === 0
-                    ? 'Create your first note to get started'
-                    : 'Select a note to start editing'}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="flex h-full min-h-0">
+        {listPane}
+        {editorPane}
       </div>
     </AppLayout>
   );

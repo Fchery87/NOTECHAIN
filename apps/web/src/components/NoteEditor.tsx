@@ -9,6 +9,8 @@ import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { VoiceInputButton } from './VoiceInputButton';
 import { CollaborativeEditor } from './CollaborativeEditor';
 
@@ -58,12 +60,14 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
+      aria-pressed={isActive}
       className={`
-        p-2 rounded-lg transition-all duration-200
+        p-1.5 rounded-md transition-colors duration-150
         ${
           isActive
-            ? 'bg-stone-200 text-stone-900'
-            : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
+            ? 'bg-amber-100 text-amber-900'
+            : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
         }
       `}
     >
@@ -72,11 +76,36 @@ function ToolbarButton({
   );
 }
 
+function Glyph({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <span className={`flex h-4 w-4 items-center justify-center text-sm leading-none ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function ToolbarIcon({ d }: { d: string }) {
+  return (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
 /**
  * Toolbar separator
  */
 function ToolbarSeparator() {
-  return <div className="w-px h-6 bg-stone-200 mx-1" />;
+  return <div className="w-px h-5 bg-stone-200 mx-1" />;
 }
 
 /**
@@ -140,6 +169,8 @@ export function NoteEditor({
       CharacterCount.configure({
         limit: 100000,
       }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
     ],
     content,
     editable,
@@ -215,30 +246,17 @@ export function NoteEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       {/* Toolbar */}
       {editable && (
-        <div className="flex flex-wrap items-center gap-1 p-2 bg-white border border-stone-200 rounded-xl shadow-sm">
+        <div className="sticky top-0 z-10 -mx-2 flex flex-wrap items-center gap-0.5 rounded-lg bg-white/90 px-2 py-1.5 backdrop-blur-sm">
           {/* Text formatting */}
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             isActive={editor.isActive('bold')}
             title="Bold (Ctrl+B)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 4h8a4 4 0 014 4v10a4 4 0 01-4 4H6a4 4 0 01-4-4V8a4 4 0 014-4z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 9l-6 6M9 9l6 6"
-              />
-            </svg>
+            <Glyph className="font-bold">B</Glyph>
           </ToolbarButton>
 
           <ToolbarButton
@@ -246,20 +264,7 @@ export function NoteEditor({
             isActive={editor.isActive('italic')}
             title="Italic (Ctrl+I)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 4h4a2 2 0 012 2v10a2 2 0 01-2 2h-4a2 2 0 01-2-2V6a2 2 0 012-2z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 9l-6 6M10 9l6 6"
-              />
-            </svg>
+            <Glyph className="font-serif italic text-[17px]">I</Glyph>
           </ToolbarButton>
 
           <ToolbarButton
@@ -267,14 +272,7 @@ export function NoteEditor({
             isActive={editor.isActive('underline')}
             title="Underline (Ctrl+U)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 4v7a5 5 0 0010 0v4M5 20h14"
-              />
-            </svg>
+            <Glyph className="underline underline-offset-2">U</Glyph>
           </ToolbarButton>
 
           <ToolbarButton
@@ -282,43 +280,22 @@ export function NoteEditor({
             isActive={editor.isActive('strike')}
             title="Strikethrough (Ctrl+Shift+X)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 12H7m10 0l-4 4m0-4l4 4"
-              />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20h16" />
-            </svg>
+            <Glyph className="line-through">S</Glyph>
           </ToolbarButton>
 
           <ToolbarSeparator />
 
           {/* Headings */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            isActive={editor.isActive('heading', { level: 1 })}
-            title="Heading 1"
-          >
-            <span className="font-bold text-sm">H1</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            isActive={editor.isActive('heading', { level: 2 })}
-            title="Heading 2"
-          >
-            <span className="font-bold text-sm">H2</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            isActive={editor.isActive('heading', { level: 3 })}
-            title="Heading 3"
-          >
-            <span className="font-bold text-sm">H3</span>
-          </ToolbarButton>
+          {([1, 2, 3] as const).map(level => (
+            <ToolbarButton
+              key={level}
+              onClick={() => editor.chain().focus().toggleHeading({ level }).run()}
+              isActive={editor.isActive('heading', { level })}
+              title={`Heading ${level}`}
+            >
+              <Glyph className="font-semibold text-[13px]">H{level}</Glyph>
+            </ToolbarButton>
+          ))}
 
           <ToolbarSeparator />
 
@@ -326,91 +303,53 @@ export function NoteEditor({
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive('bulletList')}
-            title="Bullet List"
+            title="Bullet list"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
+            <ToolbarIcon d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
           </ToolbarButton>
 
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             isActive={editor.isActive('orderedList')}
-            title="Numbered List"
+            title="Numbered list"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 8h10M7 12h10M7 16h10M3 8h.01M3 12h.01M3 16h.01"
-              />
-            </svg>
+            <ToolbarIcon d="M10 6h10M10 12h10M10 18h10M4 5l1-1v5M3.5 9h2.5M3.5 14.5a1.5 1.5 0 012.6-1c.6.7 0 1.5-.6 2L3.5 18h3" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            isActive={editor.isActive('taskList')}
+            title="Checklist"
+          >
+            <ToolbarIcon d="M3 5.5l1.5 1.5L7 4.5M3 12.5l1.5 1.5L7 11.5M11 6h10M11 13h10M11 20h10M3.5 18.5h3v3h-3z" />
           </ToolbarButton>
 
           <ToolbarSeparator />
 
-          {/* Code block */}
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            isActive={editor.isActive('blockquote')}
+            title="Quote"
+          >
+            <ToolbarIcon d="M7 7h4v4c0 3-1.5 5-4 6M15 7h4v4c0 3-1.5 5-4 6" />
+          </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             isActive={editor.isActive('codeBlock')}
-            title="Code Block"
+            title="Code block"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 20l4-16m4 4l4 16"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"
-              />
-            </svg>
+            <ToolbarIcon d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
           </ToolbarButton>
 
           <ToolbarSeparator />
 
-          {/* Link */}
-          <ToolbarButton
-            onClick={setLink}
-            isActive={editor.isActive('link')}
-            title="Add Link (Ctrl+K)"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"
-              />
-            </svg>
+          <ToolbarButton onClick={setLink} isActive={editor.isActive('link')} title="Add link">
+            <ToolbarIcon d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
           </ToolbarButton>
 
-          {/* Image */}
-          <ToolbarButton onClick={addImage} isActive={editor.isActive('image')} title="Add Image">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M16 16h.01"
-              />
-            </svg>
+          <ToolbarButton onClick={addImage} isActive={editor.isActive('image')} title="Add image">
+            <ToolbarIcon d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM21 15l-5-5L5 21M8.5 8.5h.01" />
           </ToolbarButton>
 
           <ToolbarSeparator />
@@ -426,14 +365,7 @@ export function NoteEditor({
             isActive={false}
             title="Undo (Ctrl+Z)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-              />
-            </svg>
+            <ToolbarIcon d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" />
           </ToolbarButton>
 
           <ToolbarButton
@@ -441,14 +373,7 @@ export function NoteEditor({
             isActive={false}
             title="Redo (Ctrl+Y)"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
-              />
-            </svg>
+            <ToolbarIcon d="M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 000 11H13" />
           </ToolbarButton>
 
           {/* Share button */}
@@ -502,21 +427,18 @@ export function NoteEditor({
       )}
 
       {/* Editor */}
-      <div
-        className="relative bg-white border border-stone-200 rounded-xl overflow-hidden"
-        style={{ minHeight, maxHeight }}
-      >
+      <div className="relative" style={{ minHeight, maxHeight }}>
         <EditorContent
           editor={editor}
-          className="prose prose-stone max-w-none p-6 overflow-y-auto"
+          className="overflow-y-auto py-4 [&_.ProseMirror]:min-h-[inherit]"
           style={{ minHeight, maxHeight }}
         />
       </div>
 
       {/* Character count */}
-      <div className="flex items-center justify-between text-xs text-stone-400 px-2">
-        <span>{editor.storage.characterCount?.characters?.() ?? 0} characters</span>
+      <div className="flex items-center gap-3 border-t border-stone-100 pt-3 text-xs text-stone-400 tabular-nums">
         <span>{editor.storage.characterCount?.words?.() ?? 0} words</span>
+        <span>{editor.storage.characterCount?.characters?.() ?? 0} characters</span>
       </div>
     </div>
   );
