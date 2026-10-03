@@ -15,6 +15,7 @@ NoteChain will use per-document content keys and recipient-specific key wrapping
 
 1. **User root/master key**
    - Created locally and recoverable through the user's recovery key.
+   - Also stored server-side only as a passphrase-sealed envelope (`vault_key_envelopes`), so a new device unlocks with the vault passphrase. The passphrase never leaves the device.
    - Never uploaded in plaintext.
 
 2. **Device key pair**

@@ -9,6 +9,13 @@ import {
 import { KeyManager } from './keyManagement';
 import { encodeRecoveryKey, decodeRecoveryKey, isValidRecoveryKey } from './recoveryKey';
 import {
+  MIN_VAULT_PASSPHRASE_LENGTH,
+  openMasterKey,
+  sealMasterKey,
+  WrongVaultPassphraseError,
+} from './passphraseEnvelope';
+import type { PassphraseEnvelope } from './passphraseEnvelope';
+import {
   activeRecipientKeyPackages,
   decryptDocumentPayload,
   deserializeRecipientKeyPackage,
@@ -52,6 +59,10 @@ export {
   encodeRecoveryKey,
   decodeRecoveryKey,
   isValidRecoveryKey,
+  MIN_VAULT_PASSPHRASE_LENGTH,
+  openMasterKey,
+  sealMasterKey,
+  WrongVaultPassphraseError,
   activeRecipientKeyPackages,
   decryptDocumentPayload,
   deserializeRecipientKeyPackage,
@@ -68,6 +79,7 @@ export {
 export type {
   EncryptedData,
   EncryptedDocumentPayload,
+  PassphraseEnvelope,
   RecipientKeyPackage,
   SerializableRecipientKeyPackage,
 };

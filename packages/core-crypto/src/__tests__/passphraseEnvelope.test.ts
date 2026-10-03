@@ -1,0 +1,42 @@
+import { describe, expect, test } from 'bun:test';
+import { openMasterKey, sealMasterKey, WrongVaultPassphraseError } from '../index';
+
+describe('Vault passphrase envelope', () => {
+  const masterKey = new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1));
+  const passphrase = 'correct horse battery staple';
+
+  test('opens with the passphrase it was sealed with', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+    const opened = await openMasterKey(envelope, passphrase);
+
+    expect(Array.from(opened)).toEqual(Array.from(masterKey));
+  });
+
+  test('survives a JSON round trip, as it does through the database', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+    const stored = JSON.parse(JSON.stringify(envelope));
+
+    expect(Array.from(await openMasterKey(stored, passphrase))).toEqual(Array.from(masterKey));
+  });
+
+  test('does not contain the master key in the clear', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+    const masterKeyBase64 = btoa(String.fromCharCode(...masterKey));
+
+    expect(JSON.stringify(envelope)).not.toContain(masterKeyBase64);
+  });
+
+  test('rejects the wrong passphrase', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+
+    await expect(openMasterKey(envelope, 'wrong horse battery staple')).rejects.toBeInstanceOf(
+      WrongVaultPassphraseError
+    );
+  });
+
+  test('refuses passphrases shorter than 12 characters', async () => {
+    await expect(sealMasterKey(masterKey, 'short')).rejects.toThrow(
+      'Vault passphrases must be at least 12 characters.'
+    );
+  });
+});

@@ -6,6 +6,7 @@ import { EncryptedBackupSection } from './security/EncryptedBackupSection';
 import { JsonWorkspacePortabilitySection } from './security/JsonWorkspacePortabilitySection';
 import { MarkdownPortabilitySection } from './security/MarkdownPortabilitySection';
 import { RecoveryKeySection } from './security/RecoveryKeySection';
+import { VaultPassphraseSection } from './security/VaultPassphraseSection';
 
 function EncryptionStatus({
   isEncryptionReady,
@@ -42,13 +43,13 @@ function EncryptionStatus({
         </div>
         <div>
           <p className={`font-medium ${isEncryptionReady ? 'text-green-900' : 'text-amber-900'}`}>
-            {isEncryptionReady ? 'End-to-End Encryption Active' : 'Recovery Key Required'}
+            {isEncryptionReady ? 'End-to-End Encryption Active' : 'Vault Locked'}
           </p>
           <p className={`text-sm ${isEncryptionReady ? 'text-green-700' : 'text-amber-700'}`}>
             {isEncryptionReady
               ? 'Your data is encrypted with XSalsa20-Poly1305.'
               : encryptionError ||
-                'Import your recovery key to restore encrypted data on this device.'}
+                'Enter your vault passphrase to unlock encrypted data on this device.'}
           </p>
         </div>
       </div>
@@ -108,14 +109,25 @@ function ActiveSessionsSection() {
 
 export function SecuritySettingsPanel() {
   const { user } = useUser();
-  const { exportRecoveryKey, importRecoveryKey, isEncryptionReady, encryptionError } =
-    useNotesSync();
+  const {
+    exportRecoveryKey,
+    importRecoveryKey,
+    isEncryptionReady,
+    encryptionError,
+    hasVaultPassphrase,
+    setVaultPassphrase,
+  } = useNotesSync();
   const userId = user?.id;
 
   return (
     <div className="p-6">
       <h2 className="text-xl font-medium text-stone-900 mb-6">Security Settings</h2>
       <EncryptionStatus isEncryptionReady={isEncryptionReady} encryptionError={encryptionError} />
+      <VaultPassphraseSection
+        isEncryptionReady={isEncryptionReady}
+        hasVaultPassphrase={hasVaultPassphrase}
+        setVaultPassphrase={setVaultPassphrase}
+      />
       <RecoveryKeySection
         isEncryptionReady={isEncryptionReady}
         exportRecoveryKey={exportRecoveryKey}

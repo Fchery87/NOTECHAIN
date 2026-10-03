@@ -14,15 +14,7 @@ import {
   setLocalSyncCursor,
   upsertLocalNoteOperation,
 } from './noteSyncLocalStore';
-import {
-  clearRecoveryBackupState,
-  getRecoveryBackupState,
-  isRecoveryBackupSatisfied,
-  markRecoveryBackupBypassed,
-  markRecoveryBackupVerified,
-  RECOVERY_BACKUP_STATE_CHANGED,
-  type RecoveryBackupState,
-} from './recoveryBackupState';
+import type { PassphraseEnvelope } from '@notechain/core-crypto';
 import {
   createDeleteMarker,
   decryptCachedNoteRecords,
@@ -34,6 +26,19 @@ import {
 import type { Note, RemoteNoteChange } from './noteSyncTypes';
 import { v4 as uuidv4 } from 'uuid';
 
+const VAULT_CHANGED = 'notechain:vault-changed';
+
+interface VaultChangedDetail {
+  userId: string;
+  envelope?: PassphraseEnvelope | null;
+}
+
+// Every component that calls useNotesSync holds its own copy of vault state, so
+// unlocking or setting a passphrase in one dialog has to reach the others.
+function announceVaultChange(detail: VaultChangedDetail): void {
+  window.dispatchEvent(new CustomEvent<VaultChangedDetail>(VAULT_CHANGED, { detail }));
+}
+
 /**
  * Hook to sync note operations with E2E encryption and offline support
  */
@@ -44,7 +49,10 @@ export function useNotesSync() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [encryptionError, setEncryptionError] = useState<string | null>(null);
-  const [recoveryBackupState, setRecoveryBackupState] = useState<RecoveryBackupState>({});
+  // undefined until the server has been asked; null means no passphrase is set yet.
+  const [vaultEnvelope, setVaultEnvelope] = useState<PassphraseEnvelope | null | undefined>(
+    undefined
+  );
   const versionRef = useRef<Record<string, number>>({});
   const adapterRef = useRef<SupabaseSyncAdapter | null>(null);
 
@@ -65,6 +73,7 @@ export function useNotesSync() {
       setEncryptionError(null);
       setLoadError(null);
       setIsEncryptionReady(false);
+      setVaultEnvelope(undefined);
       return;
     }
 
@@ -73,15 +82,24 @@ export function useNotesSync() {
     (async () => {
       try {
         const adapter = getAdapter();
-        const remoteVaultState = await adapter.hasEncryptedDataForUser(user.id);
+        const [remoteVaultState, envelopeResult] = await Promise.all([
+          adapter.hasEncryptedDataForUser(user.id),
+          adapter.getVaultEnvelope(user.id),
+        ]);
         if (!remoteVaultState.success) {
           throw new Error(
             `Could not check existing encrypted vault data: ${remoteVaultState.error}`
           );
         }
+        if (!envelopeResult.success) {
+          throw new Error(`Could not load your vault: ${envelopeResult.error}`);
+        }
+
+        if (isCancelled) return;
+        setVaultEnvelope(envelopeResult.envelope);
 
         await encryptedSyncService.initialize(user.id, {
-          allowCreate: !remoteVaultState.hasData,
+          allowCreate: !remoteVaultState.hasData && !envelopeResult.envelope,
         });
 
         if (isCancelled) return;
@@ -103,23 +121,24 @@ export function useNotesSync() {
   }, [user?.id, getAdapter]);
 
   useEffect(() => {
-    if (!user?.id) {
-      setRecoveryBackupState({});
-      return;
-    }
+    if (!user?.id) return;
 
-    const refreshRecoveryBackupState = () => {
-      setRecoveryBackupState(getRecoveryBackupState(user.id));
+    const handleVaultChange = (event: Event) => {
+      const detail = (event as CustomEvent<VaultChangedDetail>).detail;
+      if (detail.userId !== user.id) return;
+
+      if ('envelope' in detail) {
+        setVaultEnvelope(detail.envelope);
+      }
+      if (encryptedSyncService.getSessionUserId() === user.id) {
+        setEncryptionError(null);
+        setLoadError(null);
+        setIsEncryptionReady(true);
+      }
     };
 
-    refreshRecoveryBackupState();
-    window.addEventListener(RECOVERY_BACKUP_STATE_CHANGED, refreshRecoveryBackupState);
-    window.addEventListener('storage', refreshRecoveryBackupState);
-
-    return () => {
-      window.removeEventListener(RECOVERY_BACKUP_STATE_CHANGED, refreshRecoveryBackupState);
-      window.removeEventListener('storage', refreshRecoveryBackupState);
-    };
+    window.addEventListener(VAULT_CHANGED, handleVaultChange);
+    return () => window.removeEventListener(VAULT_CHANGED, handleVaultChange);
   }, [user?.id]);
 
   const getNextVersion = useCallback((noteId: string): number => {
@@ -259,13 +278,11 @@ export function useNotesSync() {
         });
       };
 
-      if (user?.id && !isRecoveryBackupSatisfied(user.id)) {
+      if (user?.id && !vaultEnvelope) {
         try {
           const encryptedPayload = await buildEncryptedPayload();
           await persistLocalPayload(encryptedPayload);
-          setLoadError(
-            'Recovery key backup required before cloud sync. Verify your recovery key to enable encrypted sync.'
-          );
+          setLoadError('Set a vault passphrase to turn on encrypted cloud sync.');
         } catch (localPersistError) {
           console.error(
             `[useNotesSync] Failed to save ${operationType} locally:`,
@@ -273,7 +290,7 @@ export function useNotesSync() {
           );
         }
 
-        console.warn('[useNotesSync] Cloud sync blocked until recovery key backup is verified', {
+        console.warn('[useNotesSync] Cloud sync blocked until a vault passphrase is set', {
           operationType,
           noteId,
           version,
@@ -320,7 +337,7 @@ export function useNotesSync() {
         }
       }
     },
-    [syncService, isInitialized, isEncryptionReady, user?.id]
+    [syncService, isInitialized, isEncryptionReady, user?.id, vaultEnvelope]
   );
 
   /**
@@ -441,8 +458,8 @@ export function useNotesSync() {
    * Destructively reset the current user's encrypted vault.
    *
    * This is only for users who do not have the old recovery key. Existing
-   * encrypted notes are deleted/abandoned, a fresh local master key is created,
-   * and recovery-key onboarding will require backing up the new key.
+   * encrypted notes and the old passphrase envelope are deleted, a fresh local
+   * master key is created, and the user is asked to set a new vault passphrase.
    */
   const resetEncryptedVault = useCallback(async (): Promise<void> => {
     if (!user?.id) {
@@ -458,15 +475,40 @@ export function useNotesSync() {
     await offlineQueue.clearForUser(user.id);
     await clearLocalNoteOperations(user.id);
     await clearLocalSyncCursor(user.id);
-    clearRecoveryBackupState(user.id);
 
     await encryptedSyncService.resetVault(user.id);
 
-    setRecoveryBackupState({});
-    setEncryptionError(null);
-    setLoadError(null);
-    setIsEncryptionReady(true);
+    announceVaultChange({ userId: user.id, envelope: null });
   }, [user?.id, getAdapter]);
+
+  const unlockWithPassphrase = useCallback(
+    async (passphrase: string): Promise<void> => {
+      if (!user?.id || !vaultEnvelope) {
+        throw new Error('This account has no vault passphrase yet. Use your recovery key.');
+      }
+
+      await encryptedSyncService.unlockWithEnvelope(vaultEnvelope, passphrase);
+      announceVaultChange({ userId: user.id });
+    },
+    [user?.id, vaultEnvelope]
+  );
+
+  const setVaultPassphrase = useCallback(
+    async (passphrase: string): Promise<void> => {
+      if (!user?.id) {
+        throw new Error('No signed-in user available to set a vault passphrase');
+      }
+
+      const envelope = await encryptedSyncService.sealWithPassphrase(passphrase);
+      const saved = await getAdapter().saveVaultEnvelope(user.id, envelope);
+      if (!saved.success) {
+        throw new Error(saved.error || 'Failed to save your vault passphrase');
+      }
+
+      announceVaultChange({ userId: user.id, envelope });
+    },
+    [user?.id, getAdapter]
+  );
 
   /**
    * Subscribe to decrypted note changes that arrive from another session/device.
@@ -512,11 +554,7 @@ export function useNotesSync() {
     [syncService, isInitialized, isEncryptionReady, trackRemoteVersion]
   );
 
-  const recoveryBackupVerified = Boolean(recoveryBackupState.verifiedAt);
-  const recoveryBackupBypassed = Boolean(recoveryBackupState.bypassedAt);
-  const requiresRecoveryBackup = Boolean(
-    user?.id && isEncryptionReady && !recoveryBackupVerified && !recoveryBackupBypassed
-  );
+  const requiresVaultPassphrase = Boolean(user?.id && isEncryptionReady && vaultEnvelope === null);
 
   return {
     loadCachedNotes,
@@ -532,41 +570,14 @@ export function useNotesSync() {
     importRecoveryKey: async (recoveryKey: string) => {
       await encryptedSyncService.importRecoveryKey(recoveryKey);
       if (user?.id) {
-        setRecoveryBackupState(markRecoveryBackupVerified(user.id));
+        announceVaultChange({ userId: user.id });
       }
-      setEncryptionError(null);
-      setLoadError(null);
-      setIsEncryptionReady(true);
     },
-    verifyRecoveryKeyBackup: async (recoveryKey: string): Promise<boolean> => {
-      if (!user?.id) {
-        throw new Error('No signed-in user available for recovery-key verification');
-      }
-
-      const matchesCurrentKey = encryptedSyncService.verifyRecoveryKey(recoveryKey);
-      if (!matchesCurrentKey) {
-        return false;
-      }
-
-      const state = markRecoveryBackupVerified(user.id);
-      setRecoveryBackupState(state);
-      setLoadError(null);
-      return true;
-    },
-    bypassRecoveryKeyBackup: (): void => {
-      if (!user?.id) {
-        throw new Error('No signed-in user available for recovery-key bypass');
-      }
-
-      const state = markRecoveryBackupBypassed(user.id);
-      setRecoveryBackupState(state);
-    },
-    recoveryBackupState,
-    recoveryBackupVerified,
-    recoveryBackupBypassed,
-    requiresRecoveryBackup,
+    unlockWithPassphrase,
+    setVaultPassphrase,
+    hasVaultPassphrase: Boolean(vaultEnvelope),
+    requiresVaultPassphrase,
     isSyncEnabled: isInitialized && !!syncService,
-    isCloudSyncBlockedByRecoveryBackup: requiresRecoveryBackup,
     isEncryptionReady,
     encryptionError,
     isLoading,
