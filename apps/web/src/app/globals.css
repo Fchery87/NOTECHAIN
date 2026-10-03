@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "../../../../packages/ui-components/src/**/*.tsx";
 
 @theme {
   /* NoteChain Design System - Warm Editorial Minimalism */
@@ -77,6 +78,23 @@
     font-weight: 500;
     letter-spacing: -0.02em;
   }
+
+  /* Focus indicators live in the base layer so utilities like focus:outline-none can opt out. */
+  *:focus-visible {
+    outline: 2px solid var(--color-amber-700);
+    outline-offset: 2px;
+  }
+
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @media (prefers-contrast: high) {
+    *:focus-visible {
+      outline: 3px solid var(--color-amber-600);
+      outline-offset: 3px;
+    }
+  }
 }
 
 /* Custom Animations */
@@ -154,23 +172,184 @@
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
-/* Accessibility: Focus Indicators */
-*:focus-visible {
-  outline: 2px solid var(--color-amber-500);
-  outline-offset: 2px;
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-/* Skip link focus */
-*:focus:not(:focus-visible) {
+@keyframes palette-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-palette-in {
+  animation: palette-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-palette-backdrop {
+  animation: palette-backdrop 0.18s ease-out;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-stone-300) transparent;
+}
+
+/* Rich-text editor. The app ships without @tailwindcss/typography, so `prose` is inert. */
+.ProseMirror {
+  color: var(--color-stone-800);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  caret-color: var(--color-amber-600);
+}
+
+.ProseMirror:focus,
+.ProseMirror:focus-visible {
   outline: none;
 }
 
-/* High contrast focus for keyboard users */
-@media (prefers-contrast: high) {
-  *:focus-visible {
-    outline: 3px solid var(--color-amber-600);
-    outline-offset: 3px;
-  }
+.ProseMirror > * + * {
+  margin-top: 0.85em;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  color: var(--color-stone-900);
+  line-height: 1.25;
+  margin-top: 1.6em;
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+}
+
+.ProseMirror > :first-child {
+  margin-top: 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+}
+
+.ProseMirror ul {
+  list-style: disc;
+}
+
+.ProseMirror ol {
+  list-style: decimal;
+}
+
+.ProseMirror li + li,
+.ProseMirror li > p + * {
+  margin-top: 0.3em;
+}
+
+.ProseMirror li::marker {
+  color: var(--color-stone-400);
+}
+
+.ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25em;
+}
+
+.ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.6em;
+  align-items: flex-start;
+}
+
+.ProseMirror ul[data-type='taskList'] li > label {
+  margin-top: 0.3em;
+  flex-shrink: 0;
+}
+
+.ProseMirror ul[data-type='taskList'] input[type='checkbox'] {
+  accent-color: var(--color-amber-600);
+  width: 1rem;
+  height: 1rem;
+}
+
+.ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div > p {
+  color: var(--color-stone-400);
+  text-decoration: line-through;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--color-amber-300);
+  padding-left: 1em;
+  color: var(--color-stone-600);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.125em;
+}
+
+.ProseMirror a {
+  color: var(--color-amber-700);
+  text-decoration: underline;
+  text-decoration-color: var(--color-amber-300);
+  text-underline-offset: 3px;
+}
+
+.ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-stone-100);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+.ProseMirror pre {
+  background: var(--color-stone-900);
+  color: var(--color-stone-100);
+  border-radius: 12px;
+  padding: 1em 1.25em;
+  overflow-x: auto;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-stone-200);
+  margin: 2em 0;
+}
+
+.ProseMirror img {
+  border-radius: 12px;
+  max-width: 100%;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--color-stone-400);
+  pointer-events: none;
 }
 
 /* Reduced motion support */

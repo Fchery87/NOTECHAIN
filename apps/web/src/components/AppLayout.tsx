@@ -95,7 +95,7 @@ export default function AppLayout({
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-white text-stone-900">
+    <div className="flex h-[100dvh] overflow-hidden bg-[#fafaf9] text-stone-900">
       <WorkspaceSidebar />
       <CommandPalette />
 
@@ -107,39 +107,19 @@ export default function AppLayout({
           actions={actions}
         />
 
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-0">
+        <main
+          id="main-content"
+          className={fullWidth ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-y-auto'}
+        >
           <div
             className={
-              fullWidth ? 'w-full h-full' : 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12'
+              fullWidth
+                ? 'w-full h-full pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0'
+                : 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-28 md:pt-12 md:pb-16 animate-fade-in'
             }
           >
             {children}
           </div>
-
-          {/* Minimal App Footer */}
-          <footer className="mt-12 py-8 border-t border-stone-100">
-            <div className={fullWidth ? 'w-full px-4' : 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'}>
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-stone-400">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-stone-900 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-[8px]">N</span>
-                  </div>
-                  <span>© {new Date().getFullYear()} NoteChain</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <a href="/settings" className="hover:text-stone-900 transition-colors">
-                    Settings
-                  </a>
-                  <a href="/help" className="hover:text-stone-900 transition-colors">
-                    Help
-                  </a>
-                  <a href="/privacy" className="hover:text-stone-900 transition-colors">
-                    Privacy
-                  </a>
-                </div>
-              </div>
-            </div>
-          </footer>
         </main>
       </div>
 

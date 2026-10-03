@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMocks = vi.hoisted(() => ({
-  listNotes: vi.fn(),
+  listLocalDecryptedNotes: vi.fn(),
   listTodos: vi.fn(),
   listMeetings: vi.fn(),
   listEventShells: vi.fn(),
@@ -9,8 +9,11 @@ const queryMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../db', () => ({
-  listNotes: queryMocks.listNotes,
   listTodos: queryMocks.listTodos,
+}));
+
+vi.mock('../../sync/noteSyncOperations', () => ({
+  listLocalDecryptedNotes: queryMocks.listLocalDecryptedNotes,
 }));
 
 vi.mock('../../meetings/meetingAccess', () => ({
@@ -43,7 +46,7 @@ function encryptedFields() {
 describe('localContextGraphQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    queryMocks.listNotes.mockResolvedValue([]);
+    queryMocks.listLocalDecryptedNotes.mockResolvedValue([]);
     queryMocks.listTodos.mockResolvedValue([]);
     queryMocks.listMeetings.mockResolvedValue([]);
     queryMocks.listEventShells.mockResolvedValue([]);
@@ -51,15 +54,13 @@ describe('localContextGraphQuery', () => {
   });
 
   it('builds a context graph from local notes, meetings, and tasks', async () => {
-    queryMocks.listNotes.mockResolvedValue([
+    queryMocks.listLocalDecryptedNotes.mockResolvedValue([
       {
         id: 'note-1',
         title: 'Launch Notes',
-        content: 'Launch checklist and owners.',
-        tags: ['launch'],
-        createdAt: mockDate,
+        content: '<p>Launch checklist and owners.</p>',
         updatedAt: mockDate,
-        ...encryptedFields(),
+        version: 1,
       },
     ]);
     queryMocks.listMeetings.mockResolvedValue([
@@ -152,7 +153,7 @@ describe('localContextGraphQuery', () => {
         transcriptSegmentId: 'segment-1',
       },
     });
-    expect(queryMocks.listNotes).not.toHaveBeenCalled();
+    expect(queryMocks.listLocalDecryptedNotes).not.toHaveBeenCalled();
     expect(queryMocks.listTodos).not.toHaveBeenCalled();
   });
 
@@ -165,15 +166,13 @@ describe('localContextGraphQuery', () => {
       source: 'google',
       externalId: 'google-event-1',
     });
-    queryMocks.listNotes.mockResolvedValue([
+    queryMocks.listLocalDecryptedNotes.mockResolvedValue([
       {
         id: 'note-1',
         title: 'Quarterly Roadmap Notes',
-        content: 'Timeline, launch risks, and dependencies.',
-        tags: [],
-        createdAt: mockDate,
+        content: '<p>Timeline, launch risks, and dependencies.</p>',
         updatedAt: mockDate,
-        ...encryptedFields(),
+        version: 1,
       },
     ]);
 
@@ -195,6 +194,8 @@ describe('localContextGraphQuery', () => {
       citation: {
         type: 'note',
         id: 'note-1',
+        href: '/notes?id=note-1',
+        quote: 'Timeline, launch risks, and dependencies.',
       },
     });
   });

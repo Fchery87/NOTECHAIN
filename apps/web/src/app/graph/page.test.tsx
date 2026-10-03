@@ -27,6 +27,17 @@ const mockGraphData: KnowledgeGraph = {
 const graphMocks = vi.hoisted(() => ({
   push: vi.fn(),
   getContextGraph: vi.fn(),
+  encryption: { isEncryptionReady: true, encryptionError: null as string | null },
+  loadCachedNotes: vi.fn(),
+  loadNotes: vi.fn(),
+}));
+
+vi.mock('@/lib/sync/useNotesSync', () => ({
+  useNotesSync: () => ({
+    ...graphMocks.encryption,
+    loadCachedNotes: graphMocks.loadCachedNotes,
+    loadNotes: graphMocks.loadNotes,
+  }),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -71,7 +82,49 @@ import KnowledgeGraphPage from './page';
 describe('KnowledgeGraphPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    graphMocks.encryption = { isEncryptionReady: true, encryptionError: null };
     graphMocks.getContextGraph.mockResolvedValue(mockGraphData);
+    graphMocks.loadCachedNotes.mockResolvedValue([{ id: 'note-1' }]);
+    graphMocks.loadNotes.mockResolvedValue([{ id: 'note-1' }]);
+  });
+
+  test('fetches notes once on an empty local cache before building the graph', async () => {
+    graphMocks.loadCachedNotes.mockResolvedValue([]);
+    render(<KnowledgeGraphPage />);
+
+    await waitFor(() => expect(graphMocks.getContextGraph).toHaveBeenCalledTimes(1));
+    expect(graphMocks.loadNotes).toHaveBeenCalledTimes(1);
+    expect(graphMocks.loadNotes.mock.invocationCallOrder[0]).toBeLessThan(
+      graphMocks.getContextGraph.mock.invocationCallOrder[0]
+    );
+  });
+
+  test('does not hit the network when notes are already cached', async () => {
+    render(<KnowledgeGraphPage />);
+
+    await waitFor(() => expect(graphMocks.getContextGraph).toHaveBeenCalled());
+    expect(graphMocks.loadNotes).not.toHaveBeenCalled();
+  });
+
+  test('shows the encryption error instead of an incomplete graph', async () => {
+    graphMocks.encryption = { isEncryptionReady: false, encryptionError: 'vault locked' };
+    render(<KnowledgeGraphPage />);
+
+    expect(await screen.findByText(/can't be decrypted right now: vault locked/)).toBeDefined();
+    expect(graphMocks.getContextGraph).not.toHaveBeenCalled();
+  });
+
+  test('waits for the encryption key before reading notes', async () => {
+    graphMocks.encryption = { isEncryptionReady: false, encryptionError: null };
+    const { rerender } = render(<KnowledgeGraphPage />);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(graphMocks.getContextGraph).not.toHaveBeenCalled();
+    expect(screen.getByTestId('graph-loading-container')).toBeDefined();
+
+    graphMocks.encryption = { isEncryptionReady: true, encryptionError: null };
+    rerender(<KnowledgeGraphPage />);
+    await waitFor(() => expect(graphMocks.getContextGraph).toHaveBeenCalledTimes(1));
   });
 
   test('renders page title', async () => {

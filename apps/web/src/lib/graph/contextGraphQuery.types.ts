@@ -1,5 +1,6 @@
 import type { KnowledgeGraph } from '../ai/notes/types';
-import type { EncryptedNote, EncryptedTodo } from '../db';
+import type { EncryptedTodo } from '../db';
+import type { ContextNote } from './contextGraph';
 import type { CalendarEventShell } from '../calendar/calendarAccess';
 import type { Meeting } from '../meetings/meetingAccess';
 
@@ -60,7 +61,7 @@ export interface CalendarEventContextResult {
 }
 
 export interface ContextGraphLocalSnapshot {
-  notes: EncryptedNote[];
+  notes: ContextNote[];
   meetings: Meeting[];
   todos: EncryptedTodo[];
   calendarEventShells: CalendarEventShell[];

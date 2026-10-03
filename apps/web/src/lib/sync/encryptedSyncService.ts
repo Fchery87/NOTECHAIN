@@ -98,6 +98,13 @@ export class EncryptedSyncService {
   }
 
   /**
+   * The user the current encryption session belongs to, or null before init.
+   */
+  getSessionUserId(): string | null {
+    return this.isReady() ? this.userId : null;
+  }
+
+  /**
    * Encrypt data for sync
    * @param data Plaintext data object
    * @returns Encrypted payload string: base64(ciphertext):base64(nonce):base64(authTag)

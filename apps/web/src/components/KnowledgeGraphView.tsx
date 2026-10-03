@@ -105,22 +105,23 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
     return data;
   }, [graph, visibleTypes, visibleEdgeTypes]);
 
+  const onNodeClickRef = useRef(onNodeClick);
+  useEffect(() => {
+    onNodeClickRef.current = onNodeClick;
+  });
+
+  const hasNodes = graph.nodes.length > 0;
+
   /**
-   * Initialize Cytoscape instance
+   * Create the Cytoscape instance whenever the canvas container is mounted.
+   * The container only renders once loading ends and the graph has nodes.
    */
   useEffect(() => {
-    if (!containerRef.current || isLoading || graph.nodes.length === 0) {
+    if (!containerRef.current || isLoading || !hasNodes) {
       return;
     }
 
-    // Destroy existing instance
-    if (cyRef.current) {
-      cyRef.current.destroy();
-      cyRef.current = null;
-    }
-
-    // Create new Cytoscape instance
-    cyRef.current = cytoscape({
+    const cy = cytoscape({
       container: containerRef.current,
       elements: cytoscapeData,
       style: getCytoscapeStyles(),
@@ -130,25 +131,18 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
       maxZoom: 3,
     });
 
-    // Apply initial layout
-    const layout = cyRef.current.layout(getLayoutOptions(layoutType));
-    layout.run();
+    cy.on('tap', 'node', event => {
+      const node = event.target;
+      onNodeClickRef.current?.(node.id(), node.data());
+    });
 
-    // Add tap event listener for node clicks
-    if (onNodeClick) {
-      cyRef.current.on('tap', 'node', event => {
-        const node = event.target;
-        onNodeClick(node.id(), node.data());
-      });
-    }
+    cyRef.current = cy;
 
     return () => {
-      if (cyRef.current) {
-        cyRef.current.destroy();
-        cyRef.current = null;
-      }
+      cy.destroy();
+      cyRef.current = null;
     };
-  }, []);
+  }, [isLoading, hasNodes]);
 
   /**
    * Update graph data when dependencies change
@@ -229,7 +223,7 @@ export const KnowledgeGraphView: React.FC<KnowledgeGraphViewProps> = ({
   /**
    * Check if graph is empty
    */
-  const isEmpty = !isLoading && graph.nodes.length === 0;
+  const isEmpty = !isLoading && !hasNodes;
 
   /**
    * Loading state

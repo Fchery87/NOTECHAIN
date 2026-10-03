@@ -1,7 +1,9 @@
 import { createCalendarAccess } from '../calendar/calendarAccess';
-import { listNotes, listTodos, type EncryptedNote, type EncryptedTodo } from '../db';
+import { listTodos, type EncryptedTodo } from '../db';
+import { noteHref, notePlainText } from '../notes/noteLinks';
+import { listLocalDecryptedNotes } from '../sync/noteSyncOperations';
 import type { Meeting } from '../storage/meetingStorage';
-import { buildContextGraph } from './contextGraph';
+import { buildContextGraph, type ContextNote } from './contextGraph';
 import type {
   CalendarEventContextResult,
   CitedContextEntityType,
@@ -91,7 +93,7 @@ function excerpt(value: string, maxLength: number = 220): string {
   return `${trimmed.slice(0, maxLength - 1)}…`;
 }
 
-function noteDocument(note: EncryptedNote): SearchDocument | null {
+function noteDocument(note: ContextNote): SearchDocument | null {
   if (!note.id) return null;
 
   return {
@@ -104,7 +106,7 @@ function noteDocument(note: EncryptedNote): SearchDocument | null {
       type: 'note',
       id: note.id,
       label: note.title || 'Untitled note',
-      href: `/notes/${note.id}`,
+      href: noteHref(note.id),
       quote: excerpt(note.content ?? note.title),
     },
   };
@@ -212,6 +214,17 @@ function buildSearchDocuments(
   return documents;
 }
 
+async function listContextNotes(): Promise<ContextNote[]> {
+  const notes = await listLocalDecryptedNotes();
+  return notes.map(note => ({
+    id: note.id,
+    title: note.title,
+    content: notePlainText(note.content),
+    createdAt: note.updatedAt,
+    updatedAt: note.updatedAt,
+  }));
+}
+
 async function loadLocalSnapshot({
   includeNotes = true,
   includeMeetings = true,
@@ -229,7 +242,7 @@ async function loadLocalSnapshot({
     : Promise.resolve(null);
 
   const [notes, meetings, todos, calendarEventShells] = await Promise.all([
-    includeNotes ? listNotes() : Promise.resolve([]),
+    includeNotes ? listContextNotes() : Promise.resolve([]),
     meetingAccessPromise.then(meetingAccess =>
       meetingAccess ? meetingAccess.listMeetings() : Promise.resolve([])
     ),

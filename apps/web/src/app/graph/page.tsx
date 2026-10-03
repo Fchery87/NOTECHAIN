@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { createContextGraphQuery } from '@/lib/graph/contextGraphQuery';
+import { noteHref } from '@/lib/notes/noteLinks';
+import { useNotesSync } from '@/lib/sync/useNotesSync';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 
 /**
@@ -18,15 +20,32 @@ export default function KnowledgeGraphPage() {
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isEncryptionReady, encryptionError, loadCachedNotes, loadNotes } = useNotesSync();
 
   useEffect(() => {
+    // Notes come from the local encrypted store, which needs the session key.
+    // Without it the map would silently omit every note, so show why instead.
+    if (encryptionError) {
+      setError(`Your notes can't be decrypted right now: ${encryptionError}`);
+      setIsLoading(false);
+      return;
+    }
+    if (!isEncryptionReady) return;
+
+    let cancelled = false;
+
     async function loadGraph() {
       try {
         setIsLoading(true);
         setError(null);
 
+        // A fresh device has an empty local cache until notes are fetched once.
+        if ((await loadCachedNotes()).length === 0) {
+          await loadNotes();
+        }
+
         const contextGraph = await createContextGraphQuery().getContextGraph();
-        setGraph(contextGraph);
+        if (!cancelled) setGraph(contextGraph);
       } catch (err) {
         console.error('Failed to load knowledge graph:', err);
         const errorMessage =
@@ -37,18 +56,21 @@ export default function KnowledgeGraphPage() {
               : err && typeof err === 'object'
                 ? JSON.stringify(err)
                 : 'Failed to load knowledge graph';
-        setError(errorMessage);
+        if (!cancelled) setError(errorMessage);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     void loadGraph();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [isEncryptionReady, encryptionError, loadCachedNotes, loadNotes]);
 
   const handleNodeClick = (nodeId: string, nodeData: any) => {
     if (nodeData?.type === 'note') {
-      router.push(`/notes/${nodeId}`);
+      router.push(noteHref(nodeData.metadata?.sourceId ?? nodeId));
       return;
     }
 
