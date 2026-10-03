@@ -10,6 +10,8 @@ const isCloudflareBuild = process.env.NOTECHAIN_TARGET === 'cloudflare';
 const serverStub = './src/server-stub.ts';
 
 const nextConfig: NextConfig = {
+  // Stops `next dev` from rewriting the tracked apps/web/AGENTS.md on every start.
+  agentRules: false,
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000'],
