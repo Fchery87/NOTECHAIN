@@ -50,7 +50,7 @@ Before the first run, from `apps/web`:
 After the first deploy, `wrangler preview` prints a Preview URL. Then:
 
 - Add the Preview origin to the R2 bucket CORS rule, or the model downloads fail.
-- Add the Preview URL to Supabase Authentication, URL Configuration, redirect URLs. Google sign-in also needs the Supabase callback URL in the Google OAuth client, which does not change.
+- Add `https://<preview-host>/**` to Supabase Authentication, URL Configuration, redirect URLs, as an extra entry next to the localhost ones. An exact `/auth/callback` entry does not work. The app sends `redirectTo` as `/auth/callback?redirect=<path>`, an exact entry does not match a URL with a query string, and Supabase then falls back to the Site URL, so login lands on `http://localhost:3000`. Leave the Site URL alone until there is a production URL. Google sign-in also needs the Supabase callback URL in the Google OAuth client, which does not change.
 - Treat the Preview URL as public. Anyone with the link can load the app. Add Cloudflare Access in front of it if that matters.
 
 Known behavior on a Preview:
