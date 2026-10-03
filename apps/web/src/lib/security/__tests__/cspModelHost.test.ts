@@ -19,3 +19,13 @@ describe('CSP connect-src for the on-device model host', () => {
     expect(buildStrictCSP()['connect-src']).not.toContain('');
   });
 });
+
+describe('CSP script-src for on-device model WebAssembly', () => {
+  it('lets the production policy compile WebAssembly without allowing eval', () => {
+    const scriptSrc = buildStrictCSP({ scriptNonce: 'abc' })['script-src'];
+
+    expect(scriptSrc).toContain("'wasm-unsafe-eval'");
+    expect(scriptSrc).not.toContain("'unsafe-eval'");
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
+});

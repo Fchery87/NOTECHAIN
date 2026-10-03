@@ -97,6 +97,8 @@ export function buildStrictCSP(config: CSPConfig = {}): CSPDirectives {
     'script-src': [
       "'self'",
       ...(scriptNonce ? [`'nonce-${scriptNonce}'`] : []),
+      // Lets the on-device models compile WebAssembly. It does not allow eval or new Function.
+      "'wasm-unsafe-eval'",
       'https://challenges.cloudflare.com',
     ],
     'style-src': [
