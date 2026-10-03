@@ -20,19 +20,32 @@ export default function KnowledgeGraphPage() {
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isEncryptionReady, encryptionError } = useNotesSync();
+  const { isEncryptionReady, encryptionError, loadCachedNotes, loadNotes } = useNotesSync();
 
   useEffect(() => {
-    // Notes are decrypted from the local encrypted store, which needs the session key.
-    if (!isEncryptionReady && !encryptionError) return;
+    // Notes come from the local encrypted store, which needs the session key.
+    // Without it the map would silently omit every note, so show why instead.
+    if (encryptionError) {
+      setError(`Your notes can't be decrypted right now: ${encryptionError}`);
+      setIsLoading(false);
+      return;
+    }
+    if (!isEncryptionReady) return;
+
+    let cancelled = false;
 
     async function loadGraph() {
       try {
         setIsLoading(true);
         setError(null);
 
+        // A fresh device has an empty local cache until notes are fetched once.
+        if ((await loadCachedNotes()).length === 0) {
+          await loadNotes();
+        }
+
         const contextGraph = await createContextGraphQuery().getContextGraph();
-        setGraph(contextGraph);
+        if (!cancelled) setGraph(contextGraph);
       } catch (err) {
         console.error('Failed to load knowledge graph:', err);
         const errorMessage =
@@ -43,14 +56,17 @@ export default function KnowledgeGraphPage() {
               : err && typeof err === 'object'
                 ? JSON.stringify(err)
                 : 'Failed to load knowledge graph';
-        setError(errorMessage);
+        if (!cancelled) setError(errorMessage);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     void loadGraph();
-  }, [isEncryptionReady, encryptionError]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isEncryptionReady, encryptionError, loadCachedNotes, loadNotes]);
 
   const handleNodeClick = (nodeId: string, nodeData: any) => {
     if (nodeData?.type === 'note') {

@@ -77,7 +77,7 @@ function RowSkeleton() {
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { loadCachedNotes, isEncryptionReady } = useNotesSync();
+  const { loadCachedNotes, loadNotes, isEncryptionReady } = useNotesSync();
   const [recentNotes, setRecentNotes] = useState<RecentNote[] | null>(null);
   const [openTasks, setOpenTasks] = useState<Task[] | null>(null);
   const [now] = useState(() => new Date());
@@ -87,10 +87,15 @@ export default function DashboardPage() {
     (user?.user_metadata?.full_name as string | undefined)?.split(' ')[0] ||
     user?.email?.split('@')[0];
 
+  const userId = user?.id;
+
   useEffect(() => {
+    setRecentNotes(null);
     if (!isEncryptionReady) return;
     let cancelled = false;
+    // A fresh device has an empty local cache until notes are fetched once.
     loadCachedNotes()
+      .then(cached => (cached.length === 0 ? loadNotes() : cached))
       .then(notes => {
         if (cancelled) return;
         setRecentNotes(
@@ -109,9 +114,10 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [isEncryptionReady, loadCachedNotes]);
+  }, [isEncryptionReady, loadCachedNotes, loadNotes]);
 
   useEffect(() => {
+    setOpenTasks(null);
     let cancelled = false;
     localTaskAdapter
       .listTasks()
@@ -129,7 +135,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   return (
     <AppLayout pageTitle="Home">

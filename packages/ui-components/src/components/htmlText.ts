@@ -1,3 +1,13 @@
+// One pass, so "&amp;lt;" decodes to "&lt;" and not "<".
+const ENTITIES: Record<string, string> = {
+  nbsp: ' ',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#39': "'",
+  amp: '&',
+};
+
 const TAG_START = /[A-Za-z/!]/;
 
 /**
@@ -32,7 +42,7 @@ export function htmlToPlainText(html: string): string {
 
   return parts
     .join('')
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&(nbsp|lt|gt|quot|#39|amp);/g, (_, name: string) => ENTITIES[name])
     .replace(/\s+/g, ' ')
     .trim();
 }

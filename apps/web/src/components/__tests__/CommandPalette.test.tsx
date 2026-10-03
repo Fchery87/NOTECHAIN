@@ -84,4 +84,16 @@ describe('CommandPalette', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(push).toHaveBeenCalledWith('/tasks');
   });
+
+  it('ignores Enter while an IME composition is confirming a candidate', async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    const input = screen.getByPlaceholderText('Search notes or jump to…');
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(push).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(push).toHaveBeenCalledTimes(1);
+  });
 });

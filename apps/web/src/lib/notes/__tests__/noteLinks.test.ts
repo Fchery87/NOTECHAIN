@@ -20,6 +20,12 @@ describe('noteLinks', () => {
     expect(notePlainText('<p>a <b and more')).toBe('a <b and more');
   });
 
+  it('decodes entities once', () => {
+    expect(notePlainText('<p>a &amp; b &lt;c&gt; &quot;d&quot; it&#39;s &amp;lt;</p>')).toBe(
+      'a & b <c> "d" it\'s &lt;'
+    );
+  });
+
   it('handles empty input', () => {
     expect(notePlainText('')).toBe('');
   });

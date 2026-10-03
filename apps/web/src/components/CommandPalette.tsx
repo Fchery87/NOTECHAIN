@@ -181,7 +181,7 @@ function PaletteDialog({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIndex(i => (items.length === 0 ? 0 : (i - 1 + items.length) % items.length));
-    } else if (e.key === 'Enter' && items[activeIndex]) {
+    } else if (e.key === 'Enter' && !e.nativeEvent.isComposing && items[activeIndex]) {
       e.preventDefault();
       onSelect(items[activeIndex].href);
     }

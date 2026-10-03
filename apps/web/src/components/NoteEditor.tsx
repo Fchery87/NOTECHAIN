@@ -51,7 +51,8 @@ function ToolbarButton({
   title,
 }: {
   onClick: () => void;
-  isActive: boolean;
+  /** Set only for controls with a persistent on/off state. */
+  isActive?: boolean;
   children: React.ReactNode;
   title: string;
 }) {
@@ -348,7 +349,7 @@ export function NoteEditor({
             <ToolbarIcon d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
           </ToolbarButton>
 
-          <ToolbarButton onClick={addImage} isActive={editor.isActive('image')} title="Add image">
+          <ToolbarButton onClick={addImage} title="Add image">
             <ToolbarIcon d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM21 15l-5-5L5 21M8.5 8.5h.01" />
           </ToolbarButton>
 
@@ -360,19 +361,11 @@ export function NoteEditor({
           <ToolbarSeparator />
 
           {/* Undo/Redo */}
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            isActive={false}
-            title="Undo (Ctrl+Z)"
-          >
+          <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)">
             <ToolbarIcon d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" />
           </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            isActive={false}
-            title="Redo (Ctrl+Y)"
-          >
+          <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)">
             <ToolbarIcon d="M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 000 11H13" />
           </ToolbarButton>
 

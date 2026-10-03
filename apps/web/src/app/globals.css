@@ -81,7 +81,7 @@
 
   /* Focus indicators live in the base layer so utilities like focus:outline-none can opt out. */
   *:focus-visible {
-    outline: 2px solid var(--color-amber-500);
+    outline: 2px solid var(--color-amber-700);
     outline-offset: 2px;
   }
 
@@ -290,7 +290,7 @@
   height: 1rem;
 }
 
-.ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div {
+.ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div > p {
   color: var(--color-stone-400);
   text-decoration: line-through;
 }

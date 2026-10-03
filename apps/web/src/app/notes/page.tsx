@@ -103,16 +103,37 @@ function NotesWorkspace() {
   }, []);
 
   // Load cached notes first, then refresh from Supabase when encryption is ready.
-  // A ref (not state) guards re-entry so this effect never cancels its own refresh.
-  const loadStarted = useRef(false);
+  // `loadedForUser` (a ref, not state) stops the effect from cancelling its own
+  // refresh, and `loadSeq` drops results from an older session, so a late load
+  // for a previous account can never replace the current account's notes.
+  const loadedForUser = useRef<string | null>(null);
+  const loadSeq = useRef(0);
   useEffect(() => {
-    if (!isEncryptionReady || !user?.id || loadStarted.current) return;
-    loadStarted.current = true;
+    const clearWorkspace = () => {
+      setHasLoaded(false);
+      setNotes(prev => (prev.length > 0 ? [] : prev));
+      setSelectedNoteId(null);
+      setLockedNoteIds(prev => (prev.size > 0 ? new Set() : prev));
+      setSelectedIds(prev => (prev.size > 0 ? new Set() : prev));
+    };
+
+    if (!isEncryptionReady || !user?.id) {
+      loadedForUser.current = null;
+      loadSeq.current += 1;
+      clearWorkspace();
+      return;
+    }
+    if (loadedForUser.current === user.id) return;
+    // Switching straight from one account to another: never show the old notes.
+    if (loadedForUser.current !== null) clearWorkspace();
+    loadedForUser.current = user.id;
+    const seq = ++loadSeq.current;
+    const isCurrent = () => isMounted.current && seq === loadSeq.current;
 
     const applyLoadedNotes = (
       loaded: Array<Omit<Note, 'ownerId' | 'ownerName' | 'collaborators'>>
     ) => {
-      if (!isMounted.current) return;
+      if (!isCurrent()) return;
 
       // Identify locked notes (those with key mismatch placeholder)
       const lockedIds = new Set<string>();
@@ -154,7 +175,7 @@ function NotesWorkspace() {
         const refreshed = await loadNotes();
         applyLoadedNotes(refreshed);
       } finally {
-        if (isMounted.current) setHasLoaded(true);
+        if (isCurrent()) setHasLoaded(true);
       }
     };
 
