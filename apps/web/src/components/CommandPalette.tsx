@@ -1,230 +1,297 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useNotesSync } from '@/lib/sync/useNotesSync';
+import { noteHref, notePlainText } from '@/lib/notes/noteLinks';
+import {
+  appNavItems,
+  NEW_NOTE_HREF,
+  NotesIcon,
+  PlusIcon,
+  SearchIcon,
+  SettingsIcon,
+  type IconProps,
+} from './appNav';
 
+const OPEN_EVENT = 'notechain:open-command-palette';
+
+export function openCommandPalette() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
+
+interface PaletteItem {
+  id: string;
+  group: 'Actions' | 'Go to' | 'Notes';
+  title: string;
+  subtitle?: string;
+  href: string;
+  shortcut?: string;
+  icon: (p: IconProps) => React.ReactElement;
+}
+
+const commandItems: PaletteItem[] = [
+  {
+    id: 'new-note',
+    group: 'Actions',
+    title: 'New note',
+    href: NEW_NOTE_HREF,
+    shortcut: 'C',
+    icon: PlusIcon,
+  },
+  ...appNavItems.map(item => ({
+    id: item.href,
+    group: 'Go to' as const,
+    title: item.label,
+    href: item.href,
+    shortcut: `G ${item.jumpKey.toUpperCase()}`,
+    icon: item.icon,
+  })),
+  { id: '/settings', group: 'Go to', title: 'Settings', href: '/settings', icon: SettingsIcon },
+];
+
+/**
+ * Global keyboard layer: ⌘K / Ctrl+K toggles the palette, `C` starts a note,
+ * and `G` followed by a nav key jumps to that page.
+ */
 export default function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  // Listen for Cmd+K or Ctrl+K
   useEffect(() => {
+    let pendingJump: number | null = null;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsOpen(open => !open);
+        return;
       }
-      if (e.key === 'Escape') {
-        setIsOpen(false);
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+
+      const key = e.key.toLowerCase();
+      if (pendingJump !== null) {
+        window.clearTimeout(pendingJump);
+        pendingJump = null;
+        const target = appNavItems.find(item => item.jumpKey === key);
+        if (target) {
+          e.preventDefault();
+          router.push(target.href);
+        }
+        return;
+      }
+      if (key === 'g') {
+        pendingJump = window.setTimeout(() => (pendingJump = null), 1200);
+      } else if (key === 'c') {
+        e.preventDefault();
+        router.push(NEW_NOTE_HREF);
       }
     };
+    const handleOpen = () => setIsOpen(true);
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setQuery('');
-    }
-  }, [isOpen]);
+    window.addEventListener(OPEN_EVENT, handleOpen);
+    return () => {
+      if (pendingJump !== null) window.clearTimeout(pendingJump);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener(OPEN_EVENT, handleOpen);
+    };
+  }, [router]);
 
   if (!isOpen) return null;
 
-  const handleAction = (href: string) => {
-    setIsOpen(false);
-    router.push(href);
+  return (
+    <PaletteDialog
+      onClose={() => setIsOpen(false)}
+      onSelect={href => {
+        setIsOpen(false);
+        router.push(href);
+      }}
+    />
+  );
+}
+
+function PaletteDialog({
+  onClose,
+  onSelect,
+}: {
+  onClose: () => void;
+  onSelect: (href: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [notes, setNotes] = useState<PaletteItem[] | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { loadCachedNotes, isEncryptionReady } = useNotesSync();
+
+  useEffect(() => {
+    if (!isEncryptionReady) return;
+    let cancelled = false;
+    loadCachedNotes()
+      .then(loaded => {
+        if (cancelled) return;
+        setNotes(
+          [...loaded]
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .map(note => ({
+              id: `note:${note.id}`,
+              group: 'Notes' as const,
+              title: note.title || 'Untitled',
+              subtitle: notePlainText(note.content).slice(0, 140),
+              href: noteHref(note.id),
+              icon: NotesIcon,
+            }))
+        );
+      })
+      .catch(() => !cancelled && setNotes([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [isEncryptionReady, loadCachedNotes]);
+
+  const items = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [...commandItems, ...(notes ?? []).slice(0, 5)];
+    const matches = (item: PaletteItem) =>
+      item.title.toLowerCase().includes(q) || item.subtitle?.toLowerCase().includes(q);
+    return [...(notes ?? []).filter(matches).slice(0, 8), ...commandItems.filter(matches)];
+  }, [query, notes]);
+
+  useEffect(() => setActiveIndex(0), [query]);
+
+  useEffect(() => {
+    listRef.current
+      ?.querySelector(`[data-index="${activeIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(i => (items.length === 0 ? 0 : (i + 1) % items.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(i => (items.length === 0 ? 0 : (i - 1 + items.length) % items.length));
+    } else if (e.key === 'Enter' && items[activeIndex]) {
+      e.preventDefault();
+      onSelect(items[activeIndex].href);
+    }
   };
 
+  let lastGroup: PaletteItem['group'] | null = null;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] sm:pt-[25vh]">
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[12vh] sm:pt-[18vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+      onKeyDown={handleKeyDown}
+    >
       <div
-        className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm transition-opacity"
-        onClick={() => setIsOpen(false)}
+        className="fixed inset-0 animate-palette-backdrop bg-stone-900/30 backdrop-blur-[2px]"
+        onClick={onClose}
       />
 
-      {/* Palette */}
-      <div className="relative w-full max-w-xl mx-4 transform overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-stone-200 transition-all">
-        {/* Input */}
-        <div className="relative border-b border-stone-100 flex items-center px-4 py-4">
-          <SearchIcon className="h-5 w-5 text-amber-500 mr-3 shrink-0" />
+      <div className="relative w-full max-w-xl animate-palette-in overflow-hidden rounded-2xl bg-white shadow-2xl shadow-stone-900/20 ring-1 ring-stone-200">
+        <div className="flex items-center border-b border-stone-100 px-4">
+          <SearchIcon className="mr-3 h-5 w-5 shrink-0 text-stone-400" />
           <input
-            ref={inputRef}
-            className="w-full bg-transparent text-stone-900 placeholder:text-stone-400 focus:outline-none sm:text-lg"
-            placeholder="Search notes, jump to page, or run a command..."
+            autoFocus
+            className="w-full bg-transparent py-4 text-base text-stone-900 placeholder:text-stone-400 focus:outline-none focus-visible:outline-none"
+            placeholder="Search notes or jump to…"
             value={query}
             onChange={e => setQuery(e.target.value)}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="command-palette-results"
+            aria-activedescendant={items[activeIndex] ? `cmd-${activeIndex}` : undefined}
           />
-          <div className="ml-3 shrink-0 text-xs font-mono text-stone-400">ESC</div>
+          <kbd className="ml-3 shrink-0 rounded border border-stone-200 px-1.5 py-0.5 font-mono text-[10px] text-stone-400">
+            ESC
+          </kbd>
         </div>
 
-        {/* Results Stream (Simulated for foundation) */}
-        <div className="max-h-96 overflow-y-auto py-2">
-          {!query && (
-            <div className="px-4 py-2">
-              <div className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-2">
-                Jump to
-              </div>
-              <ul className="space-y-1">
-                <CommandItem
-                  onClick={() => handleAction('/dashboard')}
-                  icon={<HomeIcon />}
-                  title="Dashboard"
-                  shortcut="G H"
-                />
-                <CommandItem
-                  onClick={() => handleAction('/notes')}
-                  icon={<NotesIcon />}
-                  title="Notes"
-                  shortcut="G N"
-                />
-                <CommandItem
-                  onClick={() => handleAction('/tasks')}
-                  icon={<TasksIcon />}
-                  title="Tasks"
-                  shortcut="G T"
-                />
-              </ul>
-              <div className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-2 mt-4">
-                Actions
-              </div>
-              <ul className="space-y-1">
-                <CommandItem
-                  onClick={() => handleAction('/notes/new')}
-                  icon={<PlusIcon />}
-                  title="Create new Note"
-                  shortcut="C"
-                />
-                <CommandItem
-                  onClick={() => handleAction('/settings')}
-                  icon={<SettingsIcon />}
-                  title="Settings"
-                />
-              </ul>
+        <div
+          ref={listRef}
+          id="command-palette-results"
+          role="listbox"
+          className="max-h-[min(24rem,60vh)] overflow-y-auto p-2"
+        >
+          {items.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-stone-500">
+              {notes === null ? 'Decrypting your notes…' : `Nothing matches “${query}”.`}
             </div>
+          ) : (
+            items.map((item, index) => {
+              const Icon = item.icon;
+              const showHeader = item.group !== lastGroup;
+              lastGroup = item.group;
+              const active = index === activeIndex;
+              return (
+                <div key={item.id}>
+                  {showHeader && (
+                    <div className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-stone-400 first:pt-1">
+                      {item.group === 'Notes' && !query ? 'Recent notes' : item.group}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    id={`cmd-${index}`}
+                    data-index={index}
+                    role="option"
+                    aria-selected={active}
+                    onMouseMove={() => setActiveIndex(index)}
+                    onClick={() => onSelect(item.href)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus:outline-none ${
+                      active ? 'bg-stone-100 text-stone-900' : 'text-stone-700'
+                    }`}
+                  >
+                    <Icon
+                      className={`h-4 w-4 shrink-0 ${active ? 'text-amber-600' : 'text-stone-400'}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{item.title}</span>
+                      {item.subtitle && (
+                        <span className="block truncate text-xs text-stone-500">
+                          {item.subtitle}
+                        </span>
+                      )}
+                    </span>
+                    {item.shortcut && (
+                      <kbd className="shrink-0 rounded border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-stone-400">
+                        {item.shortcut}
+                      </kbd>
+                    )}
+                  </button>
+                </div>
+              );
+            })
           )}
-          {query && (
-            <div className="px-4 py-12 text-center text-sm text-stone-500">
-              No results found for "{query}".
-            </div>
-          )}
+        </div>
+
+        <div className="flex items-center gap-4 border-t border-stone-100 bg-stone-50/70 px-4 py-2 text-[11px] text-stone-400">
+          <span>
+            <kbd className="font-mono">↑↓</kbd> navigate
+          </span>
+          <span>
+            <kbd className="font-mono">↵</kbd> open
+          </span>
+          <span className="ml-auto flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            Searched on this device. Nothing leaves it.
+          </span>
         </div>
       </div>
     </div>
-  );
-}
-
-function CommandItem({
-  onClick,
-  icon,
-  title,
-  shortcut,
-}: {
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  shortcut?: string;
-}) {
-  return (
-    <li>
-      <button
-        onClick={onClick}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-stone-700 hover:bg-stone-100 hover:text-stone-900 transition-colors focus:bg-stone-100 focus:outline-none"
-      >
-        <div className="text-stone-400">{icon}</div>
-        <span className="font-medium text-left flex-1">{title}</span>
-        {shortcut && (
-          <span className="text-xs font-mono text-stone-400 bg-white px-1.5 py-0.5 rounded border border-stone-200 shadow-sm">
-            {shortcut}
-          </span>
-        )}
-      </button>
-    </li>
-  );
-}
-
-// Icons
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
-    </svg>
-  );
-}
-
-function HomeIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-      />
-    </svg>
-  );
-}
-
-function NotesIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-      />
-    </svg>
-  );
-}
-
-function TasksIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-      />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-    </svg>
   );
 }
