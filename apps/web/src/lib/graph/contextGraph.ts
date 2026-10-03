@@ -1,10 +1,20 @@
 import type { KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode } from '../ai/notes/types';
-import type { EncryptedNote, EncryptedTodo } from '../db';
+import type { EncryptedTodo } from '../db';
 import type { Meeting } from '../storage/meetingStorage';
+
+/** The plaintext note fields the context graph reads. */
+export interface ContextNote {
+  id?: string;
+  title: string;
+  content?: string;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface BuildContextGraphInput {
   baseGraph?: KnowledgeGraph;
-  notes?: EncryptedNote[];
+  notes?: ContextNote[];
   meetings?: Meeting[];
   todos?: EncryptedTodo[];
 }

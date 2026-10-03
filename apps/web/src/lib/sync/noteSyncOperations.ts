@@ -1,6 +1,6 @@
 import type { SyncOperation } from '@notechain/sync-engine';
 import { encryptedSyncService } from './encryptedSyncService';
-import type { LocalSyncedNoteRecord } from './noteSyncLocalStore';
+import { listLocalNoteOperations, type LocalSyncedNoteRecord } from './noteSyncLocalStore';
 import type { Note, RemoteNoteChange } from './noteSyncTypes';
 
 export type SyncOperationDraft = Omit<SyncOperation, 'id' | 'timestamp' | 'userId' | 'sessionId'>;
@@ -45,6 +45,8 @@ export function createDeleteMarker(noteId: string, version: number): SyncDeleteO
   };
 }
 
+export const LOCKED_NOTE_TITLE = '🔒 Encrypted Note (Key Mismatch)';
+
 export function noteOperationToNote(
   operation: SyncNoteOperation,
   fallback: { noteId: string; version: number; updatedAt?: string | number }
@@ -85,7 +87,7 @@ export async function decryptCachedNoteRecords(
       if (errorMessage.includes('invalid key')) {
         notes.push({
           id: record.noteId,
-          title: '🔒 Encrypted Note (Key Mismatch)',
+          title: LOCKED_NOTE_TITLE,
           content:
             'This locally cached note cannot be decrypted with the current encryption key. ' +
             'It may have been created on a different device or before a key reset.',
@@ -99,6 +101,20 @@ export async function decryptCachedNoteRecords(
   }
 
   return notes;
+}
+
+/**
+ * Decrypted notes from this device's encrypted note cache, the same store the
+ * Notes page reads. Empty until the encryption session for a user is ready.
+ * Notes that cannot be decrypted with the current key are left out.
+ */
+export async function listLocalDecryptedNotes(): Promise<Note[]> {
+  const userId = encryptedSyncService.getSessionUserId();
+  if (!userId) return [];
+
+  const records = await listLocalNoteOperations(userId);
+  const notes = await decryptCachedNoteRecords(records, () => {});
+  return notes.filter(note => note.title !== LOCKED_NOTE_TITLE);
 }
 
 export async function syncOperationToRemoteNoteChange(

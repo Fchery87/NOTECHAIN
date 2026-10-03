@@ -11,6 +11,7 @@ import { ArrowLeftIcon, LockIcon, PlusIcon, SearchIcon } from '@/components/appN
 
 import { NoteCard, type NoteCollaborator } from '@notechain/ui-components';
 import { useNotesSync } from '@/lib/sync/useNotesSync';
+import { LOCKED_NOTE_TITLE } from '@/lib/sync/noteSyncOperations';
 import {
   applyRemoteNoteDelete,
   applyRemoteNoteUpsert,
@@ -118,7 +119,7 @@ function NotesWorkspace() {
       const normalNotes: Note[] = [];
 
       for (const n of loaded) {
-        if (n.title === '🔒 Encrypted Note (Key Mismatch)') {
+        if (n.title === LOCKED_NOTE_TITLE) {
           lockedIds.add(n.id);
         }
 

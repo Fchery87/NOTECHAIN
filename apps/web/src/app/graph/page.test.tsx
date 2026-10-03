@@ -27,6 +27,11 @@ const mockGraphData: KnowledgeGraph = {
 const graphMocks = vi.hoisted(() => ({
   push: vi.fn(),
   getContextGraph: vi.fn(),
+  encryption: { isEncryptionReady: true, encryptionError: null as string | null },
+}));
+
+vi.mock('@/lib/sync/useNotesSync', () => ({
+  useNotesSync: () => graphMocks.encryption,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -71,7 +76,21 @@ import KnowledgeGraphPage from './page';
 describe('KnowledgeGraphPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    graphMocks.encryption = { isEncryptionReady: true, encryptionError: null };
     graphMocks.getContextGraph.mockResolvedValue(mockGraphData);
+  });
+
+  test('waits for the encryption key before reading notes', async () => {
+    graphMocks.encryption = { isEncryptionReady: false, encryptionError: null };
+    const { rerender } = render(<KnowledgeGraphPage />);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(graphMocks.getContextGraph).not.toHaveBeenCalled();
+    expect(screen.getByTestId('graph-loading-container')).toBeDefined();
+
+    graphMocks.encryption = { isEncryptionReady: true, encryptionError: null };
+    rerender(<KnowledgeGraphPage />);
+    await waitFor(() => expect(graphMocks.getContextGraph).toHaveBeenCalledTimes(1));
   });
 
   test('renders page title', async () => {

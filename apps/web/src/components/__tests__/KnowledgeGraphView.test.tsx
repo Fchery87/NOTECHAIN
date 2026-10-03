@@ -143,6 +143,24 @@ describe('KnowledgeGraphView', () => {
     knowledgeGraphMocks.holder.instance = null;
   });
 
+  test('creates the graph once data arrives after an initial loading render', () => {
+    const { rerender } = render(
+      <KnowledgeGraphView
+        {...defaultProps}
+        graph={{ nodes: [], edges: [], clusters: [] }}
+        isLoading
+      />
+    );
+    expect(knowledgeGraphMocks.cytoscape).not.toHaveBeenCalled();
+
+    rerender(<KnowledgeGraphView {...defaultProps} />);
+
+    expect(knowledgeGraphMocks.cytoscape).toHaveBeenCalledTimes(1);
+    expect(knowledgeGraphMocks.cytoscape).toHaveBeenCalledWith(
+      expect.objectContaining({ container: screen.getByTestId('knowledge-graph-container') })
+    );
+  });
+
   test('renders graph container', () => {
     render(<KnowledgeGraphView {...defaultProps} />);
 

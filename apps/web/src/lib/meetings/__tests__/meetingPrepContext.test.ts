@@ -15,11 +15,24 @@ vi.mock('@notechain/core-crypto', () => ({
   ),
 }));
 
-import { createCalendarEvent, createNote, db } from '../../db';
+const localNotes = vi.hoisted(
+  () => [] as Array<{ id: string; title: string; content: string; updatedAt: Date }>
+);
+
+vi.mock('../../sync/noteSyncOperations', () => ({
+  listLocalDecryptedNotes: async () => localNotes,
+}));
+
+import { createCalendarEvent, db } from '../../db';
+
+function addSyncedNote(title: string, content: string) {
+  localNotes.push({ id: `note-${localNotes.length + 1}`, title, content, updatedAt: new Date() });
+}
 import { buildMeetingPrepQuery, getMeetingPrepContext } from '../meetingPrepContext';
 
 describe('meetingPrepContext', () => {
   beforeEach(async () => {
+    localNotes.length = 0;
     await db.delete();
     await db.open();
   });
@@ -34,12 +47,7 @@ describe('meetingPrepContext', () => {
   });
 
   it('returns manual prep context with related local notes', async () => {
-    await createNote({
-      title: 'Product Review Notes',
-      content: 'Roadmap, launch risks, and follow-up questions.',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    addSyncedNote('Product Review Notes', '<p>Roadmap, launch risks, and follow-up questions.</p>');
 
     const context = await getMeetingPrepContext({
       meetingTitle: 'Product Review Meeting',
@@ -54,12 +62,7 @@ describe('meetingPrepContext', () => {
   });
 
   it('uses the linked calendar event shell title for prep when available', async () => {
-    await createNote({
-      title: 'Quarterly Roadmap Notes',
-      content: 'Timeline, launch risks, and dependencies.',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    addSyncedNote('Quarterly Roadmap Notes', '<p>Timeline, launch risks, and dependencies.</p>');
 
     const calendarEventId = await createCalendarEvent({
       title: 'Quarterly Roadmap Review',

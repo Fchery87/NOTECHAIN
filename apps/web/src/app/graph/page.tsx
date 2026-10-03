@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { KnowledgeGraphView } from '@/components/KnowledgeGraphView';
 import { createContextGraphQuery } from '@/lib/graph/contextGraphQuery';
+import { noteHref } from '@/lib/notes/noteLinks';
+import { useNotesSync } from '@/lib/sync/useNotesSync';
 import type { KnowledgeGraph } from '@/lib/ai/notes/types';
 
 /**
@@ -18,8 +20,12 @@ export default function KnowledgeGraphPage() {
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isEncryptionReady, encryptionError } = useNotesSync();
 
   useEffect(() => {
+    // Notes are decrypted from the local encrypted store, which needs the session key.
+    if (!isEncryptionReady && !encryptionError) return;
+
     async function loadGraph() {
       try {
         setIsLoading(true);
@@ -44,11 +50,11 @@ export default function KnowledgeGraphPage() {
     }
 
     void loadGraph();
-  }, []);
+  }, [isEncryptionReady, encryptionError]);
 
   const handleNodeClick = (nodeId: string, nodeData: any) => {
     if (nodeData?.type === 'note') {
-      router.push(`/notes/${nodeId}`);
+      router.push(noteHref(nodeData.metadata?.sourceId ?? nodeId));
       return;
     }
 
