@@ -1,4 +1,5 @@
 import React from 'react';
+import { htmlToPlainText } from './htmlText';
 
 /**
  * Collaborator data for a note
@@ -82,13 +83,7 @@ function formatDate(date: Date): string {
  * Strips HTML tags from content for preview
  */
 function stripHtml(html: string): string {
-  if (!html) return '';
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120);
+  return htmlToPlainText(html).slice(0, 120);
 }
 
 /**

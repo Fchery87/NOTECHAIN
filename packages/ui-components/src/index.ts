@@ -11,3 +11,4 @@ export { NoteCard, type NoteCardProps, type NoteCollaborator } from './component
 
 // Utilities
 export { cn } from './components/utils';
+export { htmlToPlainText } from './components/htmlText';
