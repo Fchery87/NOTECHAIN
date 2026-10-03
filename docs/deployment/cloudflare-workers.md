@@ -20,7 +20,7 @@ bun run preview:cloudflare                   # serves the Worker locally with wr
 
 ## Measured on a local build
 
-- Worker script is 15.0 MB uncompressed and 3.58 MiB gzip. Workers Free allows 3 MiB compressed, so this likely needs Workers Paid. Check the current plan limits before deploying.
+- Worker script is 15.0 MB uncompressed and 3.58 MiB gzip. Cloudflare's limits page lists 64 MiB uncompressed on both Workers Free and Paid, with no compressed size limit.
 - Largest static asset is the ONNX Runtime wasm at 20.6 MiB, under the 25 MiB per-file limit.
 - `proxy.ts` runs on Workers. Responses carry the nonce-based CSP, and protected routes redirect to `/auth/login`.
 
@@ -29,6 +29,7 @@ bun run preview:cloudflare                   # serves the Worker locally with wr
 - Supabase auth, sync and OAuth through the Worker.
 - `RedisRateLimiter` against a real Redis from Workers.
 - A real recording with the on-device speech model through this build.
+- Worker startup time. Cloudflare limits global-scope startup to 1 second, and this bundle has not been deployed to measure it.
 - Any deployment.
 
 ## Deploying
