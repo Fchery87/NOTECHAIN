@@ -2,6 +2,9 @@ import nacl from 'tweetnacl';
 import { EncryptionService, PBKDF2_CONFIG } from './encryption';
 
 export const MIN_VAULT_PASSPHRASE_LENGTH = 12;
+// The envelope is stored on a server we do not trust with the key; cap the
+// work factor so a tampered envelope cannot hang the unlock.
+const MAX_ENVELOPE_ITERATIONS = PBKDF2_CONFIG.DEFAULT_ITERATIONS * 10;
 
 /**
  * The master key sealed with a key derived from the user's vault passphrase.
@@ -87,6 +90,9 @@ export async function openMasterKey(
 ): Promise<Uint8Array> {
   if (envelope.version !== 1) {
     throw new Error(`Unsupported vault envelope version: ${envelope.version}`);
+  }
+  if (envelope.iterations > MAX_ENVELOPE_ITERATIONS) {
+    throw new Error('Vault envelope iteration count is out of range.');
   }
 
   const wrappingKey = await EncryptionService.deriveKey(

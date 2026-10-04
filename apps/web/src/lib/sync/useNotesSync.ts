@@ -279,7 +279,7 @@ export function useNotesSync() {
         });
       };
 
-      if (user?.id && !vaultEnvelope) {
+      if (user?.id && vaultEnvelope === null) {
         try {
           const encryptedPayload = await buildEncryptedPayload();
           await persistLocalPayload(encryptedPayload);

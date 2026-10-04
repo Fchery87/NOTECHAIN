@@ -52,6 +52,7 @@ describe('signing in on a second device with the vault passphrase', () => {
   it('stays unlocked on that device after a reload', async () => {
     switchToDevice();
     const desktop = EncryptedSyncService.getInstance();
+    await desktop.initialize(userId, { allowCreate: false }).catch(() => undefined);
     await desktop.unlockWithEnvelope(envelopeOnServer, passphrase);
 
     desktop.resetSession();
@@ -63,6 +64,7 @@ describe('signing in on a second device with the vault passphrase', () => {
   it('rejects the wrong passphrase and stays locked', async () => {
     switchToDevice();
     const desktop = EncryptedSyncService.getInstance();
+    await desktop.initialize(userId, { allowCreate: false }).catch(() => undefined);
 
     await expect(
       desktop.unlockWithEnvelope(envelopeOnServer, 'wrong horse battery staple')

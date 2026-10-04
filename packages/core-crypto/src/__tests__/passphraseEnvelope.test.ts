@@ -42,6 +42,14 @@ describe('Vault passphrase envelope', () => {
     );
   });
 
+  test('refuses an envelope with an inflated iteration count', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+
+    await expect(
+      openMasterKey({ ...envelope, iterations: 4_000_000_000 }, passphrase)
+    ).rejects.toThrow('Vault envelope iteration count is out of range.');
+  });
+
   test('refuses passphrases shorter than 12 characters', async () => {
     await expect(sealMasterKey(masterKey, 'short')).rejects.toThrow(
       'Vault passphrases must be at least 12 characters.'

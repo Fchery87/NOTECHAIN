@@ -265,6 +265,10 @@ export class EncryptedSyncService {
    * Unlock this device with the passphrase-sealed key stored on the server.
    */
   async unlockWithEnvelope(envelope: PassphraseEnvelope, passphrase: string): Promise<void> {
+    if (!this.userId) {
+      throw new Error('Initialize the encryption session for a user before unlocking');
+    }
+
     const masterKey = await openMasterKey(envelope, passphrase);
     await KeyManager.storeMasterKey(masterKey);
     this.encryptionKey = masterKey;
