@@ -1,6 +1,14 @@
 'use client';
 
-import { decodeRecoveryKey, EncryptionService, KeyManager } from '@notechain/core-crypto';
+import {
+  decodeRecoveryKey,
+  EncryptionService,
+  KeyManager,
+  openMasterKey,
+  sealMasterKey,
+  vaultKeyId,
+  type PassphraseEnvelope,
+} from '@notechain/core-crypto';
 
 export class EncryptionRecoveryRequiredError extends Error {
   cause?: unknown;
@@ -39,7 +47,9 @@ export class EncryptedSyncService {
    */
   async initialize(
     userId?: string,
-    options: { allowCreate?: boolean } = { allowCreate: true }
+    options: { allowCreate?: boolean; envelope?: PassphraseEnvelope | null } = {
+      allowCreate: true,
+    }
   ): Promise<void> {
     const namespace = userId ?? null;
     const allowCreate = options.allowCreate !== false;
@@ -61,7 +71,7 @@ export class EncryptedSyncService {
       if (!masterKey) {
         if (!allowCreate) {
           throw new EncryptionRecoveryRequiredError(
-            'No local encryption key was found for this existing encrypted vault. Enter your recovery key or start a new vault.'
+            'This device has not unlocked your vault yet. Enter your vault passphrase.'
           );
         }
 
@@ -69,6 +79,14 @@ export class EncryptedSyncService {
         masterKey = await EncryptionService.generateKey();
         await KeyManager.storeMasterKey(masterKey);
         console.log('Generated new encryption key');
+      }
+
+      // Another device may have sealed the vault with a different key, for
+      // example after a vault reset. Using this key would split the vault.
+      if (options.envelope && vaultKeyId(masterKey) !== options.envelope.keyId) {
+        throw new EncryptionRecoveryRequiredError(
+          'This device has an outdated key for your vault. Enter your vault passphrase.'
+        );
       }
 
       this.encryptionKey = masterKey;
@@ -84,7 +102,7 @@ export class EncryptedSyncService {
       }
 
       throw new EncryptionRecoveryRequiredError(
-        'Unable to load your encryption key. Enter your recovery key to restore access instead of generating a new incompatible key.',
+        'Unable to load your encryption key on this device. Enter your vault passphrase to restore access.',
         error
       );
     }
@@ -230,31 +248,42 @@ export class EncryptedSyncService {
   /**
    * Restore the master key from a user-held recovery key and mark encryption ready.
    */
-  async importRecoveryKey(recoveryKey: string): Promise<void> {
+  async importRecoveryKey(
+    recoveryKey: string,
+    envelope?: PassphraseEnvelope | null
+  ): Promise<void> {
+    if (envelope && vaultKeyId(decodeRecoveryKey(recoveryKey)) !== envelope.keyId) {
+      throw new Error('That recovery key belongs to an older vault. Use your vault passphrase.');
+    }
+
     const masterKey = await KeyManager.importRecoveryKey(recoveryKey);
     this.encryptionKey = masterKey;
     this.isInitialized = true;
   }
 
   /**
-   * Verify a user-entered recovery key matches the currently loaded encryption key.
+   * Unlock this device with the passphrase-sealed key stored on the server.
    */
-  verifyRecoveryKey(recoveryKey: string): boolean {
+  async unlockWithEnvelope(envelope: PassphraseEnvelope, passphrase: string): Promise<void> {
+    if (!this.userId) {
+      throw new Error('Initialize the encryption session for a user before unlocking');
+    }
+
+    const masterKey = await openMasterKey(envelope, passphrase);
+    await KeyManager.storeMasterKey(masterKey);
+    this.encryptionKey = masterKey;
+    this.isInitialized = true;
+  }
+
+  /**
+   * Seal the current master key with a passphrase so other devices can unlock it.
+   */
+  async sealWithPassphrase(passphrase: string): Promise<PassphraseEnvelope> {
     if (!this.isReady() || !this.encryptionKey) {
       throw new Error('Encryption service not initialized');
     }
 
-    const decoded = decodeRecoveryKey(recoveryKey);
-    if (decoded.length !== this.encryptionKey.length) {
-      return false;
-    }
-
-    let difference = 0;
-    for (let i = 0; i < decoded.length; i++) {
-      difference |= decoded[i] ^ this.encryptionKey[i];
-    }
-
-    return difference === 0;
+    return sealMasterKey(this.encryptionKey, passphrase);
   }
 
   /**

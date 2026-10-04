@@ -109,8 +109,7 @@ function QuickCaptureForm() {
             )}
             {!isEncryptionReady && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                {encryptionError ||
-                  'Encryption is not ready yet. Restore or verify your recovery key first.'}
+                {encryptionError || 'Encryption is not ready yet. Unlock your vault first.'}
               </p>
             )}
           </div>

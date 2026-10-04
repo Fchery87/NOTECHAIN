@@ -2,6 +2,7 @@
 import { createClient, isSupabaseConfigured } from './client';
 import { getLocalSyncCursor, setLocalSyncCursor } from '@/lib/sync/noteSyncLocalStore';
 import type { SyncRepositoryAdapter, SyncOperation } from '@notechain/sync-engine';
+import type { PassphraseEnvelope } from '@notechain/core-crypto';
 
 /**
  * Browser-compatible base64 to Uint8Array
@@ -226,6 +227,41 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
     }));
   }
 
+  async getVaultEnvelope(
+    userId: string
+  ): Promise<{ success: boolean; envelope: PassphraseEnvelope | null; error?: string }> {
+    if (!this.supabase) {
+      return { success: true, envelope: null };
+    }
+
+    const { data, error } = await this.supabase
+      .from('vault_key_envelopes')
+      .select('envelope')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, envelope: null, error: error.message };
+    }
+
+    return { success: true, envelope: (data?.envelope as PassphraseEnvelope) ?? null };
+  }
+
+  async saveVaultEnvelope(
+    userId: string,
+    envelope: PassphraseEnvelope
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+
+    const { error } = await this.supabase
+      .from('vault_key_envelopes')
+      .upsert({ user_id: userId, envelope, updated_at: new Date().toISOString() });
+
+    return error ? { success: false, error: error.message } : { success: true };
+  }
+
   /**
    * Check whether this user already has encrypted remote data.
    * Used before encryption initialization so existing vaults do not silently
@@ -394,6 +430,15 @@ export class SupabaseSyncAdapter implements SyncRepositoryAdapter {
 
       if (encryptedBlobsError) {
         errors.push(`encrypted_blobs: ${encryptedBlobsError.message}`);
+      }
+
+      const { error: envelopeError } = await this.supabase
+        .from('vault_key_envelopes')
+        .delete()
+        .eq('user_id', userId);
+
+      if (envelopeError) {
+        errors.push(`vault_key_envelopes: ${envelopeError.message}`);
       }
 
       if (errors.length > 0) {

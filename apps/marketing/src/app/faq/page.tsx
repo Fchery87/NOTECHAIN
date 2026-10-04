@@ -18,9 +18,9 @@ const faqs = [
       'Yes! NoteChain works offline and syncs automatically when you reconnect. All your notes are stored locally in an encrypted database on your device, so you always have access to them.',
   },
   {
-    question: 'What happens if I lose my encryption key?',
+    question: 'What happens if I forget my vault passphrase?',
     answer:
-      'Because we use zero-knowledge encryption, we cannot recover your encryption keys. We strongly recommend storing your recovery key in a secure password manager or physical safe when you create your account.',
+      'Your vault passphrase unlocks your notes on each new device, and it never leaves your device, so we cannot reset it. Any device that is still unlocked can export a recovery key from Settings. We recommend keeping that recovery key in a password manager as a backup.',
   },
   {
     question: 'How does the AI assistant work with encryption?',

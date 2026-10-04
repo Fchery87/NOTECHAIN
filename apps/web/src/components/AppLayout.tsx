@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/lib/supabase/UserProvider';
 import WorkspaceSidebar from './WorkspaceSidebar';
 import MobileBottomNav from './MobileBottomNav';
-import RecoveryKeyOnboarding from './security/RecoveryKeyOnboarding';
+import VaultPassphraseSetup from './security/VaultPassphraseSetup';
 import RecoveryRequiredPrompt from './security/RecoveryRequiredPrompt';
 import TopActionBar from './TopActionBar';
 import CommandPalette from './CommandPalette';
@@ -125,7 +125,7 @@ export default function AppLayout({
 
       <MobileBottomNav />
       {requireAuth && user && <RecoveryRequiredPrompt />}
-      {requireAuth && user && <RecoveryKeyOnboarding />}
+      {requireAuth && user && <VaultPassphraseSetup />}
     </div>
   );
 }
