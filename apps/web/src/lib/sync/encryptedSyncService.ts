@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  decodeRecoveryKey,
   EncryptionService,
   KeyManager,
   openMasterKey,
   sealMasterKey,
+  vaultKeyId,
   type PassphraseEnvelope,
 } from '@notechain/core-crypto';
 
@@ -45,7 +47,9 @@ export class EncryptedSyncService {
    */
   async initialize(
     userId?: string,
-    options: { allowCreate?: boolean } = { allowCreate: true }
+    options: { allowCreate?: boolean; envelope?: PassphraseEnvelope | null } = {
+      allowCreate: true,
+    }
   ): Promise<void> {
     const namespace = userId ?? null;
     const allowCreate = options.allowCreate !== false;
@@ -75,6 +79,14 @@ export class EncryptedSyncService {
         masterKey = await EncryptionService.generateKey();
         await KeyManager.storeMasterKey(masterKey);
         console.log('Generated new encryption key');
+      }
+
+      // Another device may have sealed the vault with a different key, for
+      // example after a vault reset. Using this key would split the vault.
+      if (options.envelope && vaultKeyId(masterKey) !== options.envelope.keyId) {
+        throw new EncryptionRecoveryRequiredError(
+          'This device has an outdated key for your vault. Enter your vault passphrase.'
+        );
       }
 
       this.encryptionKey = masterKey;
@@ -236,7 +248,14 @@ export class EncryptedSyncService {
   /**
    * Restore the master key from a user-held recovery key and mark encryption ready.
    */
-  async importRecoveryKey(recoveryKey: string): Promise<void> {
+  async importRecoveryKey(
+    recoveryKey: string,
+    envelope?: PassphraseEnvelope | null
+  ): Promise<void> {
+    if (envelope && vaultKeyId(decodeRecoveryKey(recoveryKey)) !== envelope.keyId) {
+      throw new Error('That recovery key belongs to an older vault. Use your vault passphrase.');
+    }
+
     const masterKey = await KeyManager.importRecoveryKey(recoveryKey);
     this.encryptionKey = masterKey;
     this.isInitialized = true;

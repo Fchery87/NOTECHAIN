@@ -12,6 +12,7 @@ import {
   MIN_VAULT_PASSPHRASE_LENGTH,
   openMasterKey,
   sealMasterKey,
+  vaultKeyId,
   WrongVaultPassphraseError,
 } from './passphraseEnvelope';
 import type { PassphraseEnvelope } from './passphraseEnvelope';
@@ -62,6 +63,7 @@ export {
   MIN_VAULT_PASSPHRASE_LENGTH,
   openMasterKey,
   sealMasterKey,
+  vaultKeyId,
   WrongVaultPassphraseError,
   activeRecipientKeyPackages,
   decryptDocumentPayload,

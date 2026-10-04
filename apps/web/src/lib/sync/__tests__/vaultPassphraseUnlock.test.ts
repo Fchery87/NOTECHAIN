@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { KeyManager, SecureMemoryStorage, type PassphraseEnvelope } from '@notechain/core-crypto';
+import {
+  encodeRecoveryKey,
+  KeyManager,
+  SecureMemoryStorage,
+  type PassphraseEnvelope,
+} from '@notechain/core-crypto';
 import { EncryptedSyncService, EncryptionRecoveryRequiredError } from '../encryptedSyncService';
 
 const userId = 'user-123';
@@ -62,6 +67,34 @@ describe('signing in on a second device with the vault passphrase', () => {
     await expect(
       desktop.unlockWithEnvelope(envelopeOnServer, 'wrong horse battery staple')
     ).rejects.toThrow('That passphrase does not unlock this vault.');
+    expect(desktop.isReady()).toBe(false);
+  });
+
+  it('locks a device whose key was replaced elsewhere, until the passphrase is entered', async () => {
+    switchToDevice();
+    const staleDevice = EncryptedSyncService.getInstance();
+    await staleDevice.initialize(userId, { allowCreate: true });
+    staleDevice.resetSession();
+
+    await expect(
+      staleDevice.initialize(userId, { allowCreate: false, envelope: envelopeOnServer })
+    ).rejects.toThrow('This device has an outdated key for your vault.');
+
+    await staleDevice.unlockWithEnvelope(envelopeOnServer, passphrase);
+    staleDevice.resetSession();
+    await staleDevice.initialize(userId, { allowCreate: false, envelope: envelopeOnServer });
+
+    expect(await staleDevice.decrypt(ciphertextOnServer)).toEqual(note);
+  });
+
+  it('rejects a recovery key from an older vault', async () => {
+    switchToDevice();
+    const desktop = EncryptedSyncService.getInstance();
+    const olderVaultKey = encodeRecoveryKey(new Uint8Array(32).fill(7));
+
+    await expect(desktop.importRecoveryKey(olderVaultKey, envelopeOnServer)).rejects.toThrow(
+      'That recovery key belongs to an older vault.'
+    );
     expect(desktop.isReady()).toBe(false);
   });
 });

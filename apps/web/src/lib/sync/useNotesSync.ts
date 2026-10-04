@@ -100,6 +100,7 @@ export function useNotesSync() {
 
         await encryptedSyncService.initialize(user.id, {
           allowCreate: !remoteVaultState.hasData && !envelopeResult.envelope,
+          envelope: envelopeResult.envelope,
         });
 
         if (isCancelled) return;
@@ -568,7 +569,7 @@ export function useNotesSync() {
     subscribeToRemoteNoteChanges,
     exportRecoveryKey: () => encryptedSyncService.exportRecoveryKey(),
     importRecoveryKey: async (recoveryKey: string) => {
-      await encryptedSyncService.importRecoveryKey(recoveryKey);
+      await encryptedSyncService.importRecoveryKey(recoveryKey, vaultEnvelope);
       if (user?.id) {
         announceVaultChange({ userId: user.id });
       }

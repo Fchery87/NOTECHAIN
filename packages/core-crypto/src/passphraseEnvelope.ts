@@ -1,3 +1,4 @@
+import nacl from 'tweetnacl';
 import { EncryptionService, PBKDF2_CONFIG } from './encryption';
 
 export const MIN_VAULT_PASSPHRASE_LENGTH = 12;
@@ -8,6 +9,7 @@ export const MIN_VAULT_PASSPHRASE_LENGTH = 12;
  */
 export interface PassphraseEnvelope {
   version: 1;
+  keyId: string;
   iterations: number;
   salt: string;
   nonce: string;
@@ -38,6 +40,18 @@ function fromBase64(value: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * A short fingerprint of the master key. Lets a device notice that its local
+ * key is not the one the vault was sealed with, without opening the envelope.
+ */
+export function vaultKeyId(masterKey: Uint8Array): string {
+  const label = new TextEncoder().encode('NC-VAULT-KEY-ID:');
+  const input = new Uint8Array(label.length + masterKey.length);
+  input.set(label);
+  input.set(masterKey, label.length);
+  return toBase64(nacl.hash(input).slice(0, 9));
+}
+
 export async function sealMasterKey(
   masterKey: Uint8Array,
   passphrase: string,
@@ -59,6 +73,7 @@ export async function sealMasterKey(
 
   return {
     version: 1,
+    keyId: vaultKeyId(masterKey),
     iterations,
     salt: toBase64(salt),
     nonce: toBase64(nonce),

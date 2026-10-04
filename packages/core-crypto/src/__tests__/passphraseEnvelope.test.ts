@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { openMasterKey, sealMasterKey, WrongVaultPassphraseError } from '../index';
+import { openMasterKey, sealMasterKey, vaultKeyId, WrongVaultPassphraseError } from '../index';
 
 describe('Vault passphrase envelope', () => {
   const masterKey = new Uint8Array(Array.from({ length: 32 }, (_, index) => index + 1));
@@ -24,6 +24,14 @@ describe('Vault passphrase envelope', () => {
     const masterKeyBase64 = btoa(String.fromCharCode(...masterKey));
 
     expect(JSON.stringify(envelope)).not.toContain(masterKeyBase64);
+  });
+
+  test('carries a fingerprint that matches only its own master key', async () => {
+    const envelope = await sealMasterKey(masterKey, passphrase);
+    const otherKey = new Uint8Array(32).fill(7);
+
+    expect(envelope.keyId).toBe(vaultKeyId(masterKey));
+    expect(vaultKeyId(otherKey)).not.toBe(envelope.keyId);
   });
 
   test('rejects the wrong passphrase', async () => {
